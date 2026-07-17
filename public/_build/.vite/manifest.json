@@ -1,0 +1,372 @@
+{
+  "_HttpStatusCode-DjTx85av.js": {
+    "file": "assets/HttpStatusCode-DjTx85av.js",
+    "name": "HttpStatusCode"
+  },
+  "_WorkCard-CIL93A77.js": {
+    "file": "assets/WorkCard-CIL93A77.js",
+    "name": "WorkCard",
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_components-r6G1ZlwT.js"
+    ]
+  },
+  "_components-r6G1ZlwT.js": {
+    "file": "assets/components-r6G1ZlwT.js",
+    "name": "components",
+    "imports": [
+      "_index-DKLcnezH.js"
+    ]
+  },
+  "_createAsync-9LDd1E0Z.js": {
+    "file": "assets/createAsync-9LDd1E0Z.js",
+    "name": "createAsync",
+    "imports": [
+      "_index-DKLcnezH.js"
+    ]
+  },
+  "_images-DUzp1oc3.js": {
+    "file": "assets/images-DUzp1oc3.js",
+    "name": "images"
+  },
+  "_index-DKLcnezH.js": {
+    "file": "assets/index-DKLcnezH.js",
+    "name": "index"
+  },
+  "_preload-helper-ug3pwPZ1.js": {
+    "file": "assets/preload-helper-ug3pwPZ1.js",
+    "name": "preload-helper"
+  },
+  "node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2": {
+    "file": "assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2",
+    "src": "node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2"
+  },
+  "node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2": {
+    "file": "assets/outfit-latin-wght-normal-Bc-8i84L.woff2",
+    "src": "node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2": {
+    "file": "assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff": {
+    "file": "assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2": {
+    "file": "assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff": {
+    "file": "assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2": {
+    "file": "assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff": {
+    "file": "assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2": {
+    "file": "assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff": {
+    "file": "assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2": {
+    "file": "assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff": {
+    "file": "assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2": {
+    "file": "assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff": {
+    "file": "assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2": {
+    "file": "assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff": {
+    "file": "assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2": {
+    "file": "assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff": {
+    "file": "assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2": {
+    "file": "assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff": {
+    "file": "assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2": {
+    "file": "assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff": {
+    "file": "assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2": {
+    "file": "assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff": {
+    "file": "assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2": {
+    "file": "assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff": {
+    "file": "assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff"
+  },
+  "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2": {
+    "file": "assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2",
+    "src": "node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2"
+  },
+  "node_modules/motion/dist/es/index.mjs": {
+    "file": "assets/index-D_iTvzxp.js",
+    "name": "index",
+    "src": "node_modules/motion/dist/es/index.mjs",
+    "isDynamicEntry": true
+  },
+  "src/routes/cotizacion.tsx?pick=default&pick=$css": {
+    "file": "assets/cotizacion-BV5ncWoI.js",
+    "name": "cotizacion",
+    "src": "src/routes/cotizacion.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_createAsync-9LDd1E0Z.js"
+    ],
+    "css": [
+      "assets/cotizacion-DfL1dgXL.css"
+    ]
+  },
+  "src/routes/index.tsx?pick=default&pick=$css": {
+    "file": "assets/index-CT1pF5zb.js",
+    "name": "index",
+    "src": "src/routes/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_preload-helper-ug3pwPZ1.js",
+      "_images-DUzp1oc3.js",
+      "_components-r6G1ZlwT.js",
+      "_WorkCard-CIL93A77.js",
+      "_createAsync-9LDd1E0Z.js"
+    ],
+    "dynamicImports": [
+      "node_modules/motion/dist/es/index.mjs"
+    ],
+    "css": [
+      "assets/index-Di2XI-Rq.css"
+    ]
+  },
+  "src/routes/materiales/[slug].tsx?pick=default&pick=$css": {
+    "file": "assets/_slug_-DNqgPTfW.js",
+    "name": "_slug_",
+    "src": "src/routes/materiales/[slug].tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_HttpStatusCode-DjTx85av.js",
+      "_images-DUzp1oc3.js",
+      "_createAsync-9LDd1E0Z.js",
+      "_components-r6G1ZlwT.js"
+    ]
+  },
+  "src/routes/materiales/index.tsx?pick=default&pick=$css": {
+    "file": "assets/index-uSj4QGsA.js",
+    "name": "index",
+    "src": "src/routes/materiales/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_images-DUzp1oc3.js",
+      "_components-r6G1ZlwT.js",
+      "_createAsync-9LDd1E0Z.js"
+    ],
+    "css": [
+      "assets/index-BuiKoTyY.css"
+    ]
+  },
+  "src/routes/trabajos/[slug].tsx?pick=default&pick=$css": {
+    "file": "assets/_slug_-LO3j67Hz.js",
+    "name": "_slug_",
+    "src": "src/routes/trabajos/[slug].tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_HttpStatusCode-DjTx85av.js",
+      "_createAsync-9LDd1E0Z.js",
+      "_components-r6G1ZlwT.js"
+    ]
+  },
+  "src/routes/trabajos/index.tsx?pick=default&pick=$css": {
+    "file": "assets/index-DnadIqC7.js",
+    "name": "index",
+    "src": "src/routes/trabajos/index.tsx?pick=default&pick=$css",
+    "isEntry": true,
+    "isDynamicEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_WorkCard-CIL93A77.js",
+      "_createAsync-9LDd1E0Z.js",
+      "_components-r6G1ZlwT.js"
+    ]
+  },
+  "virtual:$vinxi/handler/client": {
+    "file": "assets/client-BZ_edk_h.js",
+    "name": "client",
+    "src": "virtual:$vinxi/handler/client",
+    "isEntry": true,
+    "imports": [
+      "_index-DKLcnezH.js",
+      "_preload-helper-ug3pwPZ1.js",
+      "_components-r6G1ZlwT.js",
+      "_HttpStatusCode-DjTx85av.js"
+    ],
+    "dynamicImports": [
+      "src/routes/cotizacion.tsx?pick=default&pick=$css",
+      "src/routes/index.tsx?pick=default&pick=$css",
+      "src/routes/materiales/[slug].tsx?pick=default&pick=$css",
+      "src/routes/materiales/index.tsx?pick=default&pick=$css",
+      "src/routes/trabajos/[slug].tsx?pick=default&pick=$css",
+      "src/routes/trabajos/index.tsx?pick=default&pick=$css"
+    ],
+    "css": [
+      "assets/client-B8ii3ENT.css"
+    ],
+    "assets": [
+      "assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2",
+      "assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff",
+      "assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2",
+      "assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff",
+      "assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2",
+      "assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff",
+      "assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2",
+      "assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff",
+      "assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2",
+      "assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff",
+      "assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2",
+      "assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff",
+      "assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2",
+      "assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff",
+      "assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2",
+      "assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff",
+      "assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2",
+      "assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff",
+      "assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2",
+      "assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff",
+      "assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2",
+      "assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff",
+      "assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2",
+      "assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff",
+      "assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2",
+      "assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff",
+      "assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2",
+      "assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff",
+      "assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2",
+      "assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff",
+      "assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2",
+      "assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff",
+      "assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2",
+      "assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff",
+      "assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2",
+      "assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff",
+      "assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2",
+      "assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff",
+      "assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2",
+      "assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff",
+      "assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2",
+      "assets/outfit-latin-wght-normal-Bc-8i84L.woff2"
+    ]
+  }
+}

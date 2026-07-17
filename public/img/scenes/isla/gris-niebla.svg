@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><pattern id="st-gris-niebla" patternUnits="userSpaceOnUse" width="300" height="200"><rect width="300" height="200" fill="#AEB2B5"/><polyline points="0,-26 50,28 100,7 150,11 200,27 250,-4 300,-16" fill="none" stroke="#C6C9CB" stroke-width="2.2" opacity="0.67" stroke-linecap="round"/><polyline points="0,99 50,74 100,60 150,92 200,86 250,85 300,72" fill="none" stroke="#C6C9CB" stroke-width="3.5" opacity="0.63" stroke-linecap="round"/><polyline points="0,78 50,64 100,59 150,95 200,123 250,102 300,125" fill="none" stroke="#9DA1A4" stroke-width="3.4" opacity="0.59" stroke-linecap="round"/><polyline points="0,-30 50,15 100,-29 150,-24 200,34 250,6 300,-0" fill="none" stroke="#C6C9CB" stroke-width="3.9" opacity="0.68" stroke-linecap="round"/><polyline points="0,70 50,103 100,102 150,118 200,127 250,73 300,93" fill="none" stroke="#C6C9CB" stroke-width="2.1" opacity="0.56" stroke-linecap="round"/><polyline points="0,85 50,96 100,85 150,79 200,66 250,90 300,97" fill="none" stroke="#9DA1A4" stroke-width="3.4" opacity="0.34" stroke-linecap="round"/><polyline points="0,82 50,134 100,129 150,105 200,80 250,118 300,86" fill="none" stroke="#C6C9CB" stroke-width="1.6" opacity="0.50" stroke-linecap="round"/></pattern></defs>
+    <rect width="1200" height="800" fill="#F2F1EF"/>
+    <rect x="0" y="60" width="1200" height="300" fill="#EAEAE8" opacity="0.7"/>
+    <circle cx="420" cy="150" r="34" fill="#E8C87A" opacity="0.9"/>
+    <circle cx="620" cy="150" r="34" fill="#E8C87A" opacity="0.9"/>
+    <circle cx="820" cy="150" r="34" fill="#E8C87A" opacity="0.9"/>
+    <polygon points="180,420 1020,420 1100,760 100,760" fill="#F7F6F4" stroke="#E3E6E8" stroke-width="4"/>
+    <polygon points="180,420 1020,420 1040,470 160,470" fill="url(#st-gris-niebla)"/>
+    <polygon points="160,470 100,760 140,760 196,470" fill="url(#st-gris-niebla)"/>
+    <polygon points="1040,470 1100,760 1060,760 1004,470" fill="url(#st-gris-niebla)"/></svg>

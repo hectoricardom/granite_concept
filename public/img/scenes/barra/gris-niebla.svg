@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><pattern id="st-gris-niebla" patternUnits="userSpaceOnUse" width="300" height="200"><rect width="300" height="200" fill="#AEB2B5"/><polyline points="0,-26 50,28 100,7 150,11 200,27 250,-4 300,-16" fill="none" stroke="#C6C9CB" stroke-width="2.2" opacity="0.67" stroke-linecap="round"/><polyline points="0,99 50,74 100,60 150,92 200,86 250,85 300,72" fill="none" stroke="#C6C9CB" stroke-width="3.5" opacity="0.63" stroke-linecap="round"/><polyline points="0,78 50,64 100,59 150,95 200,123 250,102 300,125" fill="none" stroke="#9DA1A4" stroke-width="3.4" opacity="0.59" stroke-linecap="round"/><polyline points="0,-30 50,15 100,-29 150,-24 200,34 250,6 300,-0" fill="none" stroke="#C6C9CB" stroke-width="3.9" opacity="0.68" stroke-linecap="round"/><polyline points="0,70 50,103 100,102 150,118 200,127 250,73 300,93" fill="none" stroke="#C6C9CB" stroke-width="2.1" opacity="0.56" stroke-linecap="round"/><polyline points="0,85 50,96 100,85 150,79 200,66 250,90 300,97" fill="none" stroke="#9DA1A4" stroke-width="3.4" opacity="0.34" stroke-linecap="round"/><polyline points="0,82 50,134 100,129 150,105 200,80 250,118 300,86" fill="none" stroke="#C6C9CB" stroke-width="1.6" opacity="0.50" stroke-linecap="round"/></pattern></defs>
+    <rect width="1200" height="800" fill="#F1EEE9"/>
+    <rect x="200" y="150" width="800" height="26" fill="#C8A97E"/>
+    <rect x="200" y="300" width="800" height="26" fill="#C8A97E"/>
+    <rect x="260" y="90" width="44" height="60" fill="#FBFBFA" stroke="#DDD" stroke-width="3"/>
+    <rect x="330" y="96" width="44" height="54" fill="#FBFBFA" stroke="#DDD" stroke-width="3"/>
+    <rect x="640" y="230" width="120" height="70" fill="#2E3134"/>
+    <rect x="150" y="470" width="900" height="70" fill="url(#st-gris-niebla)"/>
+    <rect x="150" y="540" width="900" height="14" fill="#00000022"/></svg>
