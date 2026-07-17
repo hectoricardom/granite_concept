@@ -1,5 +1,5 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
-import { C as Ct, A as At, R as Rt, L as Lt, b as a, U as U$1, t, n } from '../nitro/nitro.mjs';
+import { C as Ct, A as At, R as Rt, L as Lt, b as a, U as U$1, r, t } from '../nitro/nitro.mjs';
 import { createMemo, For, Show } from 'solid-js';
 import { p } from './WorkCard-DVhptAHi.mjs';
 import { y } from './createAsync-CBz8AaaQ.mjs';
@@ -20,7 +20,7 @@ import 'seroval-plugins/web';
 import '@solid-primitives/i18n';
 
 var L = ["<div", ' style="', '">', "</div>"], P = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', '</p><div class="scene-tabs" role="group"', "><a", ">", "</a><!--$-->", '<!--/--></div><div class="scene-tabs" role="group"', "><a", ">", "</a><!--$-->", "<!--/--></div><!--$-->", "<!--/--></section>"], j = ["<a", ">", "</a>"], k = ["<p", ' style="', '">', "</p>"];
-const z = U$1(() => t(), "trabajos"), H = U$1(() => n(), "materials");
+const z = U$1(() => r(), "trabajos"), H = U$1(() => t(), "materials");
 function U() {
   const u = y(() => z()), $ = y(() => H()), [e] = Ct(), { t: s } = At(), d = createMemo(() => {
     var _a;

@@ -1,8 +1,8 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
 import { J, H, F as F$1 } from './index-Gy6Hlstv.mjs';
 import { Show, For } from 'solid-js';
-import { k, d as n } from '../nitro/nitro.mjs';
-import { E } from './images-DUzp1oc32.mjs';
+import { k, c as t } from '../nitro/nitro.mjs';
+import { w as w$1 } from './images-B43p2foP2.mjs';
 import { A as A$1 } from './components-DxvOFfFE.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import '@solid-primitives/i18n';
@@ -27,11 +27,11 @@ function M(t) {
   return createComponent(A$1, { get href() {
     return `/materiales/${t.material.slug}`;
   }, class: "material-row", get children() {
-    return [ssr(w, ssrHydrationKey() + ssrAttribute("src", escape(E(t.material.slug), true), false), `Textura de ${escape(t.material.nombre, true)}`), ssr(b, ssrHydrationKey(), escape(t.material.nombre), escape(t.material.tipo), escape(t.material.tono), escape("$".repeat(t.material.nivel)), escape(t.material.desc[i()]))];
+    return [ssr(w, ssrHydrationKey() + ssrAttribute("src", escape(w$1(t.material.slug), true), false), `Textura de ${escape(t.material.nombre, true)}`), ssr(b, ssrHydrationKey(), escape(t.material.nombre), escape(t.material.tipo), escape(t.material.tono), escape("$".repeat(t.material.nivel)), escape(t.material.desc[i()]))];
   } });
 }
 var C = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', "</p><!--$-->", "<!--/--></section>"], x = ["<div", ' style="', '">', "</div>"];
-const A = k(() => n(), "materials");
+const A = k(() => t(), "materials");
 function F() {
   const t = y(() => A()), { t: i } = J();
   return ssr(C, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H, { children: "Materiales \u2014 Granite Concepts Louisville" })), escape(createComponent(F$1, { name: "description", content: "Cat\xE1logo de granito, cuarzo y m\xE1rmol para encimeras en Louisville, KY: Carrara, Calacatta, Ubatuba, Negro Absoluto y m\xE1s." })), escape(i("catalogo.titulo")), ssrStyleProperty("max-width:", "38rem"), escape(i("catalogo.intro")), escape(createComponent(Show, { get when() {

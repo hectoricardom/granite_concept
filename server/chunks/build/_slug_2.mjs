@@ -2,7 +2,7 @@ import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 
 import { Show } from 'solid-js';
 import { u } from './HttpStatusCode-DH8IeaZe.mjs';
 import { J, H as H$1, F } from './index-Gy6Hlstv.mjs';
-import { g as tt, k, f as t } from '../nitro/nitro.mjs';
+import { f as tt, k, e as r } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import { A } from './components-DxvOFfFE.mjs';
 import '@solid-primitives/i18n';
@@ -22,7 +22,7 @@ import 'seroval';
 import 'seroval-plugins/web';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = k(() => t(), "trabajos");
+const S = k(() => r(), "trabajos");
 function G() {
   const c = tt(), i = y(() => S()), { t: m, lang: o } = J(), p = () => {
     var _a;

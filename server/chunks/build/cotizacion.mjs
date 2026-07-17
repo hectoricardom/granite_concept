@@ -1,7 +1,7 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
 import { J, H as H$1, F } from './index-Gy6Hlstv.mjs';
 import { Show, createSignal, For } from 'solid-js';
-import { c as nt, k as k$1, d as n } from '../nitro/nitro.mjs';
+import { n as nt, k as k$1, c as t } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import '@solid-primitives/i18n';
 import 'node:http';
@@ -45,7 +45,7 @@ function j(c) {
   } })));
 }
 var k = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', "</p><!--$-->", "<!--/--></section>"];
-const A = k$1(() => n(), "materials");
+const A = k$1(() => t(), "materials");
 function H() {
   const { t: c } = J(), t = y(() => A());
   return ssr(k, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H$1, { children: "Cotizaci\xF3n gratis \u2014 Granite Concepts Louisville" })), escape(createComponent(F, { name: "description", content: "Cotizaci\xF3n gratuita de encimeras de granito, cuarzo y m\xE1rmol en Louisville, KY. Atenci\xF3n en espa\xF1ol e ingl\xE9s." })), escape(c("cotizacion.titulo")), ssrStyleProperty("max-width:", "34rem"), escape(c("cotizacion.intro")), escape(createComponent(Show, { get when() {

@@ -1,6 +1,6 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 'solid-js/web';
 import { Show } from 'solid-js';
-import { x as xt, A as At, R as Rt, L as Lt, u, a as A, U, t } from '../nitro/nitro.mjs';
+import { x as xt, A as At, R as Rt, L as Lt, u, a as A, U, r } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ.mjs';
 import 'node:http';
 import 'node:https';
@@ -19,7 +19,7 @@ import 'seroval-plugins/web';
 import '@solid-primitives/i18n';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = U(() => t(), "trabajos");
+const S = U(() => r(), "trabajos");
 function G() {
   const c = xt(), i = y(() => S()), { t: l, lang: o } = At(), p = () => {
     var _a;
