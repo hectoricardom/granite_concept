@@ -1,6 +1,6 @@
 import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import 'node:http';
 import 'node:https';
-export { y as default } from './chunks/nitro/nitro.mjs';
+export { n as default } from './chunks/nitro/nitro.mjs';
 import 'node:events';
 import 'node:buffer';
 import 'node:fs';
@@ -13,7 +13,4 @@ import 'node:url';
 import 'solid-js';
 import 'solid-js/web';
 import 'solid-js/web/storage';
-import 'seroval';
-import 'seroval-plugins/web';
-import '@solid-primitives/i18n';
 //# sourceMappingURL=index.mjs.map

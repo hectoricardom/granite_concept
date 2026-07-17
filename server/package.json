@@ -1,18 +1,13 @@
 {
-  "name": "granite-showroom-prod",
+  "name": "hrmfinance-prod",
   "version": "0.1.0",
   "type": "module",
   "private": true,
   "dependencies": {
-    "@solid-primitives/i18n": "2.2.1",
-    "framer-motion": "12.42.2",
-    "motion": "12.42.2",
-    "motion-dom": "12.42.2",
-    "motion-utils": "12.39.0",
     "pathe": "1.1.2",
-    "seroval": "1.5.5",
-    "seroval-plugins": "1.5.5",
-    "solid-js": "1.9.14",
+    "seroval": "1.5.4",
+    "seroval-plugins": "1.5.4",
+    "solid-js": "1.9.13",
     "vinxi": "0.5.11"
   }
 }

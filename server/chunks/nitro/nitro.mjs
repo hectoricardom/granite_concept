@@ -9,12 +9,9 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import invariant from 'vinxi/lib/invariant';
 import { virtualId, handlerModule, join as join$1 } from 'vinxi/lib/path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
-import { getOwner, getListener, onCleanup, sharedConfig, createSignal, startTransition, createMemo, useContext, untrack, createContext as createContext$1, createRenderEffect, on, runWithOwner, resetErrorBoundaries, batch, createComponent, lazy, createUniqueId, onMount, mergeProps as mergeProps$1, splitProps, catchError, ErrorBoundary, Suspense, children, Show, createRoot } from 'solid-js';
-import { isServer, getRequestEvent, renderToString, ssrElement, escape, mergeProps, ssr, createComponent as createComponent$1, useAssets, spread, renderToStream, ssrHydrationKey, NoHydration, Hydration, ssrAttribute, HydrationScript, delegateEvents } from 'solid-js/web';
+import { sharedConfig, lazy, createComponent, catchError, onCleanup } from 'solid-js';
+import { renderToString, isServer, getRequestEvent, ssrElement, escape, mergeProps, ssr, createComponent as createComponent$1, ssrHydrationKey, NoHydration, ssrAttribute } from 'solid-js/web';
 import { provideRequestEvent } from 'solid-js/web/storage';
-import { Feature, fromJSON, crossSerializeStream, getCrossReferenceHeader, toCrossJSONStream } from 'seroval';
-import { AbortSignalPlugin, CustomEventPlugin, DOMExceptionPlugin, EventPlugin, FormDataPlugin, HeadersPlugin, ReadableStreamPlugin, RequestPlugin, ResponsePlugin, URLSearchParamsPlugin, URLPlugin } from 'seroval-plugins/web';
-import * as se from '@solid-primitives/i18n';
 
 const suspectProtoRx = /"(?:_|\\u0{2}5[Ff]){2}(?:p|\\u0{2}70)(?:r|\\u0{2}72)(?:o|\\u0{2}6[Ff])(?:t|\\u0{2}74)(?:o|\\u0{2}6[Ff])(?:_|\\u0{2}5[Ff]){2}"\s*:/;
 const suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
@@ -305,6 +302,217 @@ function stringifyParsedURL(parsed) {
   const host = parsed.host || "";
   const proto = parsed.protocol || parsed[protocolRelative] ? (parsed.protocol || "") + "//" : "";
   return proto + auth + host + pathname + search + hash;
+}
+
+const NullObject = /* @__PURE__ */ (() => {
+  const C = function() {
+  };
+  C.prototype = /* @__PURE__ */ Object.create(null);
+  return C;
+})();
+function parse(str, options) {
+  if (typeof str !== "string") {
+    throw new TypeError("argument str must be a string");
+  }
+  const obj = new NullObject();
+  const opt = {};
+  const dec = opt.decode || decode;
+  let index = 0;
+  while (index < str.length) {
+    const eqIdx = str.indexOf("=", index);
+    if (eqIdx === -1) {
+      break;
+    }
+    let endIdx = str.indexOf(";", index);
+    if (endIdx === -1) {
+      endIdx = str.length;
+    } else if (endIdx < eqIdx) {
+      index = str.lastIndexOf(";", eqIdx - 1) + 1;
+      continue;
+    }
+    const key = str.slice(index, eqIdx).trim();
+    if (opt?.filter && !opt?.filter(key)) {
+      index = endIdx + 1;
+      continue;
+    }
+    if (void 0 === obj[key]) {
+      let val = str.slice(eqIdx + 1, endIdx).trim();
+      if (val.codePointAt(0) === 34) {
+        val = val.slice(1, -1);
+      }
+      obj[key] = tryDecode(val, dec);
+    }
+    index = endIdx + 1;
+  }
+  return obj;
+}
+function decode(str) {
+  return str.includes("%") ? decodeURIComponent(str) : str;
+}
+function tryDecode(str, decode2) {
+  try {
+    return decode2(str);
+  } catch {
+    return str;
+  }
+}
+
+const fieldContentRegExp = /^[\u0009\u0020-\u007E\u0080-\u00FF]+$/;
+function serialize$1(name, value, options) {
+  const opt = options || {};
+  const enc = opt.encode || encodeURIComponent;
+  if (typeof enc !== "function") {
+    throw new TypeError("option encode is invalid");
+  }
+  if (!fieldContentRegExp.test(name)) {
+    throw new TypeError("argument name is invalid");
+  }
+  const encodedValue = enc(value);
+  if (encodedValue && !fieldContentRegExp.test(encodedValue)) {
+    throw new TypeError("argument val is invalid");
+  }
+  let str = name + "=" + encodedValue;
+  if (void 0 !== opt.maxAge && opt.maxAge !== null) {
+    const maxAge = opt.maxAge - 0;
+    if (Number.isNaN(maxAge) || !Number.isFinite(maxAge)) {
+      throw new TypeError("option maxAge is invalid");
+    }
+    str += "; Max-Age=" + Math.floor(maxAge);
+  }
+  if (opt.domain) {
+    if (!fieldContentRegExp.test(opt.domain)) {
+      throw new TypeError("option domain is invalid");
+    }
+    str += "; Domain=" + opt.domain;
+  }
+  if (opt.path) {
+    if (!fieldContentRegExp.test(opt.path)) {
+      throw new TypeError("option path is invalid");
+    }
+    str += "; Path=" + opt.path;
+  }
+  if (opt.expires) {
+    if (!isDate(opt.expires) || Number.isNaN(opt.expires.valueOf())) {
+      throw new TypeError("option expires is invalid");
+    }
+    str += "; Expires=" + opt.expires.toUTCString();
+  }
+  if (opt.httpOnly) {
+    str += "; HttpOnly";
+  }
+  if (opt.secure) {
+    str += "; Secure";
+  }
+  if (opt.priority) {
+    const priority = typeof opt.priority === "string" ? opt.priority.toLowerCase() : opt.priority;
+    switch (priority) {
+      case "low": {
+        str += "; Priority=Low";
+        break;
+      }
+      case "medium": {
+        str += "; Priority=Medium";
+        break;
+      }
+      case "high": {
+        str += "; Priority=High";
+        break;
+      }
+      default: {
+        throw new TypeError("option priority is invalid");
+      }
+    }
+  }
+  if (opt.sameSite) {
+    const sameSite = typeof opt.sameSite === "string" ? opt.sameSite.toLowerCase() : opt.sameSite;
+    switch (sameSite) {
+      case true: {
+        str += "; SameSite=Strict";
+        break;
+      }
+      case "lax": {
+        str += "; SameSite=Lax";
+        break;
+      }
+      case "strict": {
+        str += "; SameSite=Strict";
+        break;
+      }
+      case "none": {
+        str += "; SameSite=None";
+        break;
+      }
+      default: {
+        throw new TypeError("option sameSite is invalid");
+      }
+    }
+  }
+  if (opt.partitioned) {
+    str += "; Partitioned";
+  }
+  return str;
+}
+function isDate(val) {
+  return Object.prototype.toString.call(val) === "[object Date]" || val instanceof Date;
+}
+
+function parseSetCookie(setCookieValue, options) {
+  const parts = (setCookieValue || "").split(";").filter((str) => typeof str === "string" && !!str.trim());
+  const nameValuePairStr = parts.shift() || "";
+  const parsed = _parseNameValuePair(nameValuePairStr);
+  const name = parsed.name;
+  let value = parsed.value;
+  try {
+    value = options?.decode === false ? value : (options?.decode || decodeURIComponent)(value);
+  } catch {
+  }
+  const cookie = {
+    name,
+    value
+  };
+  for (const part of parts) {
+    const sides = part.split("=");
+    const partKey = (sides.shift() || "").trimStart().toLowerCase();
+    const partValue = sides.join("=");
+    switch (partKey) {
+      case "expires": {
+        cookie.expires = new Date(partValue);
+        break;
+      }
+      case "max-age": {
+        cookie.maxAge = Number.parseInt(partValue, 10);
+        break;
+      }
+      case "secure": {
+        cookie.secure = true;
+        break;
+      }
+      case "httponly": {
+        cookie.httpOnly = true;
+        break;
+      }
+      case "samesite": {
+        cookie.sameSite = partValue;
+        break;
+      }
+      default: {
+        cookie[partKey] = partValue;
+      }
+    }
+  }
+  return cookie;
+}
+function _parseNameValuePair(nameValuePairStr) {
+  let name = "";
+  let value = "";
+  const nameValueArr = nameValuePairStr.split("=");
+  if (nameValueArr.length > 1) {
+    name = nameValueArr.shift();
+    value = nameValueArr.join("=");
+  } else {
+    value = nameValuePairStr;
+  }
+  return { name, value };
 }
 
 const NODE_TYPES = {
@@ -598,9 +806,9 @@ const defuFn = createDefu((object, key, currentValue) => {
   }
 });
 
-function o$2(n){throw new Error(`${n} is not implemented yet!`)}let i$3 = class i extends EventEmitter{__unenv__={};readableEncoding=null;readableEnded=true;readableFlowing=false;readableHighWaterMark=0;readableLength=0;readableObjectMode=false;readableAborted=false;readableDidRead=false;closed=false;errored=null;readable=false;destroyed=false;static from(e,t){return new i(t)}constructor(e){super();}_read(e){}read(e){}setEncoding(e){return this}pause(){return this}resume(){return this}isPaused(){return  true}unpipe(e){return this}unshift(e,t){}wrap(e){return this}push(e,t){return  false}_destroy(e,t){this.removeAllListeners();}destroy(e){return this.destroyed=true,this._destroy(e),this}pipe(e,t){return {}}compose(e,t){throw new Error("Method not implemented.")}[Symbol.asyncDispose](){return this.destroy(),Promise.resolve()}async*[Symbol.asyncIterator](){throw o$2("Readable.asyncIterator")}iterator(e){throw o$2("Readable.iterator")}map(e,t){throw o$2("Readable.map")}filter(e,t){throw o$2("Readable.filter")}forEach(e,t){throw o$2("Readable.forEach")}reduce(e,t,r){throw o$2("Readable.reduce")}find(e,t){throw o$2("Readable.find")}findIndex(e,t){throw o$2("Readable.findIndex")}some(e,t){throw o$2("Readable.some")}toArray(e){throw o$2("Readable.toArray")}every(e,t){throw o$2("Readable.every")}flatMap(e,t){throw o$2("Readable.flatMap")}drop(e,t){throw o$2("Readable.drop")}take(e,t){throw o$2("Readable.take")}asIndexedPairs(e){throw o$2("Readable.asIndexedPairs")}};let l$1 = class l extends EventEmitter{__unenv__={};writable=true;writableEnded=false;writableFinished=false;writableHighWaterMark=0;writableLength=0;writableObjectMode=false;writableCorked=0;closed=false;errored=null;writableNeedDrain=false;writableAborted=false;destroyed=false;_data;_encoding="utf8";constructor(e){super();}pipe(e,t){return {}}_write(e,t,r){if(this.writableEnded){r&&r();return}if(this._data===void 0)this._data=e;else {const s=typeof this._data=="string"?Buffer$1.from(this._data,this._encoding||t||"utf8"):this._data,a=typeof e=="string"?Buffer$1.from(e,t||this._encoding||"utf8"):e;this._data=Buffer$1.concat([s,a]);}this._encoding=t,r&&r();}_writev(e,t){}_destroy(e,t){}_final(e){}write(e,t,r){const s=typeof t=="string"?this._encoding:"utf8",a=typeof t=="function"?t:typeof r=="function"?r:void 0;return this._write(e,s,a),true}setDefaultEncoding(e){return this}end(e,t,r){const s=typeof e=="function"?e:typeof t=="function"?t:typeof r=="function"?r:void 0;if(this.writableEnded)return s&&s(),this;const a=e===s?void 0:e;if(a){const u=t===s?void 0:t;this.write(a,u,s);}return this.writableEnded=true,this.writableFinished=true,this.emit("close"),this.emit("finish"),this}cork(){}uncork(){}destroy(e){return this.destroyed=true,delete this._data,this.removeAllListeners(),this}compose(e,t){throw new Error("Method not implemented.")}[Symbol.asyncDispose](){return Promise.resolve()}};const c=class{allowHalfOpen=true;_destroy;constructor(e=new i$3,t=new l$1){Object.assign(this,e),Object.assign(this,t),this._destroy=m(e._destroy,t._destroy);}};function _$2(){return Object.assign(c.prototype,i$3.prototype),Object.assign(c.prototype,l$1.prototype),c}function m(...n){return function(...e){for(const t of n)t(...e);}}const g=_$2();let A$2 = class A extends g{__unenv__={};bufferSize=0;bytesRead=0;bytesWritten=0;connecting=false;destroyed=false;pending=false;localAddress="";localPort=0;remoteAddress="";remoteFamily="";remotePort=0;autoSelectFamilyAttemptedAddresses=[];readyState="readOnly";constructor(e){super();}write(e,t,r){return  false}connect(e,t,r){return this}end(e,t,r){return this}setEncoding(e){return this}pause(){return this}resume(){return this}setTimeout(e,t){return this}setNoDelay(e){return this}setKeepAlive(e,t){return this}address(){return {}}unref(){return this}ref(){return this}destroySoon(){this.destroy();}resetAndDestroy(){const e=new Error("ERR_SOCKET_CLOSED");return e.code="ERR_SOCKET_CLOSED",this.destroy(e),this}};class y extends i$3{aborted=false;httpVersion="1.1";httpVersionMajor=1;httpVersionMinor=1;complete=true;connection;socket;headers={};trailers={};method="GET";url="/";statusCode=200;statusMessage="";closed=false;errored=null;readable=false;constructor(e){super(),this.socket=this.connection=e||new A$2;}get rawHeaders(){const e=this.headers,t=[];for(const r in e)if(Array.isArray(e[r]))for(const s of e[r])t.push(r,s);else t.push(r,e[r]);return t}get rawTrailers(){return []}setTimeout(e,t){return this}get headersDistinct(){return p(this.headers)}get trailersDistinct(){return p(this.trailers)}}function p(n){const e={};for(const[t,r]of Object.entries(n))t&&(e[t]=(Array.isArray(r)?r:[r]).filter(Boolean));return e}let w$1 = class w extends l$1{statusCode=200;statusMessage="";upgrading=false;chunkedEncoding=false;shouldKeepAlive=false;useChunkedEncodingByDefault=false;sendDate=false;finished=false;headersSent=false;strictContentLength=false;connection=null;socket=null;req;_headers={};constructor(e){super(),this.req=e;}assignSocket(e){e._httpMessage=this,this.socket=e,this.connection=e,this.emit("socket",e),this._flush();}_flush(){this.flushHeaders();}detachSocket(e){}writeContinue(e){}writeHead(e,t,r){e&&(this.statusCode=e),typeof t=="string"&&(this.statusMessage=t,t=void 0);const s=r||t;if(s&&!Array.isArray(s))for(const a in s)this.setHeader(a,s[a]);return this.headersSent=true,this}writeProcessing(){}setTimeout(e,t){return this}appendHeader(e,t){e=e.toLowerCase();const r=this._headers[e],s=[...Array.isArray(r)?r:[r],...Array.isArray(t)?t:[t]].filter(Boolean);return this._headers[e]=s.length>1?s:s[0],this}setHeader(e,t){return this._headers[e.toLowerCase()]=t,this}setHeaders(e){for(const[t,r]of Object.entries(e))this.setHeader(t,r);return this}getHeader(e){return this._headers[e.toLowerCase()]}getHeaders(){return this._headers}getHeaderNames(){return Object.keys(this._headers)}hasHeader(e){return e.toLowerCase()in this._headers}removeHeader(e){delete this._headers[e.toLowerCase()];}addTrailers(e){}flushHeaders(){}writeEarlyHints(e,t){typeof t=="function"&&t();}};const E$1=(()=>{const n=function(){};return n.prototype=Object.create(null),n})();function R(n={}){const e=new E$1,t=Array.isArray(n)||H$2(n)?n:Object.entries(n);for(const[r,s]of t)if(s){if(e[r]===void 0){e[r]=s;continue}e[r]=[...Array.isArray(e[r])?e[r]:[e[r]],...Array.isArray(s)?s:[s]];}return e}function H$2(n){return typeof n?.entries=="function"}function v$1(n={}){if(n instanceof Headers)return n;const e=new Headers;for(const[t,r]of Object.entries(n))if(r!==void 0){if(Array.isArray(r)){for(const s of r)e.append(t,String(s));continue}e.set(t,String(r));}return e}const S$2=new Set([101,204,205,304]);async function b$1(n,e){const t=new y,r=new w$1(t);t.url=e.url?.toString()||"/";let s;if(!t.url.startsWith("/")){const d=new URL(t.url);s=d.host,t.url=d.pathname+d.search+d.hash;}t.method=e.method||"GET",t.headers=R(e.headers||{}),t.headers.host||(t.headers.host=e.host||s||"localhost"),t.connection.encrypted=t.connection.encrypted||e.protocol==="https",t.body=e.body||null,t.__unenv__=e.context,await n(t,r);let a=r._data;(S$2.has(r.statusCode)||t.method.toUpperCase()==="HEAD")&&(a=null,delete r._headers["content-length"]);const u={status:r.statusCode,statusText:r.statusMessage,headers:r._headers,body:a};return t.destroy(),r.destroy(),u}async function C$1(n,e,t={}){try{const r=await b$1(n,{url:e,...t});return new Response(r.body,{status:r.status,statusText:r.statusText,headers:v$1(r.headers)})}catch(r){return new Response(r.toString(),{status:Number.parseInt(r.statusCode||r.code)||500,statusText:r.statusText})}}
+function o(n){throw new Error(`${n} is not implemented yet!`)}let i$1 = class i extends EventEmitter{__unenv__={};readableEncoding=null;readableEnded=true;readableFlowing=false;readableHighWaterMark=0;readableLength=0;readableObjectMode=false;readableAborted=false;readableDidRead=false;closed=false;errored=null;readable=false;destroyed=false;static from(e,t){return new i(t)}constructor(e){super();}_read(e){}read(e){}setEncoding(e){return this}pause(){return this}resume(){return this}isPaused(){return  true}unpipe(e){return this}unshift(e,t){}wrap(e){return this}push(e,t){return  false}_destroy(e,t){this.removeAllListeners();}destroy(e){return this.destroyed=true,this._destroy(e),this}pipe(e,t){return {}}compose(e,t){throw new Error("Method not implemented.")}[Symbol.asyncDispose](){return this.destroy(),Promise.resolve()}async*[Symbol.asyncIterator](){throw o("Readable.asyncIterator")}iterator(e){throw o("Readable.iterator")}map(e,t){throw o("Readable.map")}filter(e,t){throw o("Readable.filter")}forEach(e,t){throw o("Readable.forEach")}reduce(e,t,r){throw o("Readable.reduce")}find(e,t){throw o("Readable.find")}findIndex(e,t){throw o("Readable.findIndex")}some(e,t){throw o("Readable.some")}toArray(e){throw o("Readable.toArray")}every(e,t){throw o("Readable.every")}flatMap(e,t){throw o("Readable.flatMap")}drop(e,t){throw o("Readable.drop")}take(e,t){throw o("Readable.take")}asIndexedPairs(e){throw o("Readable.asIndexedPairs")}};let l$2 = class l extends EventEmitter{__unenv__={};writable=true;writableEnded=false;writableFinished=false;writableHighWaterMark=0;writableLength=0;writableObjectMode=false;writableCorked=0;closed=false;errored=null;writableNeedDrain=false;writableAborted=false;destroyed=false;_data;_encoding="utf8";constructor(e){super();}pipe(e,t){return {}}_write(e,t,r){if(this.writableEnded){r&&r();return}if(this._data===void 0)this._data=e;else {const s=typeof this._data=="string"?Buffer$1.from(this._data,this._encoding||t||"utf8"):this._data,a=typeof e=="string"?Buffer$1.from(e,t||this._encoding||"utf8"):e;this._data=Buffer$1.concat([s,a]);}this._encoding=t,r&&r();}_writev(e,t){}_destroy(e,t){}_final(e){}write(e,t,r){const s=typeof t=="string"?this._encoding:"utf8",a=typeof t=="function"?t:typeof r=="function"?r:void 0;return this._write(e,s,a),true}setDefaultEncoding(e){return this}end(e,t,r){const s=typeof e=="function"?e:typeof t=="function"?t:typeof r=="function"?r:void 0;if(this.writableEnded)return s&&s(),this;const a=e===s?void 0:e;if(a){const u=t===s?void 0:t;this.write(a,u,s);}return this.writableEnded=true,this.writableFinished=true,this.emit("close"),this.emit("finish"),this}cork(){}uncork(){}destroy(e){return this.destroyed=true,delete this._data,this.removeAllListeners(),this}compose(e,t){throw new Error("Method not implemented.")}[Symbol.asyncDispose](){return Promise.resolve()}};const c=class{allowHalfOpen=true;_destroy;constructor(e=new i$1,t=new l$2){Object.assign(this,e),Object.assign(this,t),this._destroy=m$1(e._destroy,t._destroy);}};function _$2(){return Object.assign(c.prototype,i$1.prototype),Object.assign(c.prototype,l$2.prototype),c}function m$1(...n){return function(...e){for(const t of n)t(...e);}}const g$2=_$2();class A extends g$2{__unenv__={};bufferSize=0;bytesRead=0;bytesWritten=0;connecting=false;destroyed=false;pending=false;localAddress="";localPort=0;remoteAddress="";remoteFamily="";remotePort=0;autoSelectFamilyAttemptedAddresses=[];readyState="readOnly";constructor(e){super();}write(e,t,r){return  false}connect(e,t,r){return this}end(e,t,r){return this}setEncoding(e){return this}pause(){return this}resume(){return this}setTimeout(e,t){return this}setNoDelay(e){return this}setKeepAlive(e,t){return this}address(){return {}}unref(){return this}ref(){return this}destroySoon(){this.destroy();}resetAndDestroy(){const e=new Error("ERR_SOCKET_CLOSED");return e.code="ERR_SOCKET_CLOSED",this.destroy(e),this}}let y$2 = class y extends i$1{aborted=false;httpVersion="1.1";httpVersionMajor=1;httpVersionMinor=1;complete=true;connection;socket;headers={};trailers={};method="GET";url="/";statusCode=200;statusMessage="";closed=false;errored=null;readable=false;constructor(e){super(),this.socket=this.connection=e||new A;}get rawHeaders(){const e=this.headers,t=[];for(const r in e)if(Array.isArray(e[r]))for(const s of e[r])t.push(r,s);else t.push(r,e[r]);return t}get rawTrailers(){return []}setTimeout(e,t){return this}get headersDistinct(){return p(this.headers)}get trailersDistinct(){return p(this.trailers)}};function p(n){const e={};for(const[t,r]of Object.entries(n))t&&(e[t]=(Array.isArray(r)?r:[r]).filter(Boolean));return e}let w$1 = class w extends l$2{statusCode=200;statusMessage="";upgrading=false;chunkedEncoding=false;shouldKeepAlive=false;useChunkedEncodingByDefault=false;sendDate=false;finished=false;headersSent=false;strictContentLength=false;connection=null;socket=null;req;_headers={};constructor(e){super(),this.req=e;}assignSocket(e){e._httpMessage=this,this.socket=e,this.connection=e,this.emit("socket",e),this._flush();}_flush(){this.flushHeaders();}detachSocket(e){}writeContinue(e){}writeHead(e,t,r){e&&(this.statusCode=e),typeof t=="string"&&(this.statusMessage=t,t=void 0);const s=r||t;if(s&&!Array.isArray(s))for(const a in s)this.setHeader(a,s[a]);return this.headersSent=true,this}writeProcessing(){}setTimeout(e,t){return this}appendHeader(e,t){e=e.toLowerCase();const r=this._headers[e],s=[...Array.isArray(r)?r:[r],...Array.isArray(t)?t:[t]].filter(Boolean);return this._headers[e]=s.length>1?s:s[0],this}setHeader(e,t){return this._headers[e.toLowerCase()]=t,this}setHeaders(e){for(const[t,r]of Object.entries(e))this.setHeader(t,r);return this}getHeader(e){return this._headers[e.toLowerCase()]}getHeaders(){return this._headers}getHeaderNames(){return Object.keys(this._headers)}hasHeader(e){return e.toLowerCase()in this._headers}removeHeader(e){delete this._headers[e.toLowerCase()];}addTrailers(e){}flushHeaders(){}writeEarlyHints(e,t){typeof t=="function"&&t();}};const E$2=(()=>{const n=function(){};return n.prototype=Object.create(null),n})();function R$1(n={}){const e=new E$2,t=Array.isArray(n)||H$2(n)?n:Object.entries(n);for(const[r,s]of t)if(s){if(e[r]===void 0){e[r]=s;continue}e[r]=[...Array.isArray(e[r])?e[r]:[e[r]],...Array.isArray(s)?s:[s]];}return e}function H$2(n){return typeof n?.entries=="function"}function v$1(n={}){if(n instanceof Headers)return n;const e=new Headers;for(const[t,r]of Object.entries(n))if(r!==void 0){if(Array.isArray(r)){for(const s of r)e.append(t,String(s));continue}e.set(t,String(r));}return e}const S$2=new Set([101,204,205,304]);async function b$1(n,e){const t=new y$2,r=new w$1(t);t.url=e.url?.toString()||"/";let s;if(!t.url.startsWith("/")){const d=new URL(t.url);s=d.host,t.url=d.pathname+d.search+d.hash;}t.method=e.method||"GET",t.headers=R$1(e.headers||{}),t.headers.host||(t.headers.host=e.host||s||"localhost"),t.connection.encrypted=t.connection.encrypted||e.protocol==="https",t.body=e.body||null,t.__unenv__=e.context,await n(t,r);let a=r._data;(S$2.has(r.statusCode)||t.method.toUpperCase()==="HEAD")&&(a=null,delete r._headers["content-length"]);const u={status:r.statusCode,statusText:r.statusMessage,headers:r._headers,body:a};return t.destroy(),r.destroy(),u}async function C$1(n,e,t={}){try{const r=await b$1(n,{url:e,...t});return new Response(r.body,{status:r.status,statusText:r.statusText,headers:v$1(r.headers)})}catch(r){return new Response(r.toString(),{status:Number.parseInt(r.statusCode||r.code)||500,statusText:r.statusText})}}
 
-function hasProp$1(obj, prop) {
+function hasProp(obj, prop) {
   try {
     return prop in obj;
   } catch {
@@ -608,7 +816,7 @@ function hasProp$1(obj, prop) {
   }
 }
 
-let H3Error$1 = class H3Error extends Error {
+class H3Error extends Error {
   static __h3_error__ = true;
   statusCode = 500;
   fatal = false;
@@ -625,28 +833,28 @@ let H3Error$1 = class H3Error extends Error {
   toJSON() {
     const obj = {
       message: this.message,
-      statusCode: sanitizeStatusCode$1(this.statusCode, 500)
+      statusCode: sanitizeStatusCode(this.statusCode, 500)
     };
     if (this.statusMessage) {
-      obj.statusMessage = sanitizeStatusMessage$1(this.statusMessage);
+      obj.statusMessage = sanitizeStatusMessage(this.statusMessage);
     }
     if (this.data !== void 0) {
       obj.data = this.data;
     }
     return obj;
   }
-};
-function createError$2(input) {
+}
+function createError$1(input) {
   if (typeof input === "string") {
-    return new H3Error$1(input);
+    return new H3Error(input);
   }
-  if (isError$1(input)) {
+  if (isError(input)) {
     return input;
   }
-  const err = new H3Error$1(input.message ?? input.statusMessage ?? "", {
+  const err = new H3Error(input.message ?? input.statusMessage ?? "", {
     cause: input.cause || input
   });
-  if (hasProp$1(input, "stack")) {
+  if (hasProp(input, "stack")) {
     try {
       Object.defineProperty(err, "stack", {
         get() {
@@ -664,9 +872,9 @@ function createError$2(input) {
     err.data = input.data;
   }
   if (input.statusCode) {
-    err.statusCode = sanitizeStatusCode$1(input.statusCode, err.statusCode);
+    err.statusCode = sanitizeStatusCode(input.statusCode, err.statusCode);
   } else if (input.status) {
-    err.statusCode = sanitizeStatusCode$1(input.status, err.statusCode);
+    err.statusCode = sanitizeStatusCode(input.status, err.statusCode);
   }
   if (input.statusMessage) {
     err.statusMessage = input.statusMessage;
@@ -675,7 +883,7 @@ function createError$2(input) {
   }
   if (err.statusMessage) {
     const originalMessage = err.statusMessage;
-    const sanitizedMessage = sanitizeStatusMessage$1(err.statusMessage);
+    const sanitizedMessage = sanitizeStatusMessage(err.statusMessage);
     if (sanitizedMessage !== originalMessage) {
       console.warn(
         "[h3] Please prefer using `message` for longer error messages instead of `statusMessage`. In the future, `statusMessage` will be sanitized by default."
@@ -694,7 +902,7 @@ function sendError(event, error, debug) {
   if (event.handled) {
     return;
   }
-  const h3Error = isError$1(error) ? error : createError$2(error);
+  const h3Error = isError(error) ? error : createError$1(error);
   const responseBody = {
     statusCode: h3Error.statusCode,
     statusMessage: h3Error.statusMessage,
@@ -708,14 +916,14 @@ function sendError(event, error, debug) {
     return;
   }
   const _code = Number.parseInt(h3Error.statusCode);
-  setResponseStatus$1(event, _code, h3Error.statusMessage);
-  event.node.res.setHeader("content-type", MIMES$1.json);
+  setResponseStatus(event, _code, h3Error.statusMessage);
+  event.node.res.setHeader("content-type", MIMES.json);
   event.node.res.end(JSON.stringify(responseBody, void 0, 2));
 }
-function isError$1(input) {
+function isError(input) {
   return input?.constructor?.__h3_error__ === true;
 }
-function isMethod$1(event, expected, allowHead) {
+function isMethod(event, expected, allowHead) {
   if (typeof expected === "string") {
     if (event.method === expected) {
       return true;
@@ -725,15 +933,15 @@ function isMethod$1(event, expected, allowHead) {
   }
   return false;
 }
-function assertMethod$1(event, expected, allowHead) {
-  if (!isMethod$1(event, expected)) {
-    throw createError$2({
+function assertMethod(event, expected, allowHead) {
+  if (!isMethod(event, expected)) {
+    throw createError$1({
       statusCode: 405,
       statusMessage: "HTTP method is not allowed."
     });
   }
 }
-function getRequestHeaders$1(event) {
+function getRequestHeaders(event) {
   const _headers = {};
   for (const key in event.node.req.headers) {
     const val = event.node.req.headers[key];
@@ -741,12 +949,12 @@ function getRequestHeaders$1(event) {
   }
   return _headers;
 }
-function getRequestHeader$1(event, name) {
-  const headers = getRequestHeaders$1(event);
+function getRequestHeader(event, name) {
+  const headers = getRequestHeaders(event);
   const value = headers[name.toLowerCase()];
   return value;
 }
-function getRequestHost$1(event, opts = {}) {
+function getRequestHost(event, opts = {}) {
   if (opts.xForwardedHost) {
     const _header = event.node.req.headers["x-forwarded-host"];
     const xForwardedHost = (_header || "").split(",").shift()?.trim();
@@ -756,27 +964,41 @@ function getRequestHost$1(event, opts = {}) {
   }
   return event.node.req.headers.host || "localhost";
 }
-function getRequestProtocol$1(event, opts = {}) {
+function getRequestProtocol(event, opts = {}) {
   if (opts.xForwardedProto !== false && event.node.req.headers["x-forwarded-proto"] === "https") {
     return "https";
   }
   return event.node.req.connection?.encrypted ? "https" : "http";
 }
-function getRequestURL$1(event, opts = {}) {
-  const host = getRequestHost$1(event, opts);
-  const protocol = getRequestProtocol$1(event, opts);
+function getRequestURL(event, opts = {}) {
+  const host = getRequestHost(event, opts);
+  const protocol = getRequestProtocol(event, opts);
   const path = (event.node.req.originalUrl || event.path).replace(
     /^[/\\]+/g,
     "/"
   );
   return new URL(path, `${protocol}://${host}`);
 }
+function getRequestIP(event, opts = {}) {
+  if (event.context.clientAddress) {
+    return event.context.clientAddress;
+  }
+  if (opts.xForwardedFor) {
+    const xForwardedFor = getRequestHeader(event, "x-forwarded-for")?.split(",").shift()?.trim();
+    if (xForwardedFor) {
+      return xForwardedFor;
+    }
+  }
+  if (event.node.req.socket.remoteAddress) {
+    return event.node.req.socket.remoteAddress;
+  }
+}
 
-const RawBodySymbol$1 = Symbol.for("h3RawBody");
-const PayloadMethods$1$1 = ["PATCH", "POST", "PUT", "DELETE"];
-function readRawBody$1(event, encoding = "utf8") {
-  assertMethod$1(event, PayloadMethods$1$1);
-  const _rawBody = event._requestBody || event.web?.request?.body || event.node.req[RawBodySymbol$1] || event.node.req.rawBody || event.node.req.body;
+const RawBodySymbol = Symbol.for("h3RawBody");
+const PayloadMethods$1 = ["PATCH", "POST", "PUT", "DELETE"];
+function readRawBody(event, encoding = "utf8") {
+  assertMethod(event, PayloadMethods$1);
+  const _rawBody = event._requestBody || event.web?.request?.body || event.node.req[RawBodySymbol] || event.node.req.rawBody || event.node.req.body;
   if (_rawBody) {
     const promise2 = Promise.resolve(_rawBody).then((_resolved) => {
       if (Buffer.isBuffer(_resolved)) {
@@ -827,7 +1049,7 @@ function readRawBody$1(event, encoding = "utf8") {
   )) {
     return Promise.resolve(void 0);
   }
-  const promise = event.node.req[RawBodySymbol$1] = new Promise(
+  const promise = event.node.req[RawBodySymbol] = new Promise(
     (resolve, reject) => {
       const bodyData = [];
       event.node.req.on("error", (err) => {
@@ -842,19 +1064,19 @@ function readRawBody$1(event, encoding = "utf8") {
   const result = encoding ? promise.then((buff) => buff.toString(encoding)) : promise;
   return result;
 }
-function getRequestWebStream$1(event) {
-  if (!PayloadMethods$1$1.includes(event.method)) {
+function getRequestWebStream(event) {
+  if (!PayloadMethods$1.includes(event.method)) {
     return;
   }
   const bodyStream = event.web?.request?.body || event._requestBody;
   if (bodyStream) {
     return bodyStream;
   }
-  const _hasRawBody = RawBodySymbol$1 in event.node.req || "rawBody" in event.node.req || "body" in event.node.req || "__unenv__" in event.node.req;
+  const _hasRawBody = RawBodySymbol in event.node.req || "rawBody" in event.node.req || "body" in event.node.req || "__unenv__" in event.node.req;
   if (_hasRawBody) {
     return new ReadableStream({
       async start(controller) {
-        const _rawBody = await readRawBody$1(event, false);
+        const _rawBody = await readRawBody(event, false);
         if (_rawBody) {
           controller.enqueue(_rawBody);
         }
@@ -909,16 +1131,16 @@ function handleCacheHeaders(event, opts) {
   return false;
 }
 
-const MIMES$1 = {
+const MIMES = {
   html: "text/html",
   json: "application/json"
 };
 
-const DISALLOWED_STATUS_CHARS$1 = /[^\u0009\u0020-\u007E]/g;
-function sanitizeStatusMessage$1(statusMessage = "") {
-  return statusMessage.replace(DISALLOWED_STATUS_CHARS$1, "");
+const DISALLOWED_STATUS_CHARS = /[^\u0009\u0020-\u007E]/g;
+function sanitizeStatusMessage(statusMessage = "") {
+  return statusMessage.replace(DISALLOWED_STATUS_CHARS, "");
 }
-function sanitizeStatusCode$1(statusCode, defaultStatusCode = 200) {
+function sanitizeStatusCode(statusCode, defaultStatusCode = 200) {
   if (!statusCode) {
     return defaultStatusCode;
   }
@@ -930,9 +1152,44 @@ function sanitizeStatusCode$1(statusCode, defaultStatusCode = 200) {
   }
   return statusCode;
 }
-function splitCookiesString$1(cookiesString) {
+
+function getDistinctCookieKey(name, opts) {
+  return [name, opts.domain || "", opts.path || "/"].join(";");
+}
+
+function parseCookies(event) {
+  return parse(event.node.req.headers.cookie || "");
+}
+function getCookie(event, name) {
+  return parseCookies(event)[name];
+}
+function setCookie(event, name, value, serializeOptions = {}) {
+  if (!serializeOptions.path) {
+    serializeOptions = { path: "/", ...serializeOptions };
+  }
+  const newCookie = serialize$1(name, value, serializeOptions);
+  const currentCookies = splitCookiesString(
+    event.node.res.getHeader("set-cookie")
+  );
+  if (currentCookies.length === 0) {
+    event.node.res.setHeader("set-cookie", newCookie);
+    return;
+  }
+  const newCookieKey = getDistinctCookieKey(name, serializeOptions);
+  event.node.res.removeHeader("set-cookie");
+  for (const cookie of currentCookies) {
+    const parsed = parseSetCookie(cookie);
+    const key = getDistinctCookieKey(parsed.name, parsed);
+    if (key === newCookieKey) {
+      continue;
+    }
+    event.node.res.appendHeader("set-cookie", cookie);
+  }
+  event.node.res.appendHeader("set-cookie", newCookie);
+}
+function splitCookiesString(cookiesString) {
   if (Array.isArray(cookiesString)) {
-    return cookiesString.flatMap((c) => splitCookiesString$1(c));
+    return cookiesString.flatMap((c) => splitCookiesString(c));
   }
   if (typeof cookiesString !== "string") {
     return [];
@@ -986,13 +1243,13 @@ function splitCookiesString$1(cookiesString) {
   return cookiesStrings;
 }
 
-const defer$1 = typeof setImmediate === "undefined" ? (fn) => fn() : setImmediate;
-function send$1(event, data, type) {
+const defer = typeof setImmediate === "undefined" ? (fn) => fn() : setImmediate;
+function send(event, data, type) {
   if (type) {
-    defaultContentType$1(event, type);
+    defaultContentType(event, type);
   }
   return new Promise((resolve) => {
-    defer$1(() => {
+    defer(() => {
       if (!event.handled) {
         event.node.res.end(data);
       }
@@ -1007,40 +1264,49 @@ function sendNoContent(event, code) {
   if (!code && event.node.res.statusCode !== 200) {
     code = event.node.res.statusCode;
   }
-  const _code = sanitizeStatusCode$1(code, 204);
+  const _code = sanitizeStatusCode(code, 204);
   if (_code === 204) {
     event.node.res.removeHeader("content-length");
   }
   event.node.res.writeHead(_code);
   event.node.res.end();
 }
-function setResponseStatus$1(event, code, text) {
+function setResponseStatus(event, code, text) {
   if (code) {
-    event.node.res.statusCode = sanitizeStatusCode$1(
+    event.node.res.statusCode = sanitizeStatusCode(
       code,
       event.node.res.statusCode
     );
   }
   if (text) {
-    event.node.res.statusMessage = sanitizeStatusMessage$1(text);
+    event.node.res.statusMessage = sanitizeStatusMessage(text);
   }
 }
-function defaultContentType$1(event, type) {
+function getResponseStatus(event) {
+  return event.node.res.statusCode;
+}
+function getResponseStatusText(event) {
+  return event.node.res.statusMessage;
+}
+function defaultContentType(event, type) {
   if (type && event.node.res.statusCode !== 304 && !event.node.res.getHeader("content-type")) {
     event.node.res.setHeader("content-type", type);
   }
 }
-function sendRedirect$1(event, location, code = 302) {
-  event.node.res.statusCode = sanitizeStatusCode$1(
+function sendRedirect(event, location, code = 302) {
+  event.node.res.statusCode = sanitizeStatusCode(
     code,
     event.node.res.statusCode
   );
   event.node.res.setHeader("location", location);
   const encodedLoc = location.replace(/"/g, "%22");
   const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=${encodedLoc}"></head></html>`;
-  return send$1(event, html, MIMES$1.html);
+  return send(event, html, MIMES.html);
 }
-function getResponseHeader$1(event, name) {
+function getResponseHeaders(event) {
+  return event.node.res.getHeaders();
+}
+function getResponseHeader(event, name) {
   return event.node.res.getHeader(name);
 }
 function setResponseHeaders(event, headers) {
@@ -1052,10 +1318,11 @@ function setResponseHeaders(event, headers) {
   }
 }
 const setHeaders = setResponseHeaders;
-function setResponseHeader$1(event, name, value) {
+function setResponseHeader(event, name, value) {
   event.node.res.setHeader(name, value);
 }
-function appendResponseHeader$1(event, name, value) {
+const setHeader = setResponseHeader;
+function appendResponseHeader(event, name, value) {
   let current = event.node.res.getHeader(name);
   if (!current) {
     event.node.res.setHeader(name, value);
@@ -1066,7 +1333,7 @@ function appendResponseHeader$1(event, name, value) {
   }
   event.node.res.setHeader(name, [...current, value]);
 }
-function removeResponseHeader$1(event, name) {
+function removeResponseHeader(event, name) {
   return event.node.res.removeHeader(name);
 }
 function isStream(data) {
@@ -1089,7 +1356,7 @@ function isStream(data) {
 function isWebResponse(data) {
   return typeof Response !== "undefined" && data instanceof Response;
 }
-function sendStream$1(event, stream) {
+function sendStream(event, stream) {
   if (!stream || typeof stream !== "object") {
     throw new Error("[h3] Invalid stream provided.");
   }
@@ -1098,7 +1365,7 @@ function sendStream$1(event, stream) {
     event._handled = true;
     return Promise.resolve();
   }
-  if (hasProp$1(stream, "pipeTo") && typeof stream.pipeTo === "function") {
+  if (hasProp(stream, "pipeTo") && typeof stream.pipeTo === "function") {
     return stream.pipeTo(
       new WritableStream({
         write(chunk) {
@@ -1109,7 +1376,7 @@ function sendStream$1(event, stream) {
       event.node.res.end();
     });
   }
-  if (hasProp$1(stream, "pipe") && typeof stream.pipe === "function") {
+  if (hasProp(stream, "pipe") && typeof stream.pipe === "function") {
     return new Promise((resolve, reject) => {
       stream.pipe(event.node.res);
       if (stream.on) {
@@ -1130,22 +1397,22 @@ function sendStream$1(event, stream) {
   }
   throw new Error("[h3] Invalid or incompatible stream provided.");
 }
-function sendWebResponse$1(event, response) {
+function sendWebResponse(event, response) {
   for (const [key, value] of response.headers) {
     if (key === "set-cookie") {
-      event.node.res.appendHeader(key, splitCookiesString$1(value));
+      event.node.res.appendHeader(key, splitCookiesString(value));
     } else {
       event.node.res.setHeader(key, value);
     }
   }
   if (response.status) {
-    event.node.res.statusCode = sanitizeStatusCode$1(
+    event.node.res.statusCode = sanitizeStatusCode(
       response.status,
       event.node.res.statusCode
     );
   }
   if (response.statusText) {
-    event.node.res.statusMessage = sanitizeStatusMessage$1(response.statusText);
+    event.node.res.statusMessage = sanitizeStatusMessage(response.statusText);
   }
   if (response.redirected) {
     event.node.res.setHeader("location", response.url);
@@ -1154,7 +1421,7 @@ function sendWebResponse$1(event, response) {
     event.node.res.end();
     return;
   }
-  return sendStream$1(event, response.body);
+  return sendStream(event, response.body);
 }
 
 const PayloadMethods = /* @__PURE__ */ new Set(["PATCH", "POST", "PUT", "DELETE"]);
@@ -1173,10 +1440,10 @@ async function proxyRequest(event, target, opts = {}) {
   let duplex;
   if (PayloadMethods.has(event.method)) {
     if (opts.streamRequest) {
-      body = getRequestWebStream$1(event);
+      body = getRequestWebStream(event);
       duplex = "half";
     } else {
-      body = await readRawBody$1(event, false).catch(() => void 0);
+      body = await readRawBody(event, false).catch(() => void 0);
     }
   }
   const method = opts.fetchOptions?.method || event.method;
@@ -1206,17 +1473,17 @@ async function sendProxy(event, target, opts = {}) {
       ...opts.fetchOptions
     });
   } catch (error) {
-    throw createError$2({
+    throw createError$1({
       status: 502,
       statusMessage: "Bad Gateway",
       cause: error
     });
   }
-  event.node.res.statusCode = sanitizeStatusCode$1(
+  event.node.res.statusCode = sanitizeStatusCode(
     response.status,
     event.node.res.statusCode
   );
-  event.node.res.statusMessage = sanitizeStatusMessage$1(response.statusText);
+  event.node.res.statusMessage = sanitizeStatusMessage(response.statusText);
   const cookies = [];
   for (const [key, value] of response.headers.entries()) {
     if (key === "content-encoding") {
@@ -1226,7 +1493,7 @@ async function sendProxy(event, target, opts = {}) {
       continue;
     }
     if (key === "set-cookie") {
-      cookies.push(...splitCookiesString$1(value));
+      cookies.push(...splitCookiesString(value));
       continue;
     }
     event.node.res.setHeader(key, value);
@@ -1275,7 +1542,7 @@ async function sendProxy(event, target, opts = {}) {
 }
 function getProxyRequestHeaders(event, opts) {
   const headers = /* @__PURE__ */ Object.create(null);
-  const reqHeaders = getRequestHeaders$1(event);
+  const reqHeaders = getRequestHeaders(event);
   for (const name in reqHeaders) {
     if (!ignoredHeaders.has(name) || name === "host" && opts?.host) {
       headers[name] = reqHeaders[name];
@@ -1340,7 +1607,7 @@ function mergeHeaders$1(defaults, ...inputs) {
   return merged;
 }
 
-let H3Event$1 = class H3Event {
+class H3Event {
   "__is_event__" = true;
   // Context
   node;
@@ -1374,7 +1641,7 @@ let H3Event$1 = class H3Event {
   }
   get headers() {
     if (!this._headers) {
-      this._headers = _normalizeNodeHeaders$1(this.node.req.headers);
+      this._headers = _normalizeNodeHeaders(this.node.req.headers);
     }
     return this._headers;
   }
@@ -1384,7 +1651,7 @@ let H3Event$1 = class H3Event {
   }
   respondWith(response) {
     return Promise.resolve(response).then(
-      (_response) => sendWebResponse$1(this, _response)
+      (_response) => sendWebResponse(this, _response)
     );
   }
   // --- Utils ---
@@ -1403,14 +1670,14 @@ let H3Event$1 = class H3Event {
   get res() {
     return this.node.res;
   }
-};
+}
 function isEvent(input) {
-  return hasProp$1(input, "__is_event__");
+  return hasProp(input, "__is_event__");
 }
 function createEvent(req, res) {
-  return new H3Event$1(req, res);
+  return new H3Event(req, res);
 }
-function _normalizeNodeHeaders$1(nodeHeaders) {
+function _normalizeNodeHeaders(nodeHeaders) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(nodeHeaders)) {
     if (Array.isArray(value)) {
@@ -1424,27 +1691,27 @@ function _normalizeNodeHeaders$1(nodeHeaders) {
   return headers;
 }
 
-function defineEventHandler$1(handler) {
+function defineEventHandler(handler) {
   if (typeof handler === "function") {
     handler.__is_handler__ = true;
     return handler;
   }
   const _hooks = {
-    onRequest: _normalizeArray$1(handler.onRequest),
-    onBeforeResponse: _normalizeArray$1(handler.onBeforeResponse)
+    onRequest: _normalizeArray(handler.onRequest),
+    onBeforeResponse: _normalizeArray(handler.onBeforeResponse)
   };
   const _handler = (event) => {
-    return _callHandler$1(event, handler.handler, _hooks);
+    return _callHandler(event, handler.handler, _hooks);
   };
   _handler.__is_handler__ = true;
   _handler.__resolve__ = handler.handler.__resolve__;
   _handler.__websocket__ = handler.websocket;
   return _handler;
 }
-function _normalizeArray$1(input) {
+function _normalizeArray(input) {
   return input ? Array.isArray(input) ? input : [input] : void 0;
 }
-async function _callHandler$1(event, handler, hooks) {
+async function _callHandler(event, handler, hooks) {
   if (hooks.onRequest) {
     for (const hook of hooks.onRequest) {
       await hook(event);
@@ -1462,9 +1729,9 @@ async function _callHandler$1(event, handler, hooks) {
   }
   return response.body;
 }
-const eventHandler$1 = defineEventHandler$1;
+const eventHandler = defineEventHandler;
 function isEventHandler(input) {
-  return hasProp$1(input, "__is_handler__");
+  return hasProp(input, "__is_handler__");
 }
 function toEventHandler(input, _, _route) {
   return input;
@@ -1491,7 +1758,7 @@ function defineLazyEventHandler(factory) {
     }
     return _promise;
   };
-  const handler = eventHandler$1((event) => {
+  const handler = eventHandler((event) => {
     if (_resolved) {
       return _resolved.handler(event);
     }
@@ -1543,7 +1810,7 @@ function use(app, arg1, arg2, arg3) {
 }
 function createAppEventHandler(stack, options) {
   const spacing = options.debug ? 2 : void 0;
-  return eventHandler$1(async (event) => {
+  return eventHandler(async (event) => {
     event.node.req.originalUrl = event.node.req.originalUrl || event.node.req.url || "/";
     const _rawReqUrl = event.node.req.url || "/";
     const _reqPath = _decodePath(event._path || _rawReqUrl);
@@ -1591,7 +1858,7 @@ function createAppEventHandler(stack, options) {
       }
     }
     if (!event.handled) {
-      throw createError$2({
+      throw createError$1({
         statusCode: 404,
         statusMessage: `Cannot find any path matching ${event.path || "/"}.`
       });
@@ -1654,21 +1921,21 @@ function handleHandlerResponse(event, val, jsonSpace) {
   }
   if (val) {
     if (isWebResponse(val)) {
-      return sendWebResponse$1(event, val);
+      return sendWebResponse(event, val);
     }
     if (isStream(val)) {
-      return sendStream$1(event, val);
+      return sendStream(event, val);
     }
     if (val.buffer) {
-      return send$1(event, val);
+      return send(event, val);
     }
     if (val.arrayBuffer && typeof val.arrayBuffer === "function") {
       return val.arrayBuffer().then((arrayBuffer) => {
-        return send$1(event, Buffer.from(arrayBuffer), val.type);
+        return send(event, Buffer.from(arrayBuffer), val.type);
       });
     }
     if (val instanceof Error) {
-      throw createError$2(val);
+      throw createError$1(val);
     }
     if (typeof val.end === "function") {
       return true;
@@ -1676,15 +1943,15 @@ function handleHandlerResponse(event, val, jsonSpace) {
   }
   const valType = typeof val;
   if (valType === "string") {
-    return send$1(event, val, MIMES$1.html);
+    return send(event, val, MIMES.html);
   }
   if (valType === "object" || valType === "boolean" || valType === "number") {
-    return send$1(event, JSON.stringify(val, void 0, jsonSpace), MIMES$1.json);
+    return send(event, JSON.stringify(val, void 0, jsonSpace), MIMES.json);
   }
   if (valType === "bigint") {
-    return send$1(event, val.toString(), MIMES$1.json);
+    return send(event, val.toString(), MIMES.json);
   }
-  throw createError$2({
+  throw createError$1({
     statusCode: 500,
     statusMessage: `[h3] Cannot send ${valType} as response.`
   });
@@ -1760,7 +2027,7 @@ function createRouter(opts = {}) {
     const matched = _router.lookup(path);
     if (!matched || !matched.handlers) {
       return {
-        error: createError$2({
+        error: createError$1({
           statusCode: 404,
           name: "Not Found",
           statusMessage: `Cannot find any route matching ${path || "/"}.`
@@ -1788,7 +2055,7 @@ function createRouter(opts = {}) {
     }
     if (!handler) {
       return {
-        error: createError$2({
+        error: createError$1({
           statusCode: 405,
           name: "Method Not Allowed",
           statusMessage: `Method ${method} is not allowed on this route.`
@@ -1798,7 +2065,7 @@ function createRouter(opts = {}) {
     return { matched, handler };
   };
   const isPreemptive = opts.preemptive || opts.preemtive;
-  router.handler = eventHandler$1((event) => {
+  router.handler = eventHandler((event) => {
     const match = matchHandler(
       event.path,
       event.method.toLowerCase()
@@ -1847,11 +2114,11 @@ function toNodeListener(app) {
     try {
       await app.handler(event);
     } catch (_error) {
-      const error = createError$2(_error);
-      if (!isError$1(_error)) {
+      const error = createError$1(_error);
+      if (!isError(_error)) {
         error.unhandled = true;
       }
-      setResponseStatus$1(event, error.statusCode, error.statusMessage);
+      setResponseStatus(event, error.statusCode, error.statusMessage);
       if (app.options.onError) {
         await app.options.onError(error, event);
       }
@@ -2078,7 +2345,7 @@ function createHooks() {
   return new Hookable();
 }
 
-const s$3=globalThis.Headers,i$2=globalThis.AbortController,l=globalThis.fetch||(()=>{throw new Error("[node-fetch-native] Failed to fetch: `globalThis.fetch` is not available!")});
+const s$2=globalThis.Headers,i=globalThis.AbortController,l$1=globalThis.fetch||(()=>{throw new Error("[node-fetch-native] Failed to fetch: `globalThis.fetch` is not available!")});
 
 class FetchError extends Error {
   constructor(message, opts) {
@@ -2428,7 +2695,7 @@ function createFetch(globalOptions = {}) {
 function createNodeFetch() {
   const useKeepAlive = JSON.parse(process.env.FETCH_KEEP_ALIVE || "false");
   if (!useKeepAlive) {
-    return l;
+    return l$1;
   }
   const agentOptions = { keepAlive: true };
   const httpAgent = new http.Agent(agentOptions);
@@ -2439,13 +2706,13 @@ function createNodeFetch() {
     }
   };
   return function nodeFetchWithKeepAlive(input, init) {
-    return l(input, { ...nodeFetchOptions, ...init });
+    return l$1(input, { ...nodeFetchOptions, ...init });
   };
 }
 const fetch = globalThis.fetch ? (...args) => globalThis.fetch(...args) : createNodeFetch();
-const Headers$1 = globalThis.Headers || s$3;
-const AbortController = globalThis.AbortController || i$2;
-createFetch({ fetch, Headers: Headers$1, AbortController });
+const Headers$1 = globalThis.Headers || s$2;
+const AbortController$1 = globalThis.AbortController || i;
+createFetch({ fetch, Headers: Headers$1, AbortController: AbortController$1 });
 
 function wrapToPromise(value) {
   if (!value || typeof value.then !== "function") {
@@ -3071,21 +3338,21 @@ const assets$1 = {
 function defineDriver(factory) {
   return factory;
 }
-function createError$1(driver, message, opts) {
+function createError(driver, message, opts) {
   const err = new Error(`[unstorage] [${driver}] ${message}`, opts);
   if (Error.captureStackTrace) {
-    Error.captureStackTrace(err, createError$1);
+    Error.captureStackTrace(err, createError);
   }
   return err;
 }
 function createRequiredError(driver, name) {
   if (Array.isArray(name)) {
-    return createError$1(
+    return createError(
       driver,
       `Missing some of the required options ${name.map((n) => "`" + n + "`").join(", ")}`
     );
   }
-  return createError$1(driver, `Missing required option \`${name}\`.`);
+  return createError(driver, `Missing required option \`${name}\`.`);
 }
 
 function ignoreNotfound(err) {
@@ -3164,7 +3431,7 @@ const unstorage_47drivers_47fs_45lite = defineDriver((opts = {}) => {
   opts.base = resolve$1(opts.base);
   const r = (key) => {
     if (PATH_TRAVERSE_RE.test(key)) {
-      throw createError$1(
+      throw createError(
         DRIVER_NAME,
         `Invalid key: ${JSON.stringify(key)}. It should not contain .. segments`
       );
@@ -3231,7 +3498,7 @@ function useStorage(base = "") {
   return base ? prefixStorage(storage, base) : storage;
 }
 
-const e=globalThis.process?.getBuiltinModule?.("crypto")?.hash,r="sha256",s$2="base64url";function digest(t){if(e)return e(r,t,s$2);const o=createHash(r).update(t);return globalThis.process?.versions?.webcontainer?o.digest().toString(s$2):o.digest(s$2)}
+const e=globalThis.process?.getBuiltinModule?.("crypto")?.hash,r="sha256",s$1="base64url";function digest(t){if(e)return e(r,t,s$1);const o=createHash(r).update(t);return globalThis.process?.versions?.webcontainer?o.digest().toString(s$1):o.digest(s$1)}
 
 const Hasher = /* @__PURE__ */ (() => {
   class Hasher2 {
@@ -3407,13 +3674,13 @@ const Hasher = /* @__PURE__ */ (() => {
   }
   return Hasher2;
 })();
-function serialize$1(object) {
+function serialize(object) {
   const hasher = new Hasher();
   hasher.dispatch(object);
   return hasher.buff;
 }
 function hash(value) {
-  return digest(typeof value === "string" ? value : serialize$1(value)).replace(/[-_]/g, "").slice(0, 10);
+  return digest(typeof value === "string" ? value : serialize(value)).replace(/[-_]/g, "").slice(0, 10);
 }
 
 function defaultCacheOptions() {
@@ -3695,7 +3962,7 @@ function defineCachedEventHandler(handler, opts = defaultCacheOptions()) {
     },
     _opts
   );
-  return defineEventHandler$1(async (event) => {
+  return defineEventHandler(async (event) => {
     if (opts.headersOnly) {
       if (handleCacheHeaders(event, { maxAge: opts.maxAge })) {
         return;
@@ -3721,7 +3988,7 @@ function defineCachedEventHandler(handler, opts = defaultCacheOptions()) {
       if (name === "set-cookie") {
         event.node.res.appendHeader(
           name,
-          splitCookiesString$1(value)
+          splitCookiesString(value)
         );
       } else {
         if (value !== void 0) {
@@ -4100,7 +4367,7 @@ const _routeRulesMatcher = toRouteMatcher(
   createRouter$1({ routes: config.nitro.routeRules })
 );
 function createRouteRulesHandler(ctx) {
-  return eventHandler$1((event) => {
+  return eventHandler((event) => {
     const routeRules = getRouteRules(event);
     if (routeRules.headers) {
       setHeaders(event, routeRules.headers);
@@ -4112,7 +4379,7 @@ function createRouteRulesHandler(ctx) {
         const strpBase = routeRules.redirect._redirectStripBase;
         if (strpBase) {
           if (!isPathInScope(event.path.split("?")[0], strpBase)) {
-            throw createError$2({ statusCode: 400 });
+            throw createError$1({ statusCode: 400 });
           }
           targetPath = withoutBase(targetPath, strpBase);
         } else if (targetPath.startsWith("//")) {
@@ -4123,7 +4390,7 @@ function createRouteRulesHandler(ctx) {
         const query = getQuery(event.path);
         target = withQuery(target, query);
       }
-      return sendRedirect$1(event, target, routeRules.redirect.statusCode);
+      return sendRedirect(event, target, routeRules.redirect.statusCode);
     }
     if (routeRules.proxy) {
       let target = routeRules.proxy.to;
@@ -4132,7 +4399,7 @@ function createRouteRulesHandler(ctx) {
         const strpBase = routeRules.proxy._proxyStripBase;
         if (strpBase) {
           if (!isPathInScope(event.path.split("?")[0], strpBase)) {
-            throw createError$2({ statusCode: 400 });
+            throw createError$1({ statusCode: 400 });
           }
           targetPath = withoutBase(targetPath, strpBase);
         } else if (targetPath.startsWith("//")) {
@@ -4191,7 +4458,7 @@ function normalizeFetchResponse(response) {
   });
 }
 function normalizeCookieHeader(header = "") {
-  return splitCookiesString$1(joinHeaders(header));
+  return splitCookiesString(joinHeaders(header));
 }
 function normalizeCookieHeaders(headers) {
   const outgoingHeaders = new Headers();
@@ -4215,15 +4482,15 @@ const errorHandler$0 = defineNitroErrorHandler(
   function defaultNitroErrorHandler(error, event) {
     const res = defaultHandler(error, event);
     setResponseHeaders(event, res.headers);
-    setResponseStatus$1(event, res.status, res.statusText);
-    return send$1(event, JSON.stringify(res.body, null, 2));
+    setResponseStatus(event, res.status, res.statusText);
+    return send(event, JSON.stringify(res.body, null, 2));
   }
 );
 function defaultHandler(error, event, opts) {
   const isSensitive = error.unhandled || error.fatal;
   const statusCode = error.statusCode || 500;
   const statusMessage = error.statusMessage || "Server Error";
-  const url = getRequestURL$1(event, { xForwardedHost: true, xForwardedProto: true });
+  const url = getRequestURL(event, { xForwardedHost: true, xForwardedProto: true });
   if (statusCode === 404) {
     const baseURL = "/";
     if (/^\/[^/]/.test(baseURL) && !url.pathname.startsWith(baseURL)) {
@@ -4252,8 +4519,8 @@ function defaultHandler(error, event, opts) {
     // Disable the execution of any js
     "content-security-policy": "script-src 'none'; frame-ancestors 'none';"
   };
-  setResponseStatus$1(event, statusCode, statusMessage);
-  if (statusCode === 404 || !getResponseHeader$1(event, "cache-control")) {
+  setResponseStatus(event, statusCode, statusMessage);
+  if (statusCode === 404 || !getResponseHeader(event, "cache-control")) {
     headers["cache-control"] = "no-cache";
   }
   const body = {
@@ -4289,8 +4556,8 @@ async function errorHandler(error, event) {
   // H3 will handle fallback
 }
 
-const appConfig = {"name":"vinxi","routers":[{"name":"public","type":"static","base":"/","dir":"./public","root":"/Users/hector/Documents/granite_concepts","order":0,"outDir":"/Users/hector/Documents/granite_concepts/.vinxi/build/public"},{"name":"ssr","type":"http","link":{"client":"client"},"handler":"src/entry-server.tsx","extensions":["js","jsx","ts","tsx"],"target":"server","root":"/Users/hector/Documents/granite_concepts","base":"/","outDir":"/Users/hector/Documents/granite_concepts/.vinxi/build/ssr","order":1},{"name":"client","type":"client","base":"/_build","handler":"src/entry-client.tsx","extensions":["js","jsx","ts","tsx"],"target":"browser","root":"/Users/hector/Documents/granite_concepts","outDir":"/Users/hector/Documents/granite_concepts/.vinxi/build/client","order":2},{"name":"server-fns","type":"http","base":"/_server","handler":"node_modules/@solidjs/start/dist/runtime/server-handler.js","target":"server","root":"/Users/hector/Documents/granite_concepts","outDir":"/Users/hector/Documents/granite_concepts/.vinxi/build/server-fns","order":3}],"server":{"compressPublicAssets":{"brotli":true},"routeRules":{"/_build/assets/**":{"headers":{"cache-control":"public, immutable, max-age=31536000"}}},"experimental":{"asyncContext":true},"preset":"node-server"},"root":"/Users/hector/Documents/granite_concepts"};
-					const buildManifest = {"ssr":{"_HttpStatusCode-DH8IeaZe.js":{"file":"assets/HttpStatusCode-DH8IeaZe.js","name":"HttpStatusCode"},"_WorkCard-CVlMoXTU.js":{"file":"assets/WorkCard-CVlMoXTU.js","name":"WorkCard","imports":["_index-BqbXn-Lg.js","_components-BJ4yedW7.js"]},"_api-C63Jm-RV.js":{"file":"assets/api-C63Jm-RV.js","name":"api"},"_components-BJ4yedW7.js":{"file":"assets/components-BJ4yedW7.js","name":"components","imports":["_index-BqbXn-Lg.js"]},"_createAsync-CBz8AaaQ.js":{"file":"assets/createAsync-CBz8AaaQ.js","name":"createAsync"},"_images-BZgZFbVl.js":{"file":"assets/images-BZgZFbVl.js","name":"images"},"_index-BqbXn-Lg.js":{"file":"assets/index-BqbXn-Lg.js","name":"index"},"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2":{"file":"assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2"},"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2":{"file":"assets/outfit-latin-wght-normal-Bc-8i84L.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff":{"file":"assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff":{"file":"assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff":{"file":"assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff":{"file":"assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2"},"src/routes/cotizacion.tsx?pick=default&pick=$css":{"file":"cotizacion.js","name":"cotizacion","src":"src/routes/cotizacion.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_createAsync-CBz8AaaQ.js"],"css":["assets/cotizacion-DfL1dgXL.css"]},"src/routes/index.tsx?pick=default&pick=$css":{"file":"index.js","name":"index","src":"src/routes/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_components-BJ4yedW7.js","_WorkCard-CVlMoXTU.js","_createAsync-CBz8AaaQ.js"],"css":["assets/index-DIQKMgvw.css"]},"src/routes/materiales/[slug].tsx?pick=default&pick=$css":{"file":"_slug_.js","name":"_slug_","src":"src/routes/materiales/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_HttpStatusCode-DH8IeaZe.js","_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_createAsync-CBz8AaaQ.js","_components-BJ4yedW7.js"]},"src/routes/materiales/index.tsx?pick=default&pick=$css":{"file":"index2.js","name":"index","src":"src/routes/materiales/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_components-BJ4yedW7.js","_createAsync-CBz8AaaQ.js"],"css":["assets/index-CbveoIBs.css"]},"src/routes/sitemap.xml.ts?pick=GET":{"file":"sitemap.xml.js","name":"sitemap.xml","src":"src/routes/sitemap.xml.ts?pick=GET","isEntry":true,"isDynamicEntry":true,"imports":["_api-C63Jm-RV.js"]},"src/routes/trabajos/[slug].tsx?pick=default&pick=$css":{"file":"_slug_2.js","name":"_slug_","src":"src/routes/trabajos/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_HttpStatusCode-DH8IeaZe.js","_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_createAsync-CBz8AaaQ.js","_components-BJ4yedW7.js"]},"src/routes/trabajos/index.tsx?pick=default&pick=$css":{"file":"index3.js","name":"index","src":"src/routes/trabajos/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-BqbXn-Lg.js","_api-C63Jm-RV.js","_WorkCard-CVlMoXTU.js","_createAsync-CBz8AaaQ.js","_components-BJ4yedW7.js"]},"virtual:$vinxi/handler/ssr":{"file":"ssr.js","name":"ssr","src":"virtual:$vinxi/handler/ssr","isEntry":true,"imports":["_api-C63Jm-RV.js","_index-BqbXn-Lg.js","_components-BJ4yedW7.js","_HttpStatusCode-DH8IeaZe.js"],"dynamicImports":["src/routes/cotizacion.tsx?pick=default&pick=$css","src/routes/cotizacion.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/materiales/[slug].tsx?pick=default&pick=$css","src/routes/materiales/[slug].tsx?pick=default&pick=$css","src/routes/materiales/index.tsx?pick=default&pick=$css","src/routes/materiales/index.tsx?pick=default&pick=$css","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/trabajos/[slug].tsx?pick=default&pick=$css","src/routes/trabajos/[slug].tsx?pick=default&pick=$css","src/routes/trabajos/index.tsx?pick=default&pick=$css","src/routes/trabajos/index.tsx?pick=default&pick=$css"],"css":["assets/ssr-B8ii3ENT.css"],"assets":["assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","assets/outfit-latin-wght-normal-Bc-8i84L.woff2"]}},"client":{"_HttpStatusCode-DjTx85av.js":{"file":"assets/HttpStatusCode-DjTx85av.js","name":"HttpStatusCode"},"_WorkCard-CsxW5Wse.js":{"file":"assets/WorkCard-CsxW5Wse.js","name":"WorkCard","imports":["_index-Dz41R_Te.js","_components-XCiuMfkm.js"]},"_components-XCiuMfkm.js":{"file":"assets/components-XCiuMfkm.js","name":"components","imports":["_index-Dz41R_Te.js"]},"_createAsync-BXTxQB_T.js":{"file":"assets/createAsync-BXTxQB_T.js","name":"createAsync","imports":["_index-Dz41R_Te.js"]},"_images-BZgZFbVl.js":{"file":"assets/images-BZgZFbVl.js","name":"images"},"_index-Dz41R_Te.js":{"file":"assets/index-Dz41R_Te.js","name":"index"},"_preload-helper-ug3pwPZ1.js":{"file":"assets/preload-helper-ug3pwPZ1.js","name":"preload-helper"},"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2":{"file":"assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2"},"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2":{"file":"assets/outfit-latin-wght-normal-Bc-8i84L.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff":{"file":"assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff":{"file":"assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff":{"file":"assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff":{"file":"assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2"},"node_modules/motion/dist/es/index.mjs":{"file":"assets/index-D_iTvzxp.js","name":"index","src":"node_modules/motion/dist/es/index.mjs","isDynamicEntry":true},"src/routes/cotizacion.tsx?pick=default&pick=$css":{"file":"assets/cotizacion-Dc18FhHW.js","name":"cotizacion","src":"src/routes/cotizacion.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_createAsync-BXTxQB_T.js"],"css":["assets/cotizacion-DfL1dgXL.css"]},"src/routes/index.tsx?pick=default&pick=$css":{"file":"assets/index-BGQxcl-Y.js","name":"index","src":"src/routes/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_preload-helper-ug3pwPZ1.js","_images-BZgZFbVl.js","_components-XCiuMfkm.js","_WorkCard-CsxW5Wse.js","_createAsync-BXTxQB_T.js"],"dynamicImports":["node_modules/motion/dist/es/index.mjs"],"css":["assets/index-DIQKMgvw.css"]},"src/routes/materiales/[slug].tsx?pick=default&pick=$css":{"file":"assets/_slug_-BtReMAii.js","name":"_slug_","src":"src/routes/materiales/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_HttpStatusCode-DjTx85av.js","_images-BZgZFbVl.js","_createAsync-BXTxQB_T.js","_components-XCiuMfkm.js"]},"src/routes/materiales/index.tsx?pick=default&pick=$css":{"file":"assets/index-BiS0Qbfr.js","name":"index","src":"src/routes/materiales/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_images-BZgZFbVl.js","_components-XCiuMfkm.js","_createAsync-BXTxQB_T.js"],"css":["assets/index-CbveoIBs.css"]},"src/routes/trabajos/[slug].tsx?pick=default&pick=$css":{"file":"assets/_slug_-I1fnrgec.js","name":"_slug_","src":"src/routes/trabajos/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_HttpStatusCode-DjTx85av.js","_createAsync-BXTxQB_T.js","_components-XCiuMfkm.js"]},"src/routes/trabajos/index.tsx?pick=default&pick=$css":{"file":"assets/index-DnzWAhWH.js","name":"index","src":"src/routes/trabajos/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-Dz41R_Te.js","_WorkCard-CsxW5Wse.js","_createAsync-BXTxQB_T.js","_components-XCiuMfkm.js"]},"virtual:$vinxi/handler/client":{"file":"assets/client-BO7b3Lz_.js","name":"client","src":"virtual:$vinxi/handler/client","isEntry":true,"imports":["_index-Dz41R_Te.js","_preload-helper-ug3pwPZ1.js","_components-XCiuMfkm.js","_HttpStatusCode-DjTx85av.js"],"dynamicImports":["src/routes/cotizacion.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/materiales/[slug].tsx?pick=default&pick=$css","src/routes/materiales/index.tsx?pick=default&pick=$css","src/routes/trabajos/[slug].tsx?pick=default&pick=$css","src/routes/trabajos/index.tsx?pick=default&pick=$css"],"css":["assets/client-B8ii3ENT.css"],"assets":["assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","assets/outfit-latin-wght-normal-Bc-8i84L.woff2"]}},"server-fns":{"_HttpStatusCode-DH8IeaZe.js":{"file":"assets/HttpStatusCode-DH8IeaZe.js","name":"HttpStatusCode"},"_WorkCard-CvhiIkXg.js":{"file":"assets/WorkCard-CvhiIkXg.js","name":"WorkCard","imports":["_index-CUDOCGCg.js","_components-DxvOFfFE.js"]},"_api-C63Jm-RV.js":{"file":"assets/api-C63Jm-RV.js","name":"api"},"_components-DxvOFfFE.js":{"file":"assets/components-DxvOFfFE.js","name":"components","imports":["_query-12-Gn2-p.js"]},"_createAsync-CBz8AaaQ.js":{"file":"assets/createAsync-CBz8AaaQ.js","name":"createAsync"},"_images-BZgZFbVl.js":{"file":"assets/images-BZgZFbVl.js","name":"images"},"_index-CUDOCGCg.js":{"file":"assets/index-CUDOCGCg.js","name":"index"},"_query-12-Gn2-p.js":{"file":"assets/query-12-Gn2-p.js","name":"query"},"_server-fns-BANnn2gp.js":{"file":"assets/server-fns-BANnn2gp.js","name":"server-fns","imports":["_api-C63Jm-RV.js","_query-12-Gn2-p.js"],"dynamicImports":["src/routes/cotizacion.tsx?pick=default&pick=$css","src/routes/cotizacion.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/materiales/[slug].tsx?pick=default&pick=$css","src/routes/materiales/[slug].tsx?pick=default&pick=$css","src/routes/materiales/index.tsx?pick=default&pick=$css","src/routes/materiales/index.tsx?pick=default&pick=$css","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/sitemap.xml.ts?pick=GET","src/routes/trabajos/[slug].tsx?pick=default&pick=$css","src/routes/trabajos/[slug].tsx?pick=default&pick=$css","src/routes/trabajos/index.tsx?pick=default&pick=$css","src/routes/trabajos/index.tsx?pick=default&pick=$css","src/app.tsx"]},"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2":{"file":"assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-ext-wght-normal.woff2"},"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2":{"file":"assets/outfit-latin-wght-normal-Bc-8i84L.woff2","src":"node_modules/@fontsource-variable/outfit/files/outfit-latin-wght-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-cyrillic-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff":{"file":"assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff":{"file":"assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff":{"file":"assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff":{"file":"assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff":{"file":"assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff":{"file":"assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2":{"file":"assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-latin-ext-400-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-300-normal.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff":{"file":"assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-italic.woff2"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff":{"file":"assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff"},"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2":{"file":"assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","src":"node_modules/@fontsource/cormorant-garamond/files/cormorant-garamond-vietnamese-400-normal.woff2"},"src/app.tsx":{"file":"assets/app-CSYErsz3.js","name":"app","src":"src/app.tsx","isDynamicEntry":true,"imports":["_index-CUDOCGCg.js","_server-fns-BANnn2gp.js","_components-DxvOFfFE.js","_query-12-Gn2-p.js","_api-C63Jm-RV.js"],"css":["assets/app-h3uGFq88.css"],"assets":["assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2","assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff","assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2","assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff","assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2","assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff","assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2","assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff","assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2","assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff","assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2","assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff","assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2","assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff","assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2","assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff","assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2","assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff","assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2","assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff","assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2","assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff","assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2","assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff","assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2","assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff","assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2","assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff","assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2","assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff","assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2","assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff","assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2","assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff","assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2","assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff","assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2","assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff","assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2","assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff","assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2","assets/outfit-latin-wght-normal-Bc-8i84L.woff2"]},"src/routes/cotizacion.tsx?pick=default&pick=$css":{"file":"cotizacion.js","name":"cotizacion","src":"src/routes/cotizacion.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-CUDOCGCg.js","_api-C63Jm-RV.js","_query-12-Gn2-p.js","_createAsync-CBz8AaaQ.js"],"css":["assets/cotizacion-DfL1dgXL.css"]},"src/routes/index.tsx?pick=default&pick=$css":{"file":"index.js","name":"index","src":"src/routes/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-CUDOCGCg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_query-12-Gn2-p.js","_components-DxvOFfFE.js","_WorkCard-CvhiIkXg.js","_createAsync-CBz8AaaQ.js"],"css":["assets/index-DIQKMgvw.css"]},"src/routes/materiales/[slug].tsx?pick=default&pick=$css":{"file":"_slug_.js","name":"_slug_","src":"src/routes/materiales/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_HttpStatusCode-DH8IeaZe.js","_index-CUDOCGCg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_query-12-Gn2-p.js","_createAsync-CBz8AaaQ.js","_components-DxvOFfFE.js"]},"src/routes/materiales/index.tsx?pick=default&pick=$css":{"file":"index2.js","name":"index","src":"src/routes/materiales/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-CUDOCGCg.js","_api-C63Jm-RV.js","_images-BZgZFbVl.js","_components-DxvOFfFE.js","_createAsync-CBz8AaaQ.js","_query-12-Gn2-p.js"],"css":["assets/index-CbveoIBs.css"]},"src/routes/sitemap.xml.ts?pick=GET":{"file":"sitemap.xml.js","name":"sitemap.xml","src":"src/routes/sitemap.xml.ts?pick=GET","isEntry":true,"isDynamicEntry":true,"imports":["_api-C63Jm-RV.js"]},"src/routes/trabajos/[slug].tsx?pick=default&pick=$css":{"file":"_slug_2.js","name":"_slug_","src":"src/routes/trabajos/[slug].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_HttpStatusCode-DH8IeaZe.js","_index-CUDOCGCg.js","_api-C63Jm-RV.js","_query-12-Gn2-p.js","_createAsync-CBz8AaaQ.js","_components-DxvOFfFE.js"]},"src/routes/trabajos/index.tsx?pick=default&pick=$css":{"file":"index3.js","name":"index","src":"src/routes/trabajos/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_index-CUDOCGCg.js","_api-C63Jm-RV.js","_WorkCard-CvhiIkXg.js","_createAsync-CBz8AaaQ.js","_query-12-Gn2-p.js","_components-DxvOFfFE.js"]},"virtual:$vinxi/handler/server-fns":{"file":"server-fns.js","name":"server-fns","src":"virtual:$vinxi/handler/server-fns","isEntry":true,"imports":["_server-fns-BANnn2gp.js","_api-C63Jm-RV.js","_query-12-Gn2-p.js"]}}};
+const appConfig = {"name":"vinxi","routers":[{"name":"public","type":"static","base":"/","dir":"./public","root":"/Users/hector/Documents/AIProjects/HRMfinance","order":0,"outDir":"/Users/hector/Documents/AIProjects/HRMfinance/.vinxi/build/public"},{"name":"ssr","type":"http","link":{"client":"client"},"handler":"src/entry-server.tsx","extensions":["js","jsx","ts","tsx"],"target":"server","root":"/Users/hector/Documents/AIProjects/HRMfinance","base":"/","outDir":"/Users/hector/Documents/AIProjects/HRMfinance/.vinxi/build/ssr","order":1},{"name":"client","type":"client","base":"/_build","handler":"src/entry-client.tsx","extensions":["js","jsx","ts","tsx"],"target":"browser","root":"/Users/hector/Documents/AIProjects/HRMfinance","outDir":"/Users/hector/Documents/AIProjects/HRMfinance/.vinxi/build/client","order":2},{"name":"server-fns","type":"http","base":"/_server","handler":"node_modules/.pnpm/@solidjs+start@1.3.2_solid-js@1.9.13_vinxi@0.5.11_db0@0.3.4_ioredis@5.11.1_jiti@2.7.0_l_04989c4ef4112cb983e1cfd0d3e23e6c/node_modules/@solidjs/start/dist/runtime/server-handler.js","target":"server","root":"/Users/hector/Documents/AIProjects/HRMfinance","outDir":"/Users/hector/Documents/AIProjects/HRMfinance/.vinxi/build/server-fns","order":3}],"server":{"compressPublicAssets":{"brotli":true},"routeRules":{"/_build/assets/**":{"headers":{"cache-control":"public, immutable, max-age=31536000"}}},"experimental":{"asyncContext":true},"prerender":{}},"root":"/Users/hector/Documents/AIProjects/HRMfinance"};
+					const buildManifest = {"ssr":{"virtual:$vinxi/handler/ssr":{"file":"ssr.js","name":"ssr","src":"virtual:$vinxi/handler/ssr","isEntry":true}},"client":{"_EntityDetailModal-0P0uSLyL.js":{"file":"assets/EntityDetailModal-0P0uSLyL.js","name":"EntityDetailModal","imports":["_web-B50drEWG.js","_csv-D2ikwZU9.js","_dates-B_ebQcaW.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-BB8JaDZn.js","_Icon-ET8315Ce.js"]},"_Icon-ET8315Ce.js":{"file":"assets/Icon-ET8315Ce.js","name":"Icon","imports":["_web-B50drEWG.js"]},"_LocationSelect-B11A4peJ.js":{"file":"assets/LocationSelect-B11A4peJ.js","name":"LocationSelect","imports":["_SearchSelect-BFmV4tA9.js","_index-BigjWbV-.js","_store-CS7DEtHt.js","_web-B50drEWG.js"]},"_PrintButton-UpwaWxOx.js":{"file":"assets/PrintButton-UpwaWxOx.js","name":"PrintButton","imports":["_web-B50drEWG.js","_index-BigjWbV-.js","_printer-D_Jwaduc.js"]},"_ProductLineEditor-DXqy-c7L.js":{"file":"assets/ProductLineEditor-DXqy-c7L.js","name":"ProductLineEditor","imports":["_web-B50drEWG.js","_SearchSelect-BFmV4tA9.js","_StableInput-Tu2gFj_C.js","_store-CS7DEtHt.js","_index-BigjWbV-.js","_trash-2-HfmI9UQ-.js","_plus-Dx1U-C1n.js"]},"_RouteTabs-DHMRL8EJ.js":{"file":"assets/RouteTabs-DHMRL8EJ.js","name":"RouteTabs","imports":["_web-B50drEWG.js","_index-BigjWbV-.js","_components-DyM2LSwN.js"]},"_SearchSelect-BFmV4tA9.js":{"file":"assets/SearchSelect-BFmV4tA9.js","name":"SearchSelect","imports":["_web-B50drEWG.js","_index-BigjWbV-.js"]},"_Spinner-BRQ7WrJe.js":{"file":"assets/Spinner-BRQ7WrJe.js","name":"Spinner","imports":["_web-B50drEWG.js"]},"_StableInput-Tu2gFj_C.js":{"file":"assets/StableInput-Tu2gFj_C.js","name":"StableInput","imports":["_web-B50drEWG.js"]},"_aiFlows-pJzXHo0K.js":{"file":"assets/aiFlows-pJzXHo0K.js","name":"aiFlows","imports":["_api-Dky6_J7J.js"]},"_api-6IlEo8y9.js":{"file":"assets/api-6IlEo8y9.js","name":"api","imports":["_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"_api-Dky6_J7J.js":{"file":"assets/api-Dky6_J7J.js","name":"api","imports":["_auth-DFI69Cb9.js"]},"_arrow-left-wVosysgR.js":{"file":"assets/arrow-left-wVosysgR.js","name":"arrow-left","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_auth-DFI69Cb9.js":{"file":"assets/auth-DFI69Cb9.js","name":"auth","imports":["_web-B50drEWG.js"]},"_components-DyM2LSwN.js":{"file":"assets/components-DyM2LSwN.js","name":"components","imports":["_web-B50drEWG.js","_routing-BEPNZw43.js"]},"_csv-D2ikwZU9.js":{"file":"assets/csv-D2ikwZU9.js","name":"csv","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_dates-B_ebQcaW.js":{"file":"assets/dates-B_ebQcaW.js","name":"dates"},"_defaults-ugUdWWU5.js":{"file":"assets/defaults-ugUdWWU5.js","name":"defaults","imports":["_store-CbiN3OHO.js"]},"_index-BigjWbV-.js":{"file":"assets/index-BigjWbV-.js","name":"index","imports":["_web-B50drEWG.js"]},"_journalBuilder-CuA0sOvc.js":{"file":"assets/journalBuilder-CuA0sOvc.js","name":"journalBuilder","imports":["_SearchSelect-BFmV4tA9.js","_store-CbiN3OHO.js","_index-BigjWbV-.js","_web-B50drEWG.js","_auth-DFI69Cb9.js","_api-6IlEo8y9.js"]},"_pencil-DbCIcQ_5.js":{"file":"assets/pencil-DbCIcQ_5.js","name":"pencil","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_plus-Dx1U-C1n.js":{"file":"assets/plus-Dx1U-C1n.js","name":"plus","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_printer-D_Jwaduc.js":{"file":"assets/printer-D_Jwaduc.js","name":"printer","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_recurring-CA2S8Vts.js":{"file":"assets/recurring-CA2S8Vts.js","name":"recurring","imports":["_web-B50drEWG.js","_store-CbiN3OHO.js","_yearStore-08JEXQTR.js","_store-C0eiPwcf.js","_store-BitOu3zS.js"]},"_routing-BEPNZw43.js":{"file":"assets/routing-BEPNZw43.js","name":"routing","imports":["_web-B50drEWG.js"]},"_scroll-text-DvYD_UQE.js":{"file":"assets/scroll-text-DvYD_UQE.js","name":"scroll-text","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_search-B90-czUY.js":{"file":"assets/search-B90-czUY.js","name":"search","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_sparkles-DPh9NnqK.js":{"file":"assets/sparkles-DPh9NnqK.js","name":"sparkles","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_sso-X8m-jW9J.js":{"file":"assets/sso-X8m-jW9J.js","name":"sso","imports":["_auth-DFI69Cb9.js"]},"_store-BB8JaDZn.js":{"file":"assets/store-BB8JaDZn.js","name":"store","imports":["_web-B50drEWG.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"_store-BbhHI1QO.js":{"file":"assets/store-BbhHI1QO.js","name":"store","imports":["_web-B50drEWG.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_types-CGrVZs_Y.js"]},"_store-BitOu3zS.js":{"file":"assets/store-BitOu3zS.js","name":"store","imports":["_types-CGrVZs_Y.js","_store-BB8JaDZn.js","_web-B50drEWG.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_store-C0eiPwcf.js"]},"_store-C0eiPwcf.js":{"file":"assets/store-C0eiPwcf.js","name":"store","imports":["_web-B50drEWG.js","_auth-DFI69Cb9.js","_api-Dky6_J7J.js"]},"_store-CS7DEtHt.js":{"file":"assets/store-CS7DEtHt.js","name":"store","imports":["_web-B50drEWG.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"_store-CbiN3OHO.js":{"file":"assets/store-CbiN3OHO.js","name":"store","imports":["_web-B50drEWG.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js","_auth-DFI69Cb9.js"]},"_trash-2-HfmI9UQ-.js":{"file":"assets/trash-2-HfmI9UQ-.js","name":"trash-2","imports":["_Icon-ET8315Ce.js","_web-B50drEWG.js"]},"_types-CGrVZs_Y.js":{"file":"assets/types-CGrVZs_Y.js","name":"types","imports":["_web-B50drEWG.js","_api-Dky6_J7J.js"]},"_types-DG_tf0Jf.js":{"file":"assets/types-DG_tf0Jf.js","name":"types","imports":["_web-B50drEWG.js","_index-BigjWbV-.js"]},"_types-aFJCvwH0.js":{"file":"assets/types-aFJCvwH0.js","name":"types"},"_types-pExQo7zb.js":{"file":"assets/types-pExQo7zb.js","name":"types"},"_web-B50drEWG.js":{"file":"assets/web-B50drEWG.js","name":"web"},"_yearStore-08JEXQTR.js":{"file":"assets/yearStore-08JEXQTR.js","name":"yearStore","imports":["_web-B50drEWG.js"]},"src/routes/accounts/[id].tsx?pick=default&pick=$css":{"file":"assets/_id_-Ch0shjDr.js","name":"_id_","src":"src/routes/accounts/[id].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_yearStore-08JEXQTR.js","_SearchSelect-BFmV4tA9.js","_csv-D2ikwZU9.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_StableInput-Tu2gFj_C.js","_routing-BEPNZw43.js","_components-DyM2LSwN.js","_arrow-left-wVosysgR.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js"]},"src/routes/accounts/index.tsx?pick=default&pick=$css":{"file":"assets/index-CPbo4n5j.js","name":"index","src":"src/routes/accounts/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_yearStore-08JEXQTR.js","_auth-DFI69Cb9.js","_index-BigjWbV-.js","_Spinner-BRQ7WrJe.js","_store-CbiN3OHO.js","_SearchSelect-BFmV4tA9.js","_StableInput-Tu2gFj_C.js","_defaults-ugUdWWU5.js","_Icon-ET8315Ce.js","_plus-Dx1U-C1n.js","_pencil-DbCIcQ_5.js","_scroll-text-DvYD_UQE.js","_trash-2-HfmI9UQ-.js","_components-DyM2LSwN.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js","_routing-BEPNZw43.js"]},"src/routes/admin/gemini.tsx?pick=default&pick=$css":{"file":"assets/gemini-DcnDWG48.js","name":"gemini","src":"src/routes/admin/gemini.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_api-Dky6_J7J.js","_index-BigjWbV-.js","_StableInput-Tu2gFj_C.js","_auth-DFI69Cb9.js"]},"src/routes/banking/index.tsx?pick=default&pick=$css":{"file":"assets/index-CVhoIfqG.js","name":"index","src":"src/routes/banking/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_aiFlows-pJzXHo0K.js","_store-C0eiPwcf.js","_store-CbiN3OHO.js","_yearStore-08JEXQTR.js","_SearchSelect-BFmV4tA9.js","_index-BigjWbV-.js","_api-Dky6_J7J.js","_Icon-ET8315Ce.js","_sparkles-DPh9NnqK.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js"]},"src/routes/callback.tsx?pick=default&pick=$css":{"file":"assets/callback-CAsCR86o.js","name":"callback","src":"src/routes/callback.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_auth-DFI69Cb9.js","_index-BigjWbV-.js","_routing-BEPNZw43.js","_sso-X8m-jW9J.js"]},"src/routes/employees.tsx?pick=default&pick=$css":{"file":"assets/employees-DWU8Rzpp.js","name":"employees","src":"src/routes/employees.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/employees/index.tsx?pick=default&pick=$css":{"file":"assets/index-29kvO1rC.js","name":"index","src":"src/routes/employees/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_index-BigjWbV-.js","_StableInput-Tu2gFj_C.js","_types-CGrVZs_Y.js","_plus-Dx1U-C1n.js","_pencil-DbCIcQ_5.js","_trash-2-HfmI9UQ-.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_Icon-ET8315Ce.js"]},"src/routes/index.tsx?pick=default&pick=$css":{"file":"assets/index-dlW0AZ1t.js","name":"index","src":"src/routes/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_index-BigjWbV-.js","_aiFlows-pJzXHo0K.js","_yearStore-08JEXQTR.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_store-BB8JaDZn.js","_store-CS7DEtHt.js","_store-BbhHI1QO.js","_store-BitOu3zS.js","_recurring-CA2S8Vts.js","_components-DyM2LSwN.js","_sparkles-DPh9NnqK.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js","_types-CGrVZs_Y.js","_routing-BEPNZw43.js","_Icon-ET8315Ce.js"]},"src/routes/inventory.tsx?pick=default&pick=$css":{"file":"assets/inventory-CTlUWN2v.js","name":"inventory","src":"src/routes/inventory.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/inventory/count.tsx?pick=default&pick=$css":{"file":"assets/count-DyWmPEuo.js","name":"count","src":"src/routes/inventory/count.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_StableInput-Tu2gFj_C.js","_Spinner-BRQ7WrJe.js","_index-BigjWbV-.js","_LocationSelect-B11A4peJ.js","_store-CS7DEtHt.js","_SearchSelect-BFmV4tA9.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/inventory/index.tsx?pick=default&pick=$css":{"file":"assets/index-BdUZQ4tz.js","name":"index","src":"src/routes/inventory/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_index-BigjWbV-.js","_StableInput-Tu2gFj_C.js","_dates-B_ebQcaW.js","_store-CS7DEtHt.js","_types-DG_tf0Jf.js","_plus-Dx1U-C1n.js","_Icon-ET8315Ce.js","_pencil-DbCIcQ_5.js","_trash-2-HfmI9UQ-.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/inventory/movements.tsx?pick=default&pick=$css":{"file":"assets/movements-CToiAnov.js","name":"movements","src":"src/routes/inventory/movements.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_StableInput-Tu2gFj_C.js","_Spinner-BRQ7WrJe.js","_dates-B_ebQcaW.js","_index-BigjWbV-.js","_auth-DFI69Cb9.js","_store-CS7DEtHt.js","_pencil-DbCIcQ_5.js","_trash-2-HfmI9UQ-.js","_types-DG_tf0Jf.js","_SearchSelect-BFmV4tA9.js","_LocationSelect-B11A4peJ.js","_plus-Dx1U-C1n.js","_search-B90-czUY.js","_api-Dky6_J7J.js","_Icon-ET8315Ce.js"]},"src/routes/journal/index.tsx?pick=default&pick=$css":{"file":"assets/index-HZeqe-LA.js","name":"index","src":"src/routes/journal/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_dates-B_ebQcaW.js","_StableInput-Tu2gFj_C.js","_Spinner-BRQ7WrJe.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_SearchSelect-BFmV4tA9.js","_aiFlows-pJzXHo0K.js","_store-BB8JaDZn.js","_store-C0eiPwcf.js","_sparkles-DPh9NnqK.js","_plus-Dx1U-C1n.js","_trash-2-HfmI9UQ-.js","_auth-DFI69Cb9.js","_printer-D_Jwaduc.js","_routing-BEPNZw43.js","_components-DyM2LSwN.js","_search-B90-czUY.js","_api-Dky6_J7J.js","_Icon-ET8315Ce.js"]},"src/routes/journal/print.tsx?pick=default&pick=$css":{"file":"assets/print-D8KbxtXD.js","name":"print","src":"src/routes/journal/print.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_dates-B_ebQcaW.js","_store-CbiN3OHO.js","_store-BB8JaDZn.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-C0eiPwcf.js","_routing-BEPNZw43.js","_components-DyM2LSwN.js","_arrow-left-wVosysgR.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/journal/templates.tsx?pick=default&pick=$css":{"file":"assets/templates-BKS3lFgL.js","name":"templates","src":"src/routes/journal/templates.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_store-CbiN3OHO.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_SearchSelect-BFmV4tA9.js","_StableInput-Tu2gFj_C.js","_aiFlows-pJzXHo0K.js","_store-C0eiPwcf.js","_store-BitOu3zS.js","_sparkles-DPh9NnqK.js","_plus-Dx1U-C1n.js","_trash-2-HfmI9UQ-.js","_pencil-DbCIcQ_5.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js","_types-CGrVZs_Y.js","_store-BB8JaDZn.js"]},"src/routes/login.tsx?pick=default&pick=$css":{"file":"assets/login-B3oCLAiZ.js","name":"login","src":"src/routes/login.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_auth-DFI69Cb9.js","_index-BigjWbV-.js","_routing-BEPNZw43.js","_Icon-ET8315Ce.js","_sso-X8m-jW9J.js"]},"src/routes/providers.tsx?pick=default&pick=$css":{"file":"assets/providers-BKV6tiXb.js","name":"providers","src":"src/routes/providers.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/providers/aging.tsx?pick=default&pick=$css":{"file":"assets/aging-1mbhDKuQ.js","name":"aging","src":"src/routes/providers/aging.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_csv-D2ikwZU9.js","_dates-B_ebQcaW.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_EntityDetailModal-0P0uSLyL.js","_store-BB8JaDZn.js","_Icon-ET8315Ce.js","_printer-D_Jwaduc.js","_store-CbiN3OHO.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_store-C0eiPwcf.js"]},"src/routes/providers/index.tsx?pick=default&pick=$css":{"file":"assets/index-B25tf-nU.js","name":"index","src":"src/routes/providers/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_auth-DFI69Cb9.js","_store-CbiN3OHO.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_SearchSelect-BFmV4tA9.js","_store-BB8JaDZn.js","_types-aFJCvwH0.js","_StableInput-Tu2gFj_C.js","_EntityDetailModal-0P0uSLyL.js","_plus-Dx1U-C1n.js","_pencil-DbCIcQ_5.js","_scroll-text-DvYD_UQE.js","_trash-2-HfmI9UQ-.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js","_store-C0eiPwcf.js","_csv-D2ikwZU9.js"]},"src/routes/reports.tsx?pick=default&pick=$css":{"file":"assets/reports-Bgd-GFEU.js","name":"reports","src":"src/routes/reports.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/reports/audit.tsx?pick=default&pick=$css":{"file":"assets/audit-DB3tQL3Z.js","name":"audit","src":"src/routes/reports/audit.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_SearchSelect-BFmV4tA9.js","_Spinner-BRQ7WrJe.js","_StableInput-Tu2gFj_C.js","_index-BigjWbV-.js","_yearStore-08JEXQTR.js","_store-C0eiPwcf.js","_auth-DFI69Cb9.js","_api-Dky6_J7J.js"]},"src/routes/reports/balance-sheet.tsx?pick=default&pick=$css":{"file":"assets/balance-sheet-W3s69okz.js","name":"balance-sheet","src":"src/routes/reports/balance-sheet.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_csv-D2ikwZU9.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js"]},"src/routes/reports/cash-flow.tsx?pick=default&pick=$css":{"file":"assets/cash-flow-BxYru15j.js","name":"cash-flow","src":"src/routes/reports/cash-flow.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js"]},"src/routes/reports/income-statement.tsx?pick=default&pick=$css":{"file":"assets/income-statement-B3SxdEbK.js","name":"income-statement","src":"src/routes/reports/income-statement.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_csv-D2ikwZU9.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js"]},"src/routes/reports/index.tsx?pick=default&pick=$css":{"file":"assets/index-Cyzascnw.js","name":"index","src":"src/routes/reports/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/reports/monthly-pnl.tsx?pick=default&pick=$css":{"file":"assets/monthly-pnl-D2j-zKJD.js","name":"monthly-pnl","src":"src/routes/reports/monthly-pnl.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_csv-D2ikwZU9.js","_store-C0eiPwcf.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_auth-DFI69Cb9.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js"]},"src/routes/reports/trial-balance.tsx?pick=default&pick=$css":{"file":"assets/trial-balance-ByKcTQvp.js","name":"trial-balance","src":"src/routes/reports/trial-balance.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_csv-D2ikwZU9.js","_store-C0eiPwcf.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_Icon-ET8315Ce.js","_printer-D_Jwaduc.js","_auth-DFI69Cb9.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js"]},"src/routes/reports/year-close.tsx?pick=default&pick=$css":{"file":"assets/year-close-KhDz2yL_.js","name":"year-close","src":"src/routes/reports/year-close.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_SearchSelect-BFmV4tA9.js","_Spinner-BRQ7WrJe.js","_store-C0eiPwcf.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_store-CbiN3OHO.js","_auth-DFI69Cb9.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js"]},"src/routes/timesheets.tsx?pick=default&pick=$css":{"file":"assets/timesheets-DeGukl3D.js","name":"timesheets","src":"src/routes/timesheets.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/timesheets/index.tsx?pick=default&pick=$css":{"file":"assets/index-CzWuzl0X.js","name":"index","src":"src/routes/timesheets/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_types-CGrVZs_Y.js","_auth-DFI69Cb9.js","_SearchSelect-BFmV4tA9.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_store-BB8JaDZn.js","_index-BigjWbV-.js","_store-BbhHI1QO.js","_StableInput-Tu2gFj_C.js","_plus-Dx1U-C1n.js","_pencil-DbCIcQ_5.js","_trash-2-HfmI9UQ-.js","_components-DyM2LSwN.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js","_Icon-ET8315Ce.js","_routing-BEPNZw43.js"]},"src/routes/timesheets/stub/[id].tsx?pick=default&pick=$css":{"file":"assets/_id_-qWeFqjrt.js","name":"_id_","src":"src/routes/timesheets/stub/[id].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_types-CGrVZs_Y.js","_index-BigjWbV-.js","_store-BbhHI1QO.js","_routing-BEPNZw43.js","_components-DyM2LSwN.js","_arrow-left-wVosysgR.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/timesheets/w2.tsx?pick=default&pick=$css":{"file":"assets/w2-BZO_evnp.js","name":"w2","src":"src/routes/timesheets/w2.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_index-BigjWbV-.js","_yearStore-08JEXQTR.js","_types-CGrVZs_Y.js","_store-BbhHI1QO.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/transactions.tsx?pick=default&pick=$css":{"file":"assets/transactions-DhVvwvmU.js","name":"transactions","src":"src/routes/transactions.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_RouteTabs-DHMRL8EJ.js","_index-BigjWbV-.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/transactions/compras.tsx?pick=default&pick=$css":{"file":"assets/compras-Ba7-G8Hy.js","name":"compras","src":"src/routes/transactions/compras.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_store-CS7DEtHt.js","_store-BB8JaDZn.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_SearchSelect-BFmV4tA9.js","_aiFlows-pJzXHo0K.js","_LocationSelect-B11A4peJ.js","_journalBuilder-CuA0sOvc.js","_ProductLineEditor-DXqy-c7L.js","_api-6IlEo8y9.js","_StableInput-Tu2gFj_C.js","_sparkles-DPh9NnqK.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js","_trash-2-HfmI9UQ-.js","_Icon-ET8315Ce.js","_plus-Dx1U-C1n.js"]},"src/routes/transactions/facturacion.tsx?pick=default&pick=$css":{"file":"assets/facturacion-DFOvg0HH.js","name":"facturacion","src":"src/routes/transactions/facturacion.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_store-CS7DEtHt.js","_store-BB8JaDZn.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_SearchSelect-BFmV4tA9.js","_LocationSelect-B11A4peJ.js","_journalBuilder-CuA0sOvc.js","_ProductLineEditor-DXqy-c7L.js","_api-6IlEo8y9.js","_defaults-ugUdWWU5.js","_StableInput-Tu2gFj_C.js","_routing-BEPNZw43.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js","_trash-2-HfmI9UQ-.js","_Icon-ET8315Ce.js","_plus-Dx1U-C1n.js"]},"src/routes/transactions/historial.tsx?pick=default&pick=$css":{"file":"assets/historial-CTnP2Ct9.js","name":"historial","src":"src/routes/transactions/historial.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_Spinner-BRQ7WrJe.js","_StableInput-Tu2gFj_C.js","_dates-B_ebQcaW.js","_index-BigjWbV-.js","_SearchSelect-BFmV4tA9.js","_auth-DFI69Cb9.js","_api-6IlEo8y9.js","_journalBuilder-CuA0sOvc.js","_types-pExQo7zb.js","_yearStore-08JEXQTR.js","_store-CbiN3OHO.js","_store-CS7DEtHt.js","_store-BB8JaDZn.js","_types-aFJCvwH0.js","_defaults-ugUdWWU5.js","_store-C0eiPwcf.js","_Icon-ET8315Ce.js","_components-DyM2LSwN.js","_printer-D_Jwaduc.js","_pencil-DbCIcQ_5.js","_trash-2-HfmI9UQ-.js","_search-B90-czUY.js","_api-Dky6_J7J.js","_routing-BEPNZw43.js"]},"src/routes/transactions/index.tsx?pick=default&pick=$css":{"file":"assets/index-D00D_coe.js","name":"index","src":"src/routes/transactions/index.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_components-DyM2LSwN.js","_routing-BEPNZw43.js"]},"src/routes/transactions/invoice/[number].tsx?pick=default&pick=$css":{"file":"assets/_number_-B-fj13rq.js","name":"_number_","src":"src/routes/transactions/invoice/[number].tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_PrintButton-UpwaWxOx.js","_Spinner-BRQ7WrJe.js","_dates-B_ebQcaW.js","_index-BigjWbV-.js","_api-6IlEo8y9.js","_routing-BEPNZw43.js","_components-DyM2LSwN.js","_arrow-left-wVosysgR.js","_printer-D_Jwaduc.js","_Icon-ET8315Ce.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js"]},"src/routes/transactions/mermas.tsx?pick=default&pick=$css":{"file":"assets/mermas-GPz37xX2.js","name":"mermas","src":"src/routes/transactions/mermas.tsx?pick=default&pick=$css","isEntry":true,"isDynamicEntry":true,"imports":["_web-B50drEWG.js","_store-CbiN3OHO.js","_store-C0eiPwcf.js","_store-CS7DEtHt.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_LocationSelect-B11A4peJ.js","_journalBuilder-CuA0sOvc.js","_ProductLineEditor-DXqy-c7L.js","_api-6IlEo8y9.js","_types-pExQo7zb.js","_StableInput-Tu2gFj_C.js","_api-Dky6_J7J.js","_auth-DFI69Cb9.js","_dates-B_ebQcaW.js","_SearchSelect-BFmV4tA9.js","_trash-2-HfmI9UQ-.js","_Icon-ET8315Ce.js","_plus-Dx1U-C1n.js"]},"virtual:$vinxi/handler/client":{"file":"assets/client-DyC-Xgla.js","name":"client","src":"virtual:$vinxi/handler/client","isEntry":true,"imports":["_web-B50drEWG.js","_auth-DFI69Cb9.js","_recurring-CA2S8Vts.js","_yearStore-08JEXQTR.js","_index-BigjWbV-.js","_routing-BEPNZw43.js","_Icon-ET8315Ce.js","_sparkles-DPh9NnqK.js","_components-DyM2LSwN.js","_Spinner-BRQ7WrJe.js","_store-CbiN3OHO.js","_api-Dky6_J7J.js","_dates-B_ebQcaW.js","_store-C0eiPwcf.js","_store-BitOu3zS.js","_types-CGrVZs_Y.js","_store-BB8JaDZn.js"],"dynamicImports":["src/routes/accounts/[id].tsx?pick=default&pick=$css","src/routes/accounts/index.tsx?pick=default&pick=$css","src/routes/admin/gemini.tsx?pick=default&pick=$css","src/routes/banking/index.tsx?pick=default&pick=$css","src/routes/callback.tsx?pick=default&pick=$css","src/routes/employees/index.tsx?pick=default&pick=$css","src/routes/employees.tsx?pick=default&pick=$css","src/routes/index.tsx?pick=default&pick=$css","src/routes/inventory/count.tsx?pick=default&pick=$css","src/routes/inventory/index.tsx?pick=default&pick=$css","src/routes/inventory/movements.tsx?pick=default&pick=$css","src/routes/inventory.tsx?pick=default&pick=$css","src/routes/journal/index.tsx?pick=default&pick=$css","src/routes/journal/print.tsx?pick=default&pick=$css","src/routes/journal/templates.tsx?pick=default&pick=$css","src/routes/login.tsx?pick=default&pick=$css","src/routes/providers/aging.tsx?pick=default&pick=$css","src/routes/providers/index.tsx?pick=default&pick=$css","src/routes/providers.tsx?pick=default&pick=$css","src/routes/reports/audit.tsx?pick=default&pick=$css","src/routes/reports/balance-sheet.tsx?pick=default&pick=$css","src/routes/reports/cash-flow.tsx?pick=default&pick=$css","src/routes/reports/income-statement.tsx?pick=default&pick=$css","src/routes/reports/index.tsx?pick=default&pick=$css","src/routes/reports/monthly-pnl.tsx?pick=default&pick=$css","src/routes/reports/trial-balance.tsx?pick=default&pick=$css","src/routes/reports/year-close.tsx?pick=default&pick=$css","src/routes/reports.tsx?pick=default&pick=$css","src/routes/timesheets/index.tsx?pick=default&pick=$css","src/routes/timesheets/stub/[id].tsx?pick=default&pick=$css","src/routes/timesheets/w2.tsx?pick=default&pick=$css","src/routes/timesheets.tsx?pick=default&pick=$css","src/routes/transactions/compras.tsx?pick=default&pick=$css","src/routes/transactions/facturacion.tsx?pick=default&pick=$css","src/routes/transactions/historial.tsx?pick=default&pick=$css","src/routes/transactions/index.tsx?pick=default&pick=$css","src/routes/transactions/invoice/[number].tsx?pick=default&pick=$css","src/routes/transactions/mermas.tsx?pick=default&pick=$css","src/routes/transactions.tsx?pick=default&pick=$css"],"css":["assets/client-CdvevsAi.css"]}},"server-fns":{"_server-fns-BIfoNgbV.js":{"file":"assets/server-fns-BIfoNgbV.js","name":"server-fns","dynamicImports":["src/app.tsx"]},"src/app.tsx":{"file":"assets/app-BjtImgdv.js","name":"app","src":"src/app.tsx","isDynamicEntry":true,"imports":["_server-fns-BIfoNgbV.js"],"css":["assets/app-CdvevsAi.css"]},"virtual:$vinxi/handler/server-fns":{"file":"server-fns.js","name":"server-fns","src":"virtual:$vinxi/handler/server-fns","isEntry":true,"imports":["_server-fns-BIfoNgbV.js"]}}};
 
 					const routeManifest = {"ssr":{},"client":{},"server-fns":{}};
 
@@ -4550,5169 +4817,1566 @@ app
 ];
 
 const assets = {
-  "/favicon.svg": {
-    "type": "image/svg+xml",
-    "etag": "\"fe-eemrWpDANs4gCK9mIOsqHNHqL1s\"",
-    "mtime": "2026-07-17T20:28:05.901Z",
-    "size": 254,
-    "path": "../public/favicon.svg"
+  "/index.html": {
+    "type": "text/html; charset=utf-8",
+    "encoding": null,
+    "etag": "\"132dc-+qhA8K+JgZiN2BkFz04MXrIt5hI\"",
+    "mtime": "2026-07-13T18:33:32.924Z",
+    "size": 78556,
+    "path": "../public/index.html"
   },
-  "/robots.txt": {
-    "type": "text/plain; charset=utf-8",
-    "etag": "\"4d-hf5LRFEfAzp0lJwLLM6pIrmPm6s\"",
-    "mtime": "2026-07-17T20:28:05.901Z",
-    "size": 77,
-    "path": "../public/robots.txt"
+  "/index.html.br": {
+    "type": "text/html; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"ba4-0IBbnMikSA+MsLjsy3vqCpjPwzE\"",
+    "mtime": "2026-07-13T18:33:32.967Z",
+    "size": 2980,
+    "path": "../public/index.html.br"
   },
-  "/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3068-PcW3fleGg213fE14eLAZ4FfebCg\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 12392,
-    "path": "../public/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff": {
-    "type": "font/woff",
-    "etag": "\"3cfc-ZL5G9Tm2VIgY/5jUNjpCeWAsPl4\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 15612,
-    "path": "../public/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2": {
-    "type": "font/woff2",
-    "etag": "\"2fe0-tor/Zw4N4Q8m99DCL6z37+vBcuY\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 12256,
-    "path": "../public/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff": {
-    "type": "font/woff",
-    "etag": "\"3b3c-/KT0xhbDBsShWpF/E0OQpi0UJEg\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 15164,
-    "path": "../public/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff": {
-    "type": "font/woff",
-    "etag": "\"3e8c-vuG7ZdOYlvAi8XntVayWrdGH3I4\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 16012,
-    "path": "../public/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31b0-WpEGO2ZZDwZw3yhkAhhXXHwMjIA\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 12720,
-    "path": "../public/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff": {
-    "type": "font/woff",
-    "etag": "\"3d50-XCV+tzKH13DKsRqSfSlBVs9ZqH4\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 15696,
-    "path": "../public/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31e8-vwlRkfqNiOhu8jAtpp4hMZwAx8I\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 12776,
-    "path": "../public/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff": {
-    "type": "font/woff",
-    "etag": "\"4878-3+6qytSFU/u78S2PRDQhdVpFSeI\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 18552,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2": {
-    "type": "font/woff2",
-    "etag": "\"33e4-MP9xAaMtPpHvHs24gii9L+n1YYM\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 13284,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3788-/sGMUhu8Y3HNLfNPuM8ZX9Qsr3o\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 14216,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff": {
-    "type": "font/woff",
-    "etag": "\"41dc-K84NXDH/w4+LWcUkih8pESLVyQw\"",
-    "mtime": "2026-07-17T20:28:05.969Z",
-    "size": 16860,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2": {
-    "type": "font/woff2",
-    "etag": "\"399c-BSGaBxsdgQlGC31XI1mPwQ3SOak\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 14748,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff": {
-    "type": "font/woff",
-    "etag": "\"4ac0-q6aID/vYtH5bAifKoQewLHZIEdQ\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 19136,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3660-4ffgpEH9mWDcu2do7M9ndzNYKA0\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 13920,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2"
-  },
-  "/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff": {
-    "type": "font/woff",
-    "etag": "\"4414-nZ05aqplOpNbo+Cb0cI2Xh249d8\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 17428,
-    "path": "../public/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff"
-  },
-  "/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff": {
-    "type": "font/woff",
-    "etag": "\"7c1c-O6ojxW6O4/pW7S1zZbuyPgskHVg\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 31772,
-    "path": "../public/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff"
-  },
-  "/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2": {
-    "type": "font/woff2",
-    "etag": "\"57d4-+qaMGhOUeOdmytD3703PhpOL1cs\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 22484,
-    "path": "../public/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2"
-  },
-  "/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff": {
-    "type": "font/woff",
-    "etag": "\"7508-u1KAIcLDbVUlb5nheOcFc6ShKKQ\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 29960,
-    "path": "../public/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff"
-  },
-  "/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5594-BpOyVPlWKLEkdSK4o6x3lNDzvSE\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 21908,
-    "path": "../public/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2"
-  },
-  "/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff": {
-    "type": "font/woff",
-    "etag": "\"8078-4VkY1Evw3rkCJJtuUs+n8W1g5Lw\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 32888,
-    "path": "../public/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff"
-  },
-  "/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5c6c-gQ/mrJ4YWdX29DaZqxY+2CXhY0A\"",
-    "mtime": "2026-07-17T20:28:05.970Z",
-    "size": 23660,
-    "path": "../public/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2"
-  },
-  "/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2": {
-    "type": "font/woff2",
-    "etag": "\"595c-plElvBMbfA4vsaFAqui//GFeZ5o\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 22876,
-    "path": "../public/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2"
-  },
-  "/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff": {
-    "type": "font/woff",
-    "etag": "\"6c10-aNVaQ5oH3oFdvGzh1No4RldRZGU\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 27664,
-    "path": "../public/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff"
-  },
-  "/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4b34-b0iA+N4e6kfSpVN/lbfWhWwqrVg\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 19252,
-    "path": "../public/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2"
-  },
-  "/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4a88-inJb/gvWkIDxa4Rm3+JD3cvVwdY\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 19080,
-    "path": "../public/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2"
-  },
-  "/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff": {
-    "type": "font/woff",
-    "etag": "\"7904-9V90i7R9qGBbagyxxIPch9DOJgo\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 30980,
-    "path": "../public/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff"
-  },
-  "/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff": {
-    "type": "font/woff",
-    "etag": "\"6970-zpZ3+4RrgapXjBvao/d8OnWoMCM\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 26992,
-    "path": "../public/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff"
-  },
-  "/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4f3c-UNW60/lWAI9Yq/mTdnUANa6oZoA\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 20284,
-    "path": "../public/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2"
-  },
-  "/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4db0-nad/GoSq2cQK8+zE21r7i24bdjY\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 19888,
-    "path": "../public/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2"
-  },
-  "/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff": {
-    "type": "font/woff",
-    "etag": "\"6d18-McfiZ8PaVOWL5YgYKU94JxQwMFU\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 27928,
-    "path": "../public/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff"
-  },
-  "/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1828-qXG6MHSWX5L7s0t+b+jdyQXywgw\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 6184,
-    "path": "../public/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2"
-  },
-  "/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff": {
-    "type": "font/woff",
-    "etag": "\"702c-aVQvKsLO20yon+8zZDwocDShFFw\"",
-    "mtime": "2026-07-17T20:28:05.971Z",
-    "size": 28716,
-    "path": "../public/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff"
-  },
-  "/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff": {
-    "type": "font/woff",
-    "etag": "\"2294-/nXZE8er1MS3uOF0s/lqfRSYUv4\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 8852,
-    "path": "../public/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff"
-  },
-  "/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1850-mcA8wbz/JIDnGXp/kVIs686fKBs\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 6224,
-    "path": "../public/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2"
-  },
-  "/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff": {
-    "type": "font/woff",
-    "etag": "\"2464-sNlDqyrGwuOXb49cv43hafatBpY\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 9316,
-    "path": "../public/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff"
-  },
-  "/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a58-7J/nLaYlJJIBHtYRfJHATtWdRMA\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 6744,
-    "path": "../public/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2"
-  },
-  "/assets/cotizacion-DfL1dgXL.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"393-O7ikAXYQZKY541kmTrEuGJDTpjk\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 915,
-    "path": "../public/assets/cotizacion-DfL1dgXL.css"
-  },
-  "/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a6c-bye8Y6DumedoHTv6bowxfN2+JCQ\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 6764,
-    "path": "../public/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2"
-  },
-  "/assets/index-CbveoIBs.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"24d-Zj40OcthBq7NCw2m2HnRNs1Xx4Y\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 589,
-    "path": "../public/assets/index-CbveoIBs.css"
-  },
-  "/assets/index-DIQKMgvw.css": {
+  "/_server/assets/app-CdvevsAi.css": {
     "type": "text/css; charset=utf-8",
     "encoding": null,
-    "etag": "\"14a2-tc5c66zgowuuMrhx+dYpUQGM3bw\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 5282,
-    "path": "../public/assets/index-DIQKMgvw.css"
+    "etag": "\"78a0-IMZCpfNsV7zfcnhx9CSfv9P6atY\"",
+    "mtime": "2026-07-13T18:33:32.273Z",
+    "size": 30880,
+    "path": "../public/_server/assets/app-CdvevsAi.css"
   },
-  "/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff": {
-    "type": "font/woff",
-    "etag": "\"24c0-JREuZQEmOHGewKikLiuzOyJms0w\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 9408,
-    "path": "../public/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff"
+  "/_server/assets/app-CdvevsAi.css.br": {
+    "type": "text/css; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"15a7-Qgi0FhpBAtfEsQioH7tE+IQZXQU\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 5543,
+    "path": "../public/_server/assets/app-CdvevsAi.css.br"
   },
-  "/assets/index-DIQKMgvw.css.gz": {
+  "/_server/assets/app-CdvevsAi.css.gz": {
     "type": "text/css; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"6c9-LpBKd7aD3udCNfEBsbpHVyKyizo\"",
-    "mtime": "2026-07-17T20:28:05.997Z",
-    "size": 1737,
-    "path": "../public/assets/index-DIQKMgvw.css.gz"
+    "etag": "\"1936-q30HEmsaLH2hhbHthfbxwlCxQcg\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 6454,
+    "path": "../public/_server/assets/app-CdvevsAi.css.gz"
   },
-  "/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2": {
-    "type": "font/woff2",
-    "etag": "\"39d8-sqVel30br8w1wJ7fkoMuV0KPYjs\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 14808,
-    "path": "../public/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2"
-  },
-  "/assets/ssr-B8ii3ENT.css": {
-    "type": "text/css; charset=utf-8",
-    "encoding": null,
-    "etag": "\"32d2-cuUme97aX+srluaWrxlfIMybRAI\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 13010,
-    "path": "../public/assets/ssr-B8ii3ENT.css"
-  },
-  "/assets/index-DIQKMgvw.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"5e1-hmGtZfTznGixG00X2uDBJY5/goU\"",
-    "mtime": "2026-07-17T20:28:06.010Z",
-    "size": 1505,
-    "path": "../public/assets/index-DIQKMgvw.css.br"
-  },
-  "/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff": {
-    "type": "font/woff",
-    "etag": "\"2228-VoKDT9pVng73k0UN7USLd2vNYNk\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 8744,
-    "path": "../public/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff"
-  },
-  "/assets/outfit-latin-wght-normal-Bc-8i84L.woff2": {
-    "type": "font/woff2",
-    "etag": "\"7e24-2KMW98v6RuaYdskl5Y+/e3wavw0\"",
-    "mtime": "2026-07-17T20:28:05.972Z",
-    "size": 32292,
-    "path": "../public/assets/outfit-latin-wght-normal-Bc-8i84L.woff2"
-  },
-  "/assets/ssr-B8ii3ENT.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"895-gdlixNUU0BclaJCrYaTyFcbqFyA\"",
-    "mtime": "2026-07-17T20:28:06.011Z",
-    "size": 2197,
-    "path": "../public/assets/ssr-B8ii3ENT.css.br"
-  },
-  "/assets/ssr-B8ii3ENT.css.gz": {
-    "type": "text/css; charset=utf-8",
+  "/index.html.gz": {
+    "type": "text/html; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"9e4-jmb9l2ql3lp2KuKuBcatWcL7lkw\"",
-    "mtime": "2026-07-17T20:28:06.004Z",
-    "size": 2532,
-    "path": "../public/assets/ssr-B8ii3ENT.css.gz"
-  },
-  "/_build/.vite/manifest.json": {
-    "type": "application/json",
-    "encoding": null,
-    "etag": "\"4cb8-zUQcejrQw8G6U8VARNJBqgsR57A\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 19640,
-    "path": "../public/_build/.vite/manifest.json"
-  },
-  "/_build/.vite/manifest.json.br": {
-    "type": "application/json",
-    "encoding": "br",
-    "etag": "\"613-6VJULUDy4mW86/h4vk1s5uQsOcw\"",
-    "mtime": "2026-07-17T20:28:06.019Z",
-    "size": 1555,
-    "path": "../public/_build/.vite/manifest.json.br"
+    "etag": "\"e56-+UQZxSWbmOH8vxzJVEiaR60RdS8\"",
+    "mtime": "2026-07-13T18:33:32.927Z",
+    "size": 3670,
+    "path": "../public/index.html.gz"
   },
   "/_build/.vite/manifest.json.gz": {
     "type": "application/json",
     "encoding": "gzip",
-    "etag": "\"6f9-lcxSARvqTrPPb9U2aYcIdV1inzQ\"",
-    "mtime": "2026-07-17T20:28:06.010Z",
-    "size": 1785,
+    "etag": "\"ced-lNS9R2rJAWnak/JsFLbAOnI0Iqk\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 3309,
     "path": "../public/_build/.vite/manifest.json.gz"
   },
-  "/_build/assets/HttpStatusCode-DjTx85av.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"20-6m70mxigcQrfQOHf/Wz+MEC183U\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 32,
-    "path": "../public/_build/assets/HttpStatusCode-DjTx85av.js"
+  "/_build/.vite/manifest.json.br": {
+    "type": "application/json",
+    "encoding": "br",
+    "etag": "\"b5f-OmuS+anYSgE8YQW0cjjlVh5hoIA\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 2911,
+    "path": "../public/_build/.vite/manifest.json.br"
   },
-  "/_build/assets/WorkCard-CsxW5Wse.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"398-6f/Jgs9BPg5CaiJEY4tzRPgRAjE\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 920,
-    "path": "../public/_build/assets/WorkCard-CsxW5Wse.js"
+  "/_build/.vite/manifest.json": {
+    "type": "application/json",
+    "encoding": null,
+    "etag": "\"8b0a-GFK89586RiXI3zFrrejvOu55YWw\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 35594,
+    "path": "../public/_build/.vite/manifest.json"
   },
-  "/_build/assets/_slug_-BtReMAii.js": {
+  "/_build/assets/EntityDetailModal-0P0uSLyL.js": {
     "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"948-mJGISdNpRRogOA19WxEKF9lkn54\"",
-    "mtime": "2026-07-17T20:28:05.976Z",
-    "size": 2376,
-    "path": "../public/_build/assets/_slug_-BtReMAii.js"
+    "etag": "\"2481-S2WXWsWaTnlVi9CEJYyalPVpu1M\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 9345,
+    "path": "../public/_build/assets/EntityDetailModal-0P0uSLyL.js"
   },
-  "/_build/assets/_slug_-BtReMAii.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"426-M5ftMO1UPjeKzpBCuRqMdemIScw\"",
-    "mtime": "2026-07-17T20:28:06.022Z",
-    "size": 1062,
-    "path": "../public/_build/assets/_slug_-BtReMAii.js.br"
-  },
-  "/_build/assets/_slug_-BtReMAii.js.gz": {
+  "/_build/assets/EntityDetailModal-0P0uSLyL.js.gz": {
     "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"4d6-NVR5F5HtQfo5kllbBGfk3VtS3s0\"",
-    "mtime": "2026-07-17T20:28:06.022Z",
-    "size": 1238,
-    "path": "../public/_build/assets/_slug_-BtReMAii.js.gz"
+    "etag": "\"d08-Et6nzQMxLC9QdB06TLRFqM42xJE\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 3336,
+    "path": "../public/_build/assets/EntityDetailModal-0P0uSLyL.js.gz"
   },
-  "/_build/assets/_slug_-I1fnrgec.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"3cf-7CZ0TdozMiTcYV0DR0cVqRY8DRw\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 975,
-    "path": "../public/_build/assets/_slug_-I1fnrgec.js"
+  "/robots.txt": {
+    "type": "text/plain; charset=utf-8",
+    "etag": "\"e3-xhQcOegH3AxOY4ot6A+zdGdjTNU\"",
+    "mtime": "2026-07-13T18:33:32.266Z",
+    "size": 227,
+    "path": "../public/robots.txt"
   },
-  "/_build/assets/client-B8ii3ENT.css": {
-    "type": "text/css; charset=utf-8",
-    "encoding": null,
-    "etag": "\"32d2-cuUme97aX+srluaWrxlfIMybRAI\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 13010,
-    "path": "../public/_build/assets/client-B8ii3ENT.css"
-  },
-  "/_build/assets/client-B8ii3ENT.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"895-gdlixNUU0BclaJCrYaTyFcbqFyA\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 2197,
-    "path": "../public/_build/assets/client-B8ii3ENT.css.br"
-  },
-  "/_build/assets/client-BO7b3Lz_.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"495b-v9bvv8bJjhIKY16/09I7CLBWEgk\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 18779,
-    "path": "../public/_build/assets/client-BO7b3Lz_.js"
-  },
-  "/_build/assets/client-BO7b3Lz_.js.br": {
+  "/_build/assets/EntityDetailModal-0P0uSLyL.js.br": {
     "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"188b-sD76NEaM+HC087cZG/wl5LO8A1k\"",
-    "mtime": "2026-07-17T20:28:06.037Z",
-    "size": 6283,
-    "path": "../public/_build/assets/client-BO7b3Lz_.js.br"
+    "etag": "\"b9b-NxdnSiVxDstrEZm+80wFIrYNcng\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 2971,
+    "path": "../public/_build/assets/EntityDetailModal-0P0uSLyL.js.br"
   },
-  "/_build/assets/client-B8ii3ENT.css.gz": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"9e4-jmb9l2ql3lp2KuKuBcatWcL7lkw\"",
-    "mtime": "2026-07-17T20:28:06.023Z",
-    "size": 2532,
-    "path": "../public/_build/assets/client-B8ii3ENT.css.gz"
-  },
-  "/_build/assets/client-BO7b3Lz_.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"1b71-PmT/LGwiqqjP4nD5v/4PhYLBkPU\"",
-    "mtime": "2026-07-17T20:28:06.023Z",
-    "size": 7025,
-    "path": "../public/_build/assets/client-BO7b3Lz_.js.gz"
-  },
-  "/_build/assets/components-XCiuMfkm.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"32c-HDVf/BlZbZHal6GNybUREcZKAMU\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 812,
-    "path": "../public/_build/assets/components-XCiuMfkm.js"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3068-PcW3fleGg213fE14eLAZ4FfebCg\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 12392,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff": {
-    "type": "font/woff",
-    "etag": "\"3cfc-ZL5G9Tm2VIgY/5jUNjpCeWAsPl4\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 15612,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2": {
-    "type": "font/woff2",
-    "etag": "\"2fe0-tor/Zw4N4Q8m99DCL6z37+vBcuY\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 12256,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff": {
-    "type": "font/woff",
-    "etag": "\"3b3c-/KT0xhbDBsShWpF/E0OQpi0UJEg\"",
-    "mtime": "2026-07-17T20:28:05.977Z",
-    "size": 15164,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff": {
-    "type": "font/woff",
-    "etag": "\"3e8c-vuG7ZdOYlvAi8XntVayWrdGH3I4\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 16012,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31b0-WpEGO2ZZDwZw3yhkAhhXXHwMjIA\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 12720,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff": {
-    "type": "font/woff",
-    "etag": "\"3d50-XCV+tzKH13DKsRqSfSlBVs9ZqH4\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 15696,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff": {
-    "type": "font/woff",
-    "etag": "\"4878-3+6qytSFU/u78S2PRDQhdVpFSeI\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 18552,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff": {
-    "type": "font/woff",
-    "etag": "\"41dc-K84NXDH/w4+LWcUkih8pESLVyQw\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 16860,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2": {
-    "type": "font/woff2",
-    "etag": "\"33e4-MP9xAaMtPpHvHs24gii9L+n1YYM\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 13284,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2": {
-    "type": "font/woff2",
-    "etag": "\"399c-BSGaBxsdgQlGC31XI1mPwQ3SOak\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 14748,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff": {
-    "type": "font/woff",
-    "etag": "\"4ac0-q6aID/vYtH5bAifKoQewLHZIEdQ\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 19136,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff": {
-    "type": "font/woff",
-    "etag": "\"4414-nZ05aqplOpNbo+Cb0cI2Xh249d8\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 17428,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3788-/sGMUhu8Y3HNLfNPuM8ZX9Qsr3o\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 14216,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31e8-vwlRkfqNiOhu8jAtpp4hMZwAx8I\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 12776,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2"
-  },
-  "/_build/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3660-4ffgpEH9mWDcu2do7M9ndzNYKA0\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 13920,
-    "path": "../public/_build/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff": {
-    "type": "font/woff",
-    "etag": "\"7c1c-O6ojxW6O4/pW7S1zZbuyPgskHVg\"",
-    "mtime": "2026-07-17T20:28:05.978Z",
-    "size": 31772,
-    "path": "../public/_build/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2": {
-    "type": "font/woff2",
-    "etag": "\"57d4-+qaMGhOUeOdmytD3703PhpOL1cs\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 22484,
-    "path": "../public/_build/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff": {
-    "type": "font/woff",
-    "etag": "\"7508-u1KAIcLDbVUlb5nheOcFc6ShKKQ\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 29960,
-    "path": "../public/_build/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5594-BpOyVPlWKLEkdSK4o6x3lNDzvSE\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 21908,
-    "path": "../public/_build/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff": {
-    "type": "font/woff",
-    "etag": "\"8078-4VkY1Evw3rkCJJtuUs+n8W1g5Lw\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 32888,
-    "path": "../public/_build/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5c6c-gQ/mrJ4YWdX29DaZqxY+2CXhY0A\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 23660,
-    "path": "../public/_build/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2": {
-    "type": "font/woff2",
-    "etag": "\"595c-plElvBMbfA4vsaFAqui//GFeZ5o\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 22876,
-    "path": "../public/_build/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff": {
-    "type": "font/woff",
-    "etag": "\"7904-9V90i7R9qGBbagyxxIPch9DOJgo\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 30980,
-    "path": "../public/_build/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4b34-b0iA+N4e6kfSpVN/lbfWhWwqrVg\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 19252,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff": {
-    "type": "font/woff",
-    "etag": "\"6c10-aNVaQ5oH3oFdvGzh1No4RldRZGU\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 27664,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4a88-inJb/gvWkIDxa4Rm3+JD3cvVwdY\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 19080,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff": {
-    "type": "font/woff",
-    "etag": "\"6970-zpZ3+4RrgapXjBvao/d8OnWoMCM\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 26992,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4f3c-UNW60/lWAI9Yq/mTdnUANa6oZoA\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 20284,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff": {
-    "type": "font/woff",
-    "etag": "\"702c-aVQvKsLO20yon+8zZDwocDShFFw\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 28716,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4db0-nad/GoSq2cQK8+zE21r7i24bdjY\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 19888,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2"
-  },
-  "/_build/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff": {
-    "type": "font/woff",
-    "etag": "\"6d18-McfiZ8PaVOWL5YgYKU94JxQwMFU\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 27928,
-    "path": "../public/_build/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1828-qXG6MHSWX5L7s0t+b+jdyQXywgw\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 6184,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff": {
-    "type": "font/woff",
-    "etag": "\"2294-/nXZE8er1MS3uOF0s/lqfRSYUv4\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 8852,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1850-mcA8wbz/JIDnGXp/kVIs686fKBs\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 6224,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff": {
-    "type": "font/woff",
-    "etag": "\"2228-VoKDT9pVng73k0UN7USLd2vNYNk\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 8744,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a6c-bye8Y6DumedoHTv6bowxfN2+JCQ\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 6764,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff": {
-    "type": "font/woff",
-    "etag": "\"24c0-JREuZQEmOHGewKikLiuzOyJms0w\"",
-    "mtime": "2026-07-17T20:28:05.979Z",
-    "size": 9408,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff": {
-    "type": "font/woff",
-    "etag": "\"2464-sNlDqyrGwuOXb49cv43hafatBpY\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 9316,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff"
-  },
-  "/_build/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a58-7J/nLaYlJJIBHtYRfJHATtWdRMA\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 6744,
-    "path": "../public/_build/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2"
-  },
-  "/_build/assets/cotizacion-Dc18FhHW.js": {
+  "/_build/assets/Icon-ET8315Ce.js": {
     "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"1119-uBKyKX1aqV8EJHMs/sAyovEaJ+M\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 4377,
-    "path": "../public/_build/assets/cotizacion-Dc18FhHW.js"
+    "etag": "\"6eb-64ZsqL9FSVQKaJgb9eu3qq4ohyU\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 1771,
+    "path": "../public/_build/assets/Icon-ET8315Ce.js"
   },
-  "/_build/assets/cotizacion-Dc18FhHW.js.br": {
+  "/_build/assets/Icon-ET8315Ce.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"3b1-qTMSa6wM61/nhbyjPcki3xyR48Y\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 945,
+    "path": "../public/_build/assets/Icon-ET8315Ce.js.gz"
+  },
+  "/_build/assets/Icon-ET8315Ce.js.br": {
     "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"632-+CZXxVpkC+TI5LYi5IJv+DvoM7k\"",
-    "mtime": "2026-07-17T20:28:06.031Z",
-    "size": 1586,
-    "path": "../public/_build/assets/cotizacion-Dc18FhHW.js.br"
+    "etag": "\"33a-uCgW0yKld+x4s++USmuupImH0JY\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 826,
+    "path": "../public/_build/assets/Icon-ET8315Ce.js.br"
   },
-  "/_build/assets/cotizacion-DfL1dgXL.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"393-O7ikAXYQZKY541kmTrEuGJDTpjk\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 915,
-    "path": "../public/_build/assets/cotizacion-DfL1dgXL.css"
-  },
-  "/_build/assets/cotizacion-Dc18FhHW.js.gz": {
+  "/_build/assets/PrintButton-UpwaWxOx.js": {
     "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"715-3P5fGA8uUraGNttZZKFFO1ezETA\"",
-    "mtime": "2026-07-17T20:28:06.027Z",
-    "size": 1813,
-    "path": "../public/_build/assets/cotizacion-Dc18FhHW.js.gz"
+    "etag": "\"1de-qYQgv3BHoBEajlVp55dKyntDMQA\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 478,
+    "path": "../public/_build/assets/PrintButton-UpwaWxOx.js"
   },
-  "/_build/assets/createAsync-BXTxQB_T.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"29b-UfjRXd+mriiVyjy6i/RJwAi+BpQ\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 667,
-    "path": "../public/_build/assets/createAsync-BXTxQB_T.js"
-  },
-  "/_build/assets/images-BZgZFbVl.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"3e6-xjaekvrppWVy2//IFWOm3ZOsQ0Y\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 998,
-    "path": "../public/_build/assets/images-BZgZFbVl.js"
-  },
-  "/_build/assets/index-BGQxcl-Y.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"2882-oo237tfqrN4UCNMsHhfrV3EiFvY\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 10370,
-    "path": "../public/_build/assets/index-BGQxcl-Y.js"
-  },
-  "/_build/assets/index-BGQxcl-Y.js.br": {
+  "/_build/assets/ProductLineEditor-DXqy-c7L.js.br": {
     "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"dc6-qHeefiEzbZzJSu2b00oVAgC4OuM\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 3526,
-    "path": "../public/_build/assets/index-BGQxcl-Y.js.br"
-  },
-  "/_build/assets/index-BGQxcl-Y.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"fdd-fGpM2DzpeXOVKTl3bVFj+SwlHTw\"",
-    "mtime": "2026-07-17T20:28:06.031Z",
-    "size": 4061,
-    "path": "../public/_build/assets/index-BGQxcl-Y.js.gz"
-  },
-  "/_build/assets/index-BiS0Qbfr.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"8a1-q0j2hb1mjNGEnoEqeiLjQFlnSx4\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 2209,
-    "path": "../public/_build/assets/index-BiS0Qbfr.js"
-  },
-  "/_build/assets/index-BiS0Qbfr.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"3e4-6sTMPYc5xW9MKVImNyn/oWfWjzQ\"",
-    "mtime": "2026-07-17T20:28:06.034Z",
-    "size": 996,
-    "path": "../public/_build/assets/index-BiS0Qbfr.js.br"
-  },
-  "/_build/assets/index-BiS0Qbfr.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"477-XzBAvCNEi31SxZPkVWze3v8aeBg\"",
-    "mtime": "2026-07-17T20:28:06.034Z",
-    "size": 1143,
-    "path": "../public/_build/assets/index-BiS0Qbfr.js.gz"
-  },
-  "/_build/assets/index-CbveoIBs.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"24d-Zj40OcthBq7NCw2m2HnRNs1Xx4Y\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 589,
-    "path": "../public/_build/assets/index-CbveoIBs.css"
-  },
-  "/_build/assets/index-DIQKMgvw.css": {
-    "type": "text/css; charset=utf-8",
-    "encoding": null,
-    "etag": "\"14a2-tc5c66zgowuuMrhx+dYpUQGM3bw\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 5282,
-    "path": "../public/_build/assets/index-DIQKMgvw.css"
-  },
-  "/_build/assets/index-DIQKMgvw.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"5e1-hmGtZfTznGixG00X2uDBJY5/goU\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 1505,
-    "path": "../public/_build/assets/index-DIQKMgvw.css.br"
-  },
-  "/_build/assets/index-DIQKMgvw.css.gz": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"6c9-LpBKd7aD3udCNfEBsbpHVyKyizo\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 1737,
-    "path": "../public/_build/assets/index-DIQKMgvw.css.gz"
-  },
-  "/_build/assets/index-D_iTvzxp.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"11f62-DFvM0YKrgi7+UK3u8jAMP/BMTik\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 73570,
-    "path": "../public/_build/assets/index-D_iTvzxp.js"
-  },
-  "/_build/assets/index-D_iTvzxp.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"5d2f-6qY77eWC4qZ8qe5U900AGi3zxj8\"",
-    "mtime": "2026-07-17T20:28:06.096Z",
-    "size": 23855,
-    "path": "../public/_build/assets/index-D_iTvzxp.js.br"
-  },
-  "/_build/assets/index-DnzWAhWH.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"c15-yAl8mgV1T0gp0osvbkef5YjJqR8\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 3093,
-    "path": "../public/_build/assets/index-DnzWAhWH.js"
-  },
-  "/_build/assets/index-DnzWAhWH.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"4c1-rIWc63Ir28rniEw1+UC0Kl0Gtuo\"",
-    "mtime": "2026-07-17T20:28:06.037Z",
-    "size": 1217,
-    "path": "../public/_build/assets/index-DnzWAhWH.js.br"
-  },
-  "/_build/assets/index-DnzWAhWH.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"586-frZEHbLXbC4PP6QAe9TungAYI1I\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 1414,
-    "path": "../public/_build/assets/index-DnzWAhWH.js.gz"
-  },
-  "/_build/assets/index-D_iTvzxp.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"6622-6tpsg4308Z74N6ScEQKYlhYlZvM\"",
-    "mtime": "2026-07-17T20:28:06.036Z",
-    "size": 26146,
-    "path": "../public/_build/assets/index-D_iTvzxp.js.gz"
-  },
-  "/_build/assets/index-Dz41R_Te.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"c002-C6/rU/slCsv1LCQcl/57fJEFNUk\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 49154,
-    "path": "../public/_build/assets/index-Dz41R_Te.js"
-  },
-  "/_build/assets/index-Dz41R_Te.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"4299-FuVcsGcooK8Ty6M5+K9kQeLcCpg\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 17049,
-    "path": "../public/_build/assets/index-Dz41R_Te.js.br"
-  },
-  "/_build/assets/index-Dz41R_Te.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"49d1-bAZ0zKVXWGfjh6yAZ5iDeKh3bCE\"",
-    "mtime": "2026-07-17T20:28:06.037Z",
-    "size": 18897,
-    "path": "../public/_build/assets/index-Dz41R_Te.js.gz"
-  },
-  "/_build/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2": {
-    "type": "font/woff2",
-    "etag": "\"39d8-sqVel30br8w1wJ7fkoMuV0KPYjs\"",
-    "mtime": "2026-07-17T20:28:05.980Z",
-    "size": 14808,
-    "path": "../public/_build/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2"
-  },
-  "/_build/assets/outfit-latin-wght-normal-Bc-8i84L.woff2": {
-    "type": "font/woff2",
-    "etag": "\"7e24-2KMW98v6RuaYdskl5Y+/e3wavw0\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 32292,
-    "path": "../public/_build/assets/outfit-latin-wght-normal-Bc-8i84L.woff2"
-  },
-  "/_build/assets/preload-helper-ug3pwPZ1.js": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": null,
-    "etag": "\"45d-XiQMNpbVR2X0xJL+SxLhHj6mxQk\"",
-    "mtime": "2026-07-17T20:28:05.981Z",
-    "size": 1117,
-    "path": "../public/_build/assets/preload-helper-ug3pwPZ1.js"
-  },
-  "/_build/assets/preload-helper-ug3pwPZ1.js.br": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"219-M4m9Tmf23DzC7fqfeE0YouucbAc\"",
-    "mtime": "2026-07-17T20:28:06.038Z",
-    "size": 537,
-    "path": "../public/_build/assets/preload-helper-ug3pwPZ1.js.br"
-  },
-  "/_build/assets/preload-helper-ug3pwPZ1.js.gz": {
-    "type": "text/javascript; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"28d-Z5ThR7vdKzwXSki3u9wq9pzNr0w\"",
-    "mtime": "2026-07-17T20:28:06.037Z",
-    "size": 653,
-    "path": "../public/_build/assets/preload-helper-ug3pwPZ1.js.gz"
-  },
-  "/_server/assets/app-h3uGFq88.css": {
-    "type": "text/css; charset=utf-8",
-    "encoding": null,
-    "etag": "\"32fc-XPQ5jb9S7hjmMuQaUTsC5rdA6k8\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 13052,
-    "path": "../public/_server/assets/app-h3uGFq88.css"
-  },
-  "/_server/assets/app-h3uGFq88.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"891-cD16FZQEevZVySEo1rmkn4VuyYQ\"",
-    "mtime": "2026-07-17T20:28:06.023Z",
-    "size": 2193,
-    "path": "../public/_server/assets/app-h3uGFq88.css.br"
-  },
-  "/_server/assets/app-h3uGFq88.css.gz": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"9eb-29+kMhwcWAL8aag366Ta2kNfoPo\"",
-    "mtime": "2026-07-17T20:28:06.011Z",
-    "size": 2539,
-    "path": "../public/_server/assets/app-h3uGFq88.css.gz"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3068-PcW3fleGg213fE14eLAZ4FfebCg\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 12392,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-300-italic-Bi4RSOgf.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff": {
-    "type": "font/woff",
-    "etag": "\"3cfc-ZL5G9Tm2VIgY/5jUNjpCeWAsPl4\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 15612,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-300-italic-Bo30KLu4.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2": {
-    "type": "font/woff2",
-    "etag": "\"2fe0-tor/Zw4N4Q8m99DCL6z37+vBcuY\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 12256,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-300-normal-DZNkLIMe.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff": {
-    "type": "font/woff",
-    "etag": "\"3b3c-/KT0xhbDBsShWpF/E0OQpi0UJEg\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 15164,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-300-normal-KEduutn5.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff": {
-    "type": "font/woff",
-    "etag": "\"3e8c-vuG7ZdOYlvAi8XntVayWrdGH3I4\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 16012,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-400-italic-AH1vqu4S.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31b0-WpEGO2ZZDwZw3yhkAhhXXHwMjIA\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 12720,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-400-italic-D3GtrbRZ.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff": {
-    "type": "font/woff",
-    "etag": "\"3d50-XCV+tzKH13DKsRqSfSlBVs9ZqH4\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 15696,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-400-normal-CVFrM67f.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2": {
-    "type": "font/woff2",
-    "etag": "\"31e8-vwlRkfqNiOhu8jAtpp4hMZwAx8I\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 12776,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-400-normal-DD2KOZkl.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3788-/sGMUhu8Y3HNLfNPuM8ZX9Qsr3o\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 14216,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-300-italic-B31MkR9z.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff": {
-    "type": "font/woff",
-    "etag": "\"4878-3+6qytSFU/u78S2PRDQhdVpFSeI\"",
-    "mtime": "2026-07-17T20:28:05.986Z",
-    "size": 18552,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-300-italic-Dj41S4NK.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff": {
-    "type": "font/woff",
-    "etag": "\"41dc-K84NXDH/w4+LWcUkih8pESLVyQw\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 16860,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-300-normal-B5wCrnbP.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2": {
-    "type": "font/woff2",
-    "etag": "\"399c-BSGaBxsdgQlGC31XI1mPwQ3SOak\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 14748,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-400-italic-BEGvmv_3.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2": {
-    "type": "font/woff2",
-    "etag": "\"33e4-MP9xAaMtPpHvHs24gii9L+n1YYM\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 13284,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-300-normal-D8IReVS-.woff2"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff": {
-    "type": "font/woff",
-    "etag": "\"4ac0-q6aID/vYtH5bAifKoQewLHZIEdQ\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 19136,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-400-italic-C_Uk1MUY.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff": {
-    "type": "font/woff",
-    "etag": "\"4414-nZ05aqplOpNbo+Cb0cI2Xh249d8\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 17428,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-400-normal-DLdKLAvx.woff"
-  },
-  "/_server/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2": {
-    "type": "font/woff2",
-    "etag": "\"3660-4ffgpEH9mWDcu2do7M9ndzNYKA0\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 13920,
-    "path": "../public/_server/assets/cormorant-garamond-cyrillic-ext-400-normal-W3Dto7M0.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff": {
-    "type": "font/woff",
-    "etag": "\"7c1c-O6ojxW6O4/pW7S1zZbuyPgskHVg\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 31772,
-    "path": "../public/_server/assets/cormorant-garamond-latin-300-italic-DRnsRYID.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2": {
-    "type": "font/woff2",
-    "etag": "\"57d4-+qaMGhOUeOdmytD3703PhpOL1cs\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 22484,
-    "path": "../public/_server/assets/cormorant-garamond-latin-300-italic-qkwBXYHn.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff": {
-    "type": "font/woff",
-    "etag": "\"7508-u1KAIcLDbVUlb5nheOcFc6ShKKQ\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 29960,
-    "path": "../public/_server/assets/cormorant-garamond-latin-300-normal-BuXLI6C0.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5594-BpOyVPlWKLEkdSK4o6x3lNDzvSE\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 21908,
-    "path": "../public/_server/assets/cormorant-garamond-latin-300-normal-Cw-E_7L1.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2": {
-    "type": "font/woff2",
-    "etag": "\"5c6c-gQ/mrJ4YWdX29DaZqxY+2CXhY0A\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 23660,
-    "path": "../public/_server/assets/cormorant-garamond-latin-400-italic-Dc_OZ8oc.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff": {
-    "type": "font/woff",
-    "etag": "\"8078-4VkY1Evw3rkCJJtuUs+n8W1g5Lw\"",
-    "mtime": "2026-07-17T20:28:05.987Z",
-    "size": 32888,
-    "path": "../public/_server/assets/cormorant-garamond-latin-400-italic-BLh7T8o8.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2": {
-    "type": "font/woff2",
-    "etag": "\"595c-plElvBMbfA4vsaFAqui//GFeZ5o\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 22876,
-    "path": "../public/_server/assets/cormorant-garamond-latin-400-normal-B-1hWBU7.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff": {
-    "type": "font/woff",
-    "etag": "\"7904-9V90i7R9qGBbagyxxIPch9DOJgo\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 30980,
-    "path": "../public/_server/assets/cormorant-garamond-latin-400-normal-B7YtguxJ.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4b34-b0iA+N4e6kfSpVN/lbfWhWwqrVg\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 19252,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-300-italic-Bt0Wsy7Q.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff": {
-    "type": "font/woff",
-    "etag": "\"6c10-aNVaQ5oH3oFdvGzh1No4RldRZGU\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 27664,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-300-italic-DambfolG.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4a88-inJb/gvWkIDxa4Rm3+JD3cvVwdY\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 19080,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-300-normal-BsCYHBWC.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff": {
-    "type": "font/woff",
-    "etag": "\"6970-zpZ3+4RrgapXjBvao/d8OnWoMCM\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 26992,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-300-normal-DueGyF8j.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4f3c-UNW60/lWAI9Yq/mTdnUANa6oZoA\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 20284,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-400-italic-BdEzgT7i.woff2"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff": {
-    "type": "font/woff",
-    "etag": "\"702c-aVQvKsLO20yon+8zZDwocDShFFw\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 28716,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-400-italic-CQvLaSWn.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2": {
-    "type": "font/woff2",
-    "etag": "\"4db0-nad/GoSq2cQK8+zE21r7i24bdjY\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 19888,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-400-normal-Drx2k2n9.woff2"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1828-qXG6MHSWX5L7s0t+b+jdyQXywgw\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 6184,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-300-italic-CCKicgM4.woff2"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff": {
-    "type": "font/woff",
-    "etag": "\"2294-/nXZE8er1MS3uOF0s/lqfRSYUv4\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 8852,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-300-italic-DjSFy2Pr.woff"
-  },
-  "/_server/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff": {
-    "type": "font/woff",
-    "etag": "\"6d18-McfiZ8PaVOWL5YgYKU94JxQwMFU\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 27928,
-    "path": "../public/_server/assets/cormorant-garamond-latin-ext-400-normal-uvC0WHQr.woff"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1850-mcA8wbz/JIDnGXp/kVIs686fKBs\"",
-    "mtime": "2026-07-17T20:28:05.988Z",
-    "size": 6224,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-300-normal-BTzPAsHw.woff2"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff": {
-    "type": "font/woff",
-    "etag": "\"2228-VoKDT9pVng73k0UN7USLd2vNYNk\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 8744,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-300-normal-ByHlPz7v.woff"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a6c-bye8Y6DumedoHTv6bowxfN2+JCQ\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 6764,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-400-italic-BoXDRTEW.woff2"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff": {
-    "type": "font/woff",
-    "etag": "\"2464-sNlDqyrGwuOXb49cv43hafatBpY\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 9316,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-400-normal-4uxlocMh.woff"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff": {
-    "type": "font/woff",
-    "etag": "\"24c0-JREuZQEmOHGewKikLiuzOyJms0w\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 9408,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-400-italic-CJpMwFnN.woff"
-  },
-  "/_server/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2": {
-    "type": "font/woff2",
-    "etag": "\"1a58-7J/nLaYlJJIBHtYRfJHATtWdRMA\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 6744,
-    "path": "../public/_server/assets/cormorant-garamond-vietnamese-400-normal-6K-YXo6g.woff2"
-  },
-  "/_server/assets/cotizacion-DfL1dgXL.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"393-O7ikAXYQZKY541kmTrEuGJDTpjk\"",
-    "mtime": "2026-07-17T20:28:05.990Z",
-    "size": 915,
-    "path": "../public/_server/assets/cotizacion-DfL1dgXL.css"
-  },
-  "/_server/assets/index-CbveoIBs.css": {
-    "type": "text/css; charset=utf-8",
-    "etag": "\"24d-Zj40OcthBq7NCw2m2HnRNs1Xx4Y\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 589,
-    "path": "../public/_server/assets/index-CbveoIBs.css"
-  },
-  "/_server/assets/index-DIQKMgvw.css": {
-    "type": "text/css; charset=utf-8",
-    "encoding": null,
-    "etag": "\"14a2-tc5c66zgowuuMrhx+dYpUQGM3bw\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 5282,
-    "path": "../public/_server/assets/index-DIQKMgvw.css"
-  },
-  "/_server/assets/index-DIQKMgvw.css.br": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "br",
-    "etag": "\"5e1-hmGtZfTznGixG00X2uDBJY5/goU\"",
-    "mtime": "2026-07-17T20:28:06.019Z",
-    "size": 1505,
-    "path": "../public/_server/assets/index-DIQKMgvw.css.br"
-  },
-  "/_server/assets/index-DIQKMgvw.css.gz": {
-    "type": "text/css; charset=utf-8",
-    "encoding": "gzip",
-    "etag": "\"6c9-LpBKd7aD3udCNfEBsbpHVyKyizo\"",
-    "mtime": "2026-07-17T20:28:06.019Z",
-    "size": 1737,
-    "path": "../public/_server/assets/index-DIQKMgvw.css.gz"
-  },
-  "/_server/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2": {
-    "type": "font/woff2",
-    "etag": "\"39d8-sqVel30br8w1wJ7fkoMuV0KPYjs\"",
-    "mtime": "2026-07-17T20:28:05.989Z",
-    "size": 14808,
-    "path": "../public/_server/assets/outfit-latin-ext-wght-normal-DdQaqQDo.woff2"
-  },
-  "/_server/assets/outfit-latin-wght-normal-Bc-8i84L.woff2": {
-    "type": "font/woff2",
-    "etag": "\"7e24-2KMW98v6RuaYdskl5Y+/e3wavw0\"",
-    "mtime": "2026-07-17T20:28:05.990Z",
-    "size": 32292,
-    "path": "../public/_server/assets/outfit-latin-wght-normal-Bc-8i84L.woff2"
-  },
-  "/img/swatches/bay-shore-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1e4e0-CLWYdAGM7LXykBQBaA2/TebmiSw\"",
-    "mtime": "2026-07-17T20:28:05.899Z",
-    "size": 124128,
-    "path": "../public/img/swatches/bay-shore-1600.avif"
-  },
-  "/img/swatches/bay-shore-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"397b4-BQFGxSCfJ6dcr7TJ9gnYUCTI3ms\"",
-    "mtime": "2026-07-17T20:28:05.902Z",
-    "size": 235444,
-    "path": "../public/img/swatches/bay-shore-1600.webp"
-  },
-  "/img/swatches/bay-shore-480.avif": {
-    "type": "image/avif",
-    "etag": "\"9ddf-OA0IiN2dmhBnpja6fcD9epUruQ8\"",
-    "mtime": "2026-07-17T20:28:05.902Z",
-    "size": 40415,
-    "path": "../public/img/swatches/bay-shore-480.avif"
-  },
-  "/img/swatches/bay-shore-480.webp": {
-    "type": "image/webp",
-    "etag": "\"eb06-BdNQvEO9Y7+L6BQVqsB+hKGB+Bg\"",
-    "mtime": "2026-07-17T20:28:05.902Z",
-    "size": 60166,
-    "path": "../public/img/swatches/bay-shore-480.webp"
-  },
-  "/img/swatches/bay-shore-960.avif": {
-    "type": "image/avif",
-    "etag": "\"16a59-pmnkeHVStwE4+LzYxBeic7xyVyU\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 92761,
-    "path": "../public/img/swatches/bay-shore-960.avif"
-  },
-  "/img/swatches/bay-shore.avif": {
-    "type": "image/avif",
-    "etag": "\"16a59-pmnkeHVStwE4+LzYxBeic7xyVyU\"",
-    "mtime": "2026-07-17T20:28:05.902Z",
-    "size": 92761,
-    "path": "../public/img/swatches/bay-shore.avif"
-  },
-  "/img/swatches/bay-shore-960.webp": {
-    "type": "image/webp",
-    "etag": "\"21cce-LwM/Uj3P8I7QCzdA1g/sNEO2UMw\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 138446,
-    "path": "../public/img/swatches/bay-shore-960.webp"
-  },
-  "/img/swatches/black-galaxy-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"16c30-yKKL9stEAEyidBc1gZ6+pspvwZw\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 93232,
-    "path": "../public/img/swatches/black-galaxy-1600.avif"
-  },
-  "/img/swatches/bay-shore.webp": {
-    "type": "image/webp",
-    "etag": "\"21cce-LwM/Uj3P8I7QCzdA1g/sNEO2UMw\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 138446,
-    "path": "../public/img/swatches/bay-shore.webp"
-  },
-  "/img/swatches/black-galaxy-480.avif": {
-    "type": "image/avif",
-    "etag": "\"65c4-qCD3Pl2TSqnjgjW0JVS8xAM9v1Q\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 26052,
-    "path": "../public/img/swatches/black-galaxy-480.avif"
-  },
-  "/img/swatches/black-galaxy-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1dcc6-Mr7bARyru4a3IGlm8nIPvZnn/ig\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 122054,
-    "path": "../public/img/swatches/black-galaxy-1600.webp"
-  },
-  "/img/swatches/black-galaxy-480.webp": {
-    "type": "image/webp",
-    "etag": "\"7ef0-dm5cTtn0hab8KXjWeCsbiS0XcrI\"",
-    "mtime": "2026-07-17T20:28:05.903Z",
-    "size": 32496,
-    "path": "../public/img/swatches/black-galaxy-480.webp"
-  },
-  "/img/swatches/black-galaxy-960.avif": {
-    "type": "image/avif",
-    "etag": "\"d630-8gWXy2jIYyiJy34ZJxthx3Z+1fE\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 54832,
-    "path": "../public/img/swatches/black-galaxy-960.avif"
-  },
-  "/img/swatches/black-galaxy-960.webp": {
-    "type": "image/webp",
-    "etag": "\"10dda-iflqjCNYQGEQvnInvc48ZYmHmOs\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 69082,
-    "path": "../public/img/swatches/black-galaxy-960.webp"
-  },
-  "/img/swatches/black-galaxy.avif": {
-    "type": "image/avif",
-    "etag": "\"d630-8gWXy2jIYyiJy34ZJxthx3Z+1fE\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 54832,
-    "path": "../public/img/swatches/black-galaxy.avif"
-  },
-  "/img/swatches/black-galaxy.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3b75-UwbctcahsAj9/e6dMMP+wSql6Yw\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 15221,
-    "path": "../public/img/swatches/black-galaxy.svg"
-  },
-  "/img/swatches/black-galaxy.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"7e1-hAJ8jfQmwFCWlTb2uVQ1Xtsuu+4\"",
-    "mtime": "2026-07-17T20:28:06.050Z",
-    "size": 2017,
-    "path": "../public/img/swatches/black-galaxy.svg.br"
-  },
-  "/img/swatches/black-galaxy.webp": {
-    "type": "image/webp",
-    "etag": "\"10dda-iflqjCNYQGEQvnInvc48ZYmHmOs\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 69082,
-    "path": "../public/img/swatches/black-galaxy.webp"
-  },
-  "/img/swatches/black-galaxy.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"99f-4Rl+ai95gmtWA34aqOoTI0w+dEw\"",
-    "mtime": "2026-07-17T20:28:06.038Z",
-    "size": 2463,
-    "path": "../public/img/swatches/black-galaxy.svg.gz"
-  },
-  "/img/swatches/black-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"2af9a-PpTesUl6pbzmiKIdesZ7DWg7d5s\"",
-    "mtime": "2026-07-17T20:28:05.905Z",
-    "size": 176026,
-    "path": "../public/img/swatches/black-pearl-1600.webp"
-  },
-  "/img/swatches/black-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"26d85-elq6dr0GRSxGFiLEtxTHpqKpOY8\"",
-    "mtime": "2026-07-17T20:28:05.904Z",
-    "size": 159109,
-    "path": "../public/img/swatches/black-pearl-1600.avif"
-  },
-  "/img/swatches/black-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"5ed1-lfIxik2eIqboyJzFlvt3F1lNK78\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 24273,
-    "path": "../public/img/swatches/black-pearl-480.avif"
-  },
-  "/img/swatches/black-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"6bf8-uNYpt7babKxiRTTAAcCIlMWUB6I\"",
-    "mtime": "2026-07-17T20:28:05.905Z",
-    "size": 27640,
-    "path": "../public/img/swatches/black-pearl-480.webp"
-  },
-  "/img/swatches/black-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"15465-aS6OOXsPhxZA9/DOvEzVmdoAxsg\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 87141,
-    "path": "../public/img/swatches/black-pearl-960.avif"
-  },
-  "/img/swatches/black-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"164e6-ODWAUnkf5l0p8CGkw/pHyuEquZY\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 91366,
-    "path": "../public/img/swatches/black-pearl-960.webp"
-  },
-  "/img/swatches/black-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"15465-aS6OOXsPhxZA9/DOvEzVmdoAxsg\"",
-    "mtime": "2026-07-17T20:28:05.905Z",
-    "size": 87141,
-    "path": "../public/img/swatches/black-pearl.avif"
-  },
-  "/img/swatches/blanco-carrara-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"455a-ezFQwoncKXJXqdyCFInP7IuV7uE\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 17754,
-    "path": "../public/img/swatches/blanco-carrara-1600.avif"
-  },
-  "/img/swatches/black-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"164e6-ODWAUnkf5l0p8CGkw/pHyuEquZY\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 91366,
-    "path": "../public/img/swatches/black-pearl.webp"
-  },
-  "/img/swatches/blanco-carrara-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"4c0a-nYY6LvMhHTmc/bHj/TCjYS1P1L4\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 19466,
-    "path": "../public/img/swatches/blanco-carrara-1600.webp"
-  },
-  "/img/swatches/blanco-carrara-480.avif": {
-    "type": "image/avif",
-    "etag": "\"1274-B4e8lqBWeYw/oEeOnPHdFJgz4Hc\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 4724,
-    "path": "../public/img/swatches/blanco-carrara-480.avif"
-  },
-  "/img/swatches/blanco-carrara-960.avif": {
-    "type": "image/avif",
-    "etag": "\"2751-5fPrKnNaX9/wDrGz9EJWMLv38FM\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 10065,
-    "path": "../public/img/swatches/blanco-carrara-960.avif"
-  },
-  "/img/swatches/blanco-carrara-480.webp": {
-    "type": "image/webp",
-    "etag": "\"e62-IhUkUmIZ40y+pIWnXulj7qQxBPA\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 3682,
-    "path": "../public/img/swatches/blanco-carrara-480.webp"
-  },
-  "/img/swatches/blanco-carrara-960.webp": {
-    "type": "image/webp",
-    "etag": "\"243e-otF8AJtyaP/N+h6tSzAAUHY6Uj8\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 9278,
-    "path": "../public/img/swatches/blanco-carrara-960.webp"
-  },
-  "/img/swatches/blanco-carrara.avif": {
-    "type": "image/avif",
-    "etag": "\"2751-5fPrKnNaX9/wDrGz9EJWMLv38FM\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 10065,
-    "path": "../public/img/swatches/blanco-carrara.avif"
-  },
-  "/img/swatches/blanco-carrara.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"173-WJgtF+7kVCGOm0+xurT8yCf/ob4\"",
-    "mtime": "2026-07-17T20:28:06.040Z",
-    "size": 371,
-    "path": "../public/img/swatches/blanco-carrara.svg.br"
-  },
-  "/img/swatches/blanco-carrara.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"521-gZrg7CKY0tLjPr7xwdEChcp1uFI\"",
-    "mtime": "2026-07-17T20:28:05.906Z",
-    "size": 1313,
-    "path": "../public/img/swatches/blanco-carrara.svg"
-  },
-  "/img/swatches/blanco-carrara.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"1c8-RBfHYsf+3PvQd3oSVnqpx4gHTN0\"",
-    "mtime": "2026-07-17T20:28:06.040Z",
-    "size": 456,
-    "path": "../public/img/swatches/blanco-carrara.svg.gz"
-  },
-  "/img/swatches/blanco-carrara.webp": {
-    "type": "image/webp",
-    "etag": "\"243e-otF8AJtyaP/N+h6tSzAAUHY6Uj8\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 9278,
-    "path": "../public/img/swatches/blanco-carrara.webp"
-  },
-  "/img/swatches/blue-dunes-480.avif": {
-    "type": "image/avif",
-    "etag": "\"b001-Ry7Jy89J1ZUdbXXBVJGBW+8glr0\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 45057,
-    "path": "../public/img/swatches/blue-dunes-480.avif"
-  },
-  "/img/swatches/blue-dunes-480.webp": {
-    "type": "image/webp",
-    "etag": "\"10eea-NQeytb+q/6xnmtzACYPh4eGKtNk\"",
-    "mtime": "2026-07-17T20:28:05.908Z",
-    "size": 69354,
-    "path": "../public/img/swatches/blue-dunes-480.webp"
-  },
-  "/img/swatches/blue-dunes-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"41594-Ccmoc3W+5l06cSSjdFKjqZqRfOA\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 267668,
-    "path": "../public/img/swatches/blue-dunes-1600.avif"
-  },
-  "/img/swatches/blue-dunes-960.avif": {
-    "type": "image/avif",
-    "etag": "\"230e2-oZ4Y4ooxKfc1x06naTngDZOdrNo\"",
-    "mtime": "2026-07-17T20:28:05.908Z",
-    "size": 143586,
-    "path": "../public/img/swatches/blue-dunes-960.avif"
-  },
-  "/img/swatches/blue-dunes.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3b5f-52BGcVRKoJgFOrxnjt5WNzLukKg\"",
-    "mtime": "2026-07-17T20:28:05.907Z",
-    "size": 15199,
-    "path": "../public/img/swatches/blue-dunes.svg"
-  },
-  "/img/swatches/blue-dunes.avif": {
-    "type": "image/avif",
-    "etag": "\"230e2-oZ4Y4ooxKfc1x06naTngDZOdrNo\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 143586,
-    "path": "../public/img/swatches/blue-dunes.avif"
-  },
-  "/img/swatches/blue-dunes.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"7d8-H78E4+/rY6rOD4MJ3jaM1V0FCvU\"",
-    "mtime": "2026-07-17T20:28:06.054Z",
-    "size": 2008,
-    "path": "../public/img/swatches/blue-dunes.svg.br"
-  },
-  "/img/swatches/blue-dunes-960.webp": {
-    "type": "image/webp",
-    "etag": "\"3b328-pfsAhm/gyDvCvXjs/PQSADTSlNk\"",
-    "mtime": "2026-07-17T20:28:05.908Z",
-    "size": 242472,
-    "path": "../public/img/swatches/blue-dunes-960.webp"
-  },
-  "/img/swatches/blue-dunes-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"67e3e-OINrBpOZ5MYDLrEMh3w7lyR/mCw\"",
-    "mtime": "2026-07-17T20:28:05.908Z",
-    "size": 425534,
-    "path": "../public/img/swatches/blue-dunes-1600.webp"
-  },
-  "/img/swatches/blue-dunes.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"9ab-D4sMisCnR2NVBGiWeuAqI+XSXQk\"",
-    "mtime": "2026-07-17T20:28:06.050Z",
-    "size": 2475,
-    "path": "../public/img/swatches/blue-dunes.svg.gz"
-  },
-  "/img/swatches/blue-dunes.webp": {
-    "type": "image/webp",
-    "etag": "\"3b328-pfsAhm/gyDvCvXjs/PQSADTSlNk\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 242472,
-    "path": "../public/img/swatches/blue-dunes.webp"
-  },
-  "/img/swatches/calacatta-oro-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"3cba-XBJxR/TBLW4U/03oxHySVWMMp0E\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 15546,
-    "path": "../public/img/swatches/calacatta-oro-1600.avif"
-  },
-  "/img/swatches/calacatta-oro-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"4eb2-BX9GLujQ5KFfxmZnunYr7bvG1vE\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 20146,
-    "path": "../public/img/swatches/calacatta-oro-1600.webp"
-  },
-  "/img/swatches/calacatta-oro-480.avif": {
-    "type": "image/avif",
-    "etag": "\"fa8-xcJEEilMA1IIChfIUzyWzngm8d4\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 4008,
-    "path": "../public/img/swatches/calacatta-oro-480.avif"
-  },
-  "/img/swatches/calacatta-oro-480.webp": {
-    "type": "image/webp",
-    "etag": "\"e8a-7T13ibtjt7ej5/SktdtWoWlwEiM\"",
-    "mtime": "2026-07-17T20:28:05.908Z",
-    "size": 3722,
-    "path": "../public/img/swatches/calacatta-oro-480.webp"
-  },
-  "/img/swatches/calacatta-oro-960.webp": {
-    "type": "image/webp",
-    "etag": "\"263e-ovgaZGfzEW229DiKjssG7et9Nug\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 9790,
-    "path": "../public/img/swatches/calacatta-oro-960.webp"
-  },
-  "/img/swatches/calacatta-oro-960.avif": {
-    "type": "image/avif",
-    "etag": "\"2167-xQzlJraz5LJra2iaZVhr3a/LDM0\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 8551,
-    "path": "../public/img/swatches/calacatta-oro-960.avif"
-  },
-  "/img/swatches/calacatta-oro.avif": {
-    "type": "image/avif",
-    "etag": "\"2167-xQzlJraz5LJra2iaZVhr3a/LDM0\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 8551,
-    "path": "../public/img/swatches/calacatta-oro.avif"
-  },
-  "/img/swatches/calacatta-oro.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"529-yG/9XC5T87mdLR9Zp6WMx8fHfo8\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 1321,
-    "path": "../public/img/swatches/calacatta-oro.svg"
-  },
-  "/img/swatches/calacatta-oro.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"172-bZ9NtdvyEG87oB15Vq35NOtz8Xg\"",
-    "mtime": "2026-07-17T20:28:06.052Z",
-    "size": 370,
-    "path": "../public/img/swatches/calacatta-oro.svg.br"
-  },
-  "/img/swatches/calacatta-oro.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"1c6-DX3ySz4+0u/Ms5VO8On7QLn67ZQ\"",
-    "mtime": "2026-07-17T20:28:06.052Z",
-    "size": 454,
-    "path": "../public/img/swatches/calacatta-oro.svg.gz"
-  },
-  "/img/swatches/calacatta-oro.webp": {
-    "type": "image/webp",
-    "etag": "\"263e-ovgaZGfzEW229DiKjssG7et9Nug\"",
-    "mtime": "2026-07-17T20:28:05.909Z",
-    "size": 9790,
-    "path": "../public/img/swatches/calacatta-oro.webp"
-  },
-  "/img/swatches/cincinnati-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"4d96-BBy5bcCJxtXVTbRWpA0pMLyLR/g\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 19862,
-    "path": "../public/img/swatches/cincinnati-1600.avif"
-  },
-  "/img/swatches/cincinnati-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"6758-YAK+mYv9S8eon2AynStBq+EcUTM\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 26456,
-    "path": "../public/img/swatches/cincinnati-1600.webp"
-  },
-  "/img/swatches/cincinnati-480.avif": {
-    "type": "image/avif",
-    "etag": "\"186b-Nlerxkin2cK92t9YPlSHL/UcmvY\"",
-    "mtime": "2026-07-17T20:28:05.911Z",
-    "size": 6251,
-    "path": "../public/img/swatches/cincinnati-480.avif"
-  },
-  "/img/swatches/cincinnati-480.webp": {
-    "type": "image/webp",
-    "etag": "\"1404-a8O5H+Fx3LPKbSwpqwnK9DIhwUA\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 5124,
-    "path": "../public/img/swatches/cincinnati-480.webp"
-  },
-  "/img/swatches/cincinnati-960.avif": {
-    "type": "image/avif",
-    "etag": "\"2ef4-pX/VDToqmTYaP5dJYl5djmPsiJY\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 12020,
-    "path": "../public/img/swatches/cincinnati-960.avif"
-  },
-  "/img/swatches/cincinnati-960.webp": {
-    "type": "image/webp",
-    "etag": "\"32dc-WmmaDpc2t8NbqsslsqIbrzCIbHg\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 13020,
-    "path": "../public/img/swatches/cincinnati-960.webp"
-  },
-  "/img/swatches/cincinnati.avif": {
-    "type": "image/avif",
-    "etag": "\"2ef4-pX/VDToqmTYaP5dJYl5djmPsiJY\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 12020,
-    "path": "../public/img/swatches/cincinnati.avif"
-  },
-  "/img/swatches/cincinnati.webp": {
-    "type": "image/webp",
-    "etag": "\"32dc-WmmaDpc2t8NbqsslsqIbrzCIbHg\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 13020,
-    "path": "../public/img/swatches/cincinnati.webp"
-  },
-  "/img/swatches/fantasy-brown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"159e1-mMI/4mhdHinToddBGqrZ7eq9Ve0\"",
-    "mtime": "2026-07-17T20:28:05.912Z",
-    "size": 88545,
-    "path": "../public/img/swatches/fantasy-brown-1600.avif"
-  },
-  "/img/swatches/fantasy-brown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"47b3-KYIDB76toT2rcs2kVPbabjiFd+U\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 18355,
-    "path": "../public/img/swatches/fantasy-brown-480.avif"
-  },
-  "/img/swatches/fantasy-brown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"42a0-9fe8mleOhmGhLDIo0nvtcLNLEEg\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 17056,
-    "path": "../public/img/swatches/fantasy-brown-480.webp"
-  },
-  "/img/swatches/fantasy-brown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"177f8-HxbZ1xps+1JOc7GdITeJ95YzLMs\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 96248,
-    "path": "../public/img/swatches/fantasy-brown-1600.webp"
-  },
-  "/img/swatches/fantasy-brown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"ceaa-folIe+TgjcGVm0c/iOi7FDP2oD0\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 52906,
-    "path": "../public/img/swatches/fantasy-brown-960.avif"
-  },
-  "/img/swatches/fantasy-brown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"beac-pqa4tBPfZdlMvMyjZgPxpYIqvYs\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 48812,
-    "path": "../public/img/swatches/fantasy-brown-960.webp"
-  },
-  "/img/swatches/fantasy-brown.avif": {
-    "type": "image/avif",
-    "etag": "\"ceaa-folIe+TgjcGVm0c/iOi7FDP2oD0\"",
-    "mtime": "2026-07-17T20:28:05.914Z",
-    "size": 52906,
-    "path": "../public/img/swatches/fantasy-brown.avif"
-  },
-  "/img/swatches/gris-niebla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"523-XSXPKIBrZXHwxLGA8rey5Ulq1tU\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
+    "etag": "\"523-gp7VoTfeD4LIk2JYJIFrzY0VxHU\"",
+    "mtime": "2026-07-13T18:33:32.308Z",
     "size": 1315,
-    "path": "../public/img/swatches/gris-niebla.svg"
+    "path": "../public/_build/assets/ProductLineEditor-DXqy-c7L.js.br"
   },
-  "/img/swatches/fantasy-brown.webp": {
-    "type": "image/webp",
-    "etag": "\"beac-pqa4tBPfZdlMvMyjZgPxpYIqvYs\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 48812,
-    "path": "../public/img/swatches/fantasy-brown.webp"
-  },
-  "/img/swatches/gris-niebla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"174-VaL02vQAG/E+7TeQyZb+Ts5b0pI\"",
-    "mtime": "2026-07-17T20:28:06.054Z",
-    "size": 372,
-    "path": "../public/img/swatches/gris-niebla.svg.br"
-  },
-  "/img/swatches/gris-niebla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"1bc-bpUb58UAwmdHxVZQVsBBWhMXznw\"",
-    "mtime": "2026-07-17T20:28:06.054Z",
-    "size": 444,
-    "path": "../public/img/swatches/gris-niebla.svg.gz"
-  },
-  "/img/swatches/gris-perla.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/ProductLineEditor-DXqy-c7L.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3b62-MuEgzamV2GlztieuFHBGOVZ8m3A\"",
-    "mtime": "2026-07-17T20:28:05.913Z",
-    "size": 15202,
-    "path": "../public/img/swatches/gris-perla.svg"
+    "etag": "\"d31-P6ghGTzY0uhKLEGT54XUmSpLzQs\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 3377,
+    "path": "../public/_build/assets/ProductLineEditor-DXqy-c7L.js"
   },
-  "/img/swatches/gris-perla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"7df-V/EhLBLMXe9Mqj9J4uUFDeuu+lg\"",
-    "mtime": "2026-07-17T20:28:06.067Z",
-    "size": 2015,
-    "path": "../public/img/swatches/gris-perla.svg.br"
+  "/_build/assets/LocationSelect-B11A4peJ.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1b8-PL6zxagmNDiFuvcSMFq5YGbXhaI\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 440,
+    "path": "../public/_build/assets/LocationSelect-B11A4peJ.js"
   },
-  "/img/swatches/gris-perla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"9b4-8iz/Oeh5vToESruSs9FwZlKjzVo\"",
-    "mtime": "2026-07-17T20:28:06.054Z",
-    "size": 2484,
-    "path": "../public/img/swatches/gris-perla.svg.gz"
-  },
-  "/img/swatches/luna-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"43f3d-08HSwJdYxtUSIyeNiyjNjrgdgnQ\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 278333,
-    "path": "../public/img/swatches/luna-pearl-1600.avif"
-  },
-  "/img/swatches/luna-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"5b01a-rebp6lZTjdLrHDvuH0iVAyKLOzo\"",
-    "mtime": "2026-07-17T20:28:05.915Z",
-    "size": 372762,
-    "path": "../public/img/swatches/luna-pearl-1600.webp"
-  },
-  "/img/swatches/luna-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"a13b-SMjcYjE9N0P4bAyXKv2szydy/Mg\"",
-    "mtime": "2026-07-17T20:28:05.914Z",
-    "size": 41275,
-    "path": "../public/img/swatches/luna-pearl-480.avif"
-  },
-  "/img/swatches/luna-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"108fa-u7VWRV6P4MDKcaquaWuqV2xB+ck\"",
-    "mtime": "2026-07-17T20:28:05.914Z",
-    "size": 67834,
-    "path": "../public/img/swatches/luna-pearl-480.webp"
-  },
-  "/img/swatches/luna-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"1ff4d-WpZyOZXRqjl9tmSlWmn7bMDPOC0\"",
-    "mtime": "2026-07-17T20:28:05.914Z",
-    "size": 130893,
-    "path": "../public/img/swatches/luna-pearl-960.avif"
-  },
-  "/img/swatches/luna-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"31f7c-u+1laFiwOewsQZtxiFlH6KWuWME\"",
-    "mtime": "2026-07-17T20:28:05.916Z",
-    "size": 204668,
-    "path": "../public/img/swatches/luna-pearl-960.webp"
-  },
-  "/img/swatches/luna-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"1ff4d-WpZyOZXRqjl9tmSlWmn7bMDPOC0\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 130893,
-    "path": "../public/img/swatches/luna-pearl.avif"
-  },
-  "/img/swatches/luna-pearl.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"7c7-O1ehd/VHHRcG3XRYMG9IvBobGT0\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 1991,
-    "path": "../public/img/swatches/luna-pearl.svg.br"
-  },
-  "/img/swatches/luna-pearl.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/SearchSelect-BFmV4tA9.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3b5b-yKHD9wgqOTq2by8k7b9gxtX9pQ4\"",
-    "mtime": "2026-07-17T20:28:05.914Z",
-    "size": 15195,
-    "path": "../public/img/swatches/luna-pearl.svg"
+    "etag": "\"d4b-CzNXnc3tTzrQGA4wD9ZJuKhuxQ0\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 3403,
+    "path": "../public/_build/assets/SearchSelect-BFmV4tA9.js"
   },
-  "/img/swatches/luna-pearl.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/RouteTabs-DHMRL8EJ.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"246-bgqYpl+GtopV7My4yAWMrxEkP30\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 582,
+    "path": "../public/_build/assets/RouteTabs-DHMRL8EJ.js"
+  },
+  "/_build/assets/ProductLineEditor-DXqy-c7L.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"9a0-ATVqnXV7tNasJvpyMMmdl80qFPk\"",
-    "mtime": "2026-07-17T20:28:06.067Z",
-    "size": 2464,
-    "path": "../public/img/swatches/luna-pearl.svg.gz"
+    "etag": "\"5ae-6f3C+13Sp0iNDTVkRsMknpcL9S4\"",
+    "mtime": "2026-07-13T18:33:32.307Z",
+    "size": 1454,
+    "path": "../public/_build/assets/ProductLineEditor-DXqy-c7L.js.gz"
   },
-  "/img/swatches/marron-baltico.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3b83-bJbt7OgKMDRrTwVVdEkL7KM5Zlw\"",
-    "mtime": "2026-07-17T20:28:05.916Z",
-    "size": 15235,
-    "path": "../public/img/swatches/marron-baltico.svg"
-  },
-  "/img/swatches/luna-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"31f7c-u+1laFiwOewsQZtxiFlH6KWuWME\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 204668,
-    "path": "../public/img/swatches/luna-pearl.webp"
-  },
-  "/img/swatches/marron-baltico.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/SearchSelect-BFmV4tA9.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"7d0-DVVQWuszyFFGG/ju5jXaFotmjKc\"",
-    "mtime": "2026-07-17T20:28:06.078Z",
-    "size": 2000,
-    "path": "../public/img/swatches/marron-baltico.svg.br"
+    "etag": "\"592-uXOx/k2+Ms8gtmmmfc8KJU5rnnY\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 1426,
+    "path": "../public/_build/assets/SearchSelect-BFmV4tA9.js.br"
   },
-  "/img/swatches/negro-absoluto.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3b8f-8mBLss9Pnr4TJQBRfPnht96cdFM\"",
-    "mtime": "2026-07-17T20:28:05.915Z",
-    "size": 15247,
-    "path": "../public/img/swatches/negro-absoluto.svg"
-  },
-  "/img/swatches/negro-absoluto.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"7cc-TblNqKFxkmJCWt35RaxB1Uwb7Fo\"",
-    "mtime": "2026-07-17T20:28:06.079Z",
-    "size": 1996,
-    "path": "../public/img/swatches/negro-absoluto.svg.br"
-  },
-  "/img/swatches/marron-baltico.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/SearchSelect-BFmV4tA9.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"9c8-mtfZWOOFzRO6AQggUbSU7y+r0GU\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 2504,
-    "path": "../public/img/swatches/marron-baltico.svg.gz"
+    "etag": "\"670-jiOOo47Pd+ZGm5W8enJjO3bIkMc\"",
+    "mtime": "2026-07-13T18:33:32.308Z",
+    "size": 1648,
+    "path": "../public/_build/assets/SearchSelect-BFmV4tA9.js.gz"
   },
-  "/img/swatches/negro-absoluto.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"9a0-ToSSpmgYC+RU7/BDsM3Ut4g/1Io\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 2464,
-    "path": "../public/img/swatches/negro-absoluto.svg.gz"
+  "/_build/assets/Spinner-BRQ7WrJe.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"19a-7tACB4mnl/9wkN050CR95vIOVd0\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 410,
+    "path": "../public/_build/assets/Spinner-BRQ7WrJe.js"
   },
-  "/img/swatches/negro-marquina.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/StableInput-Tu2gFj_C.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1ee-g9+HMQ5Sp+OMY8c9V+XebzcqKao\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 494,
+    "path": "../public/_build/assets/StableInput-Tu2gFj_C.js"
+  },
+  "/_build/assets/_id_-Ch0shjDr.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"528-l4+AM8lvAJf0B1I9KcWA+kPy7cU\"",
-    "mtime": "2026-07-17T20:28:05.915Z",
-    "size": 1320,
-    "path": "../public/img/swatches/negro-marquina.svg"
+    "etag": "\"1f40-ylb4vLNoH9FuA0R5SgbZFW9OqlU\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 8000,
+    "path": "../public/_build/assets/_id_-Ch0shjDr.js"
   },
-  "/img/swatches/negro-marquina.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/_id_-Ch0shjDr.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"174-8DqIyGJFFSjoXsiSuJTZ41Sb3/o\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 372,
-    "path": "../public/img/swatches/negro-marquina.svg.br"
+    "etag": "\"9ec-POIcsJmDWq2r20/etCmoFuIarXg\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 2540,
+    "path": "../public/_build/assets/_id_-Ch0shjDr.js.br"
   },
-  "/img/swatches/negro-marquina.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/_id_-Ch0shjDr.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"1be-4g9P6M76eAamZDdPn5YxSuVQ3Ps\"",
-    "mtime": "2026-07-17T20:28:06.076Z",
-    "size": 446,
-    "path": "../public/img/swatches/negro-marquina.svg.gz"
+    "etag": "\"b1f-4l6/mIvyg2zVDtCVEtNO8tXWhj0\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 2847,
+    "path": "../public/_build/assets/_id_-Ch0shjDr.js.gz"
   },
-  "/img/swatches/smithtown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"8d3e-fCL+9rA8T58rEAUKd4PTzpfrQCQ\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 36158,
-    "path": "../public/img/swatches/smithtown-1600.webp"
-  },
-  "/img/swatches/smithtown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2402-iF8mRGNOWsfwkkPYGTQXvdAWHnk\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 9218,
-    "path": "../public/img/swatches/smithtown-480.avif"
-  },
-  "/img/swatches/smithtown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"1bfe-EsuKJYJGnolqXCJqzQtcfaTaavU\"",
-    "mtime": "2026-07-17T20:28:05.918Z",
-    "size": 7166,
-    "path": "../public/img/swatches/smithtown-480.webp"
-  },
-  "/img/swatches/smithtown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"58b8-N+43wPEc3ceeikY7FXlIaMLVGdE\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 22712,
-    "path": "../public/img/swatches/smithtown-960.avif"
-  },
-  "/img/swatches/smithtown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"4938-Da4/C2txOdwYDkSueoEUihT0g1w\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 18744,
-    "path": "../public/img/swatches/smithtown-960.webp"
-  },
-  "/img/swatches/smithtown.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/_id_-qWeFqjrt.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"519-5OAH7yV6Vrhul3+7ns4EC20GKMk\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 1305,
-    "path": "../public/img/swatches/smithtown.svg"
+    "etag": "\"1153-89AeVZum2a3Q975wSCF9BjA1Y9E\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 4435,
+    "path": "../public/_build/assets/_id_-qWeFqjrt.js"
   },
-  "/img/swatches/smithtown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"a1b2-lsIAsAzAs6a7yDVR0WMGSiN1VIs\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 41394,
-    "path": "../public/img/swatches/smithtown-1600.avif"
-  },
-  "/img/swatches/smithtown.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/_id_-qWeFqjrt.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"16c-X8RL03v+agqc8HBFbyc6pgoxCao\"",
-    "mtime": "2026-07-17T20:28:06.078Z",
-    "size": 364,
-    "path": "../public/img/swatches/smithtown.svg.br"
+    "etag": "\"5a8-l3cCuT4zkXR8HrxYvwL5TlMvXhI\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 1448,
+    "path": "../public/_build/assets/_id_-qWeFqjrt.js.br"
   },
-  "/img/swatches/smithtown.avif": {
-    "type": "image/avif",
-    "etag": "\"58b8-N+43wPEc3ceeikY7FXlIaMLVGdE\"",
-    "mtime": "2026-07-17T20:28:05.918Z",
-    "size": 22712,
-    "path": "../public/img/swatches/smithtown.avif"
-  },
-  "/img/swatches/smithtown.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/_id_-qWeFqjrt.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"1bf-IqvkA6EnU42YrrcqCjr/agvdqCk\"",
-    "mtime": "2026-07-17T20:28:06.077Z",
-    "size": 447,
-    "path": "../public/img/swatches/smithtown.svg.gz"
+    "etag": "\"64c-ms3c4aN0jeWlNbyU9Z1MF1sNZ7I\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 1612,
+    "path": "../public/_build/assets/_id_-qWeFqjrt.js.gz"
   },
-  "/img/swatches/smithtown.webp": {
-    "type": "image/webp",
-    "etag": "\"4938-Da4/C2txOdwYDkSueoEUihT0g1w\"",
-    "mtime": "2026-07-17T20:28:05.917Z",
-    "size": 18744,
-    "path": "../public/img/swatches/smithtown.webp"
-  },
-  "/img/swatches/taj-mahal-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1a665-cTFVQ2F4tJ6/7njQpLihEmrx/Lc\"",
-    "mtime": "2026-07-17T20:28:05.933Z",
-    "size": 108133,
-    "path": "../public/img/swatches/taj-mahal-1600.avif"
-  },
-  "/img/swatches/taj-mahal-480.avif": {
-    "type": "image/avif",
-    "etag": "\"4e15-ZD5rWJXEwg2YlavO6rGilz6L6EM\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 19989,
-    "path": "../public/img/swatches/taj-mahal-480.avif"
-  },
-  "/img/swatches/taj-mahal-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1d866-Tel0A5i4s835GPX7yECfKNXOPro\"",
-    "mtime": "2026-07-17T20:28:05.919Z",
-    "size": 120934,
-    "path": "../public/img/swatches/taj-mahal-1600.webp"
-  },
-  "/img/swatches/taj-mahal-480.webp": {
-    "type": "image/webp",
-    "etag": "\"445c-hRun6ETjCe9IjZWKKnV0QOsjfSc\"",
-    "mtime": "2026-07-17T20:28:05.918Z",
-    "size": 17500,
-    "path": "../public/img/swatches/taj-mahal-480.webp"
-  },
-  "/img/swatches/taj-mahal-960.avif": {
-    "type": "image/avif",
-    "etag": "\"fa20-6jZ59BCFUo4tMe9BqGrz+6Sx3u8\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 64032,
-    "path": "../public/img/swatches/taj-mahal-960.avif"
-  },
-  "/img/swatches/taj-mahal-960.webp": {
-    "type": "image/webp",
-    "etag": "\"e816-QaJ/gy9kZJ/qtqr8j+VkDLi72DM\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 59414,
-    "path": "../public/img/swatches/taj-mahal-960.webp"
-  },
-  "/img/swatches/taj-mahal.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/_number_-B-fj13rq.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"512-aeAEovUyenorTCp3l1dZgm1YFWY\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 1298,
-    "path": "../public/img/swatches/taj-mahal.svg"
+    "etag": "\"1483-djPpDit6GB76F9bqeAqSfqdrBwU\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 5251,
+    "path": "../public/_build/assets/_number_-B-fj13rq.js"
   },
-  "/img/swatches/taj-mahal.avif": {
-    "type": "image/avif",
-    "etag": "\"fa20-6jZ59BCFUo4tMe9BqGrz+6Sx3u8\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 64032,
-    "path": "../public/img/swatches/taj-mahal.avif"
-  },
-  "/img/swatches/taj-mahal.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/_number_-B-fj13rq.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"174-TLxw844U0Wy2mrYPKoVAEv5cRx0\"",
-    "mtime": "2026-07-17T20:28:06.079Z",
-    "size": 372,
-    "path": "../public/img/swatches/taj-mahal.svg.br"
+    "etag": "\"696-/TAS/slAD9OpQjSm5RYDIq9wmJE\"",
+    "mtime": "2026-07-13T18:33:32.320Z",
+    "size": 1686,
+    "path": "../public/_build/assets/_number_-B-fj13rq.js.br"
   },
-  "/img/swatches/taj-mahal.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/_number_-B-fj13rq.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"1bc-7BfF47X5PGdstU5R3kz/mR2aaPM\"",
-    "mtime": "2026-07-17T20:28:06.078Z",
-    "size": 444,
-    "path": "../public/img/swatches/taj-mahal.svg.gz"
+    "etag": "\"760-dBKXbnz+LUcTOJu8c6t0Ci1/+Ok\"",
+    "mtime": "2026-07-13T18:33:32.319Z",
+    "size": 1888,
+    "path": "../public/_build/assets/_number_-B-fj13rq.js.gz"
   },
-  "/img/swatches/taj-mahal.webp": {
-    "type": "image/webp",
-    "etag": "\"e816-QaJ/gy9kZJ/qtqr8j+VkDLi72DM\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 59414,
-    "path": "../public/img/swatches/taj-mahal.webp"
-  },
-  "/img/swatches/valiant-avila-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"c0b3-p6uXzha5O/sX8/DoCMg6CYl4Vmk\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 49331,
-    "path": "../public/img/swatches/valiant-avila-1600.avif"
-  },
-  "/img/swatches/valiant-avila-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"9344-Ak208Jh775dutoxH0kwRiYtLTEE\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 37700,
-    "path": "../public/img/swatches/valiant-avila-1600.webp"
-  },
-  "/img/swatches/valiant-avila-480.avif": {
-    "type": "image/avif",
-    "etag": "\"1e13-uvlop+yjkqAGdal5GSe1CP03H0Q\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 7699,
-    "path": "../public/img/swatches/valiant-avila-480.avif"
-  },
-  "/img/swatches/valiant-avila-960.avif": {
-    "type": "image/avif",
-    "etag": "\"5775-QjgeMCs7x+GxS2ixaF9qBhFKC3g\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 22389,
-    "path": "../public/img/swatches/valiant-avila-960.avif"
-  },
-  "/img/swatches/valiant-avila-480.webp": {
-    "type": "image/webp",
-    "etag": "\"16a4-7SVHMcz0bokHCTorGHb5VW/LAd4\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 5796,
-    "path": "../public/img/swatches/valiant-avila-480.webp"
-  },
-  "/img/swatches/valiant-avila-960.webp": {
-    "type": "image/webp",
-    "etag": "\"3d92-PYCgjY3LoB3r69yjnrJxyxqbesU\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 15762,
-    "path": "../public/img/swatches/valiant-avila-960.webp"
-  },
-  "/img/swatches/valiant-avila.avif": {
-    "type": "image/avif",
-    "etag": "\"5775-QjgeMCs7x+GxS2ixaF9qBhFKC3g\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 22389,
-    "path": "../public/img/swatches/valiant-avila.avif"
-  },
-  "/img/swatches/verde-ubatuba.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/aging-1mbhDKuQ.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3b8e-rXGMkgWdJsjuOch0m4XExwgy7X0\"",
-    "mtime": "2026-07-17T20:28:05.920Z",
-    "size": 15246,
-    "path": "../public/img/swatches/verde-ubatuba.svg"
+    "etag": "\"1c6c-SBiw9EmGf9d7003QjtpbGd9OG+M\"",
+    "mtime": "2026-07-13T18:33:32.269Z",
+    "size": 7276,
+    "path": "../public/_build/assets/aging-1mbhDKuQ.js"
   },
-  "/img/swatches/verde-ubatuba.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/aging-1mbhDKuQ.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"7d1-3/RTHOnyV8ATzGrB16MSF7tRg2c\"",
-    "mtime": "2026-07-17T20:28:06.091Z",
-    "size": 2001,
-    "path": "../public/img/swatches/verde-ubatuba.svg.br"
+    "etag": "\"a35-WK3IoAvMDv8TO8K+qyfYr+KDzg8\"",
+    "mtime": "2026-07-13T18:33:32.320Z",
+    "size": 2613,
+    "path": "../public/_build/assets/aging-1mbhDKuQ.js.br"
   },
-  "/img/swatches/verde-ubatuba.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/aiFlows-pJzXHo0K.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1256-zXPgZ7LiqFGqbeUxspo/QLnAL+E\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 4694,
+    "path": "../public/_build/assets/aiFlows-pJzXHo0K.js"
+  },
+  "/_build/assets/aiFlows-pJzXHo0K.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"788-GzTPx1j16hjdAq6ko3qLAr2HzMc\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1928,
+    "path": "../public/_build/assets/aiFlows-pJzXHo0K.js.br"
+  },
+  "/_build/assets/aging-1mbhDKuQ.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"9aa-5YcbGDd9wdiri7tNkJdD6MeJ4+0\"",
-    "mtime": "2026-07-17T20:28:06.079Z",
-    "size": 2474,
-    "path": "../public/img/swatches/verde-ubatuba.svg.gz"
+    "etag": "\"b80-o42p+nvwXl3pLckpRWqMmgC2leU\"",
+    "mtime": "2026-07-13T18:33:32.320Z",
+    "size": 2944,
+    "path": "../public/_build/assets/aging-1mbhDKuQ.js.gz"
   },
-  "/img/swatches/valiant-avila.webp": {
-    "type": "image/webp",
-    "etag": "\"3d92-PYCgjY3LoB3r69yjnrJxyxqbesU\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 15762,
-    "path": "../public/img/swatches/valiant-avila.webp"
+  "/_build/assets/api-6IlEo8y9.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"3a2-E5Dw/zHF6jbKvmq9+eIynp1Wj8Y\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 930,
+    "path": "../public/_build/assets/api-6IlEo8y9.js"
   },
-  "/img/scenes/bano/black-galaxy-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"12ad8-bivOnVC1x2pOojZBSZhqAS3qB4c\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 76504,
-    "path": "../public/img/scenes/bano/black-galaxy-1600.webp"
-  },
-  "/img/scenes/bano/black-galaxy-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"10cfe-7vhRVCITzbD6iaURuHaMQac1P4M\"",
-    "mtime": "2026-07-17T20:28:05.899Z",
-    "size": 68862,
-    "path": "../public/img/scenes/bano/black-galaxy-1600.avif"
-  },
-  "/img/scenes/bano/black-galaxy-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2542-PAIusruVZ0SwcHG56VofxauR2sw\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 9538,
-    "path": "../public/img/scenes/bano/black-galaxy-480.avif"
-  },
-  "/img/scenes/bano/black-galaxy-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2870-HLvtFSEw3UyFgdfhKGxf5AwlpiM\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 10352,
-    "path": "../public/img/scenes/bano/black-galaxy-480.webp"
-  },
-  "/img/scenes/bano/black-galaxy-960.avif": {
-    "type": "image/avif",
-    "etag": "\"8235-pX7wz7GKoJPZPezjJA+mIxOxS6o\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 33333,
-    "path": "../public/img/scenes/bano/black-galaxy-960.avif"
-  },
-  "/img/scenes/bano/black-galaxy-960.webp": {
-    "type": "image/webp",
-    "etag": "\"85b8-evBbz2yOyNLGh1bfVVf/P/SUiyY\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 34232,
-    "path": "../public/img/scenes/bano/black-galaxy-960.webp"
-  },
-  "/img/scenes/bano/black-galaxy.avif": {
-    "type": "image/avif",
-    "etag": "\"8235-pX7wz7GKoJPZPezjJA+mIxOxS6o\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 33333,
-    "path": "../public/img/scenes/bano/black-galaxy.avif"
-  },
-  "/img/scenes/bano/black-galaxy.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8c7-7jEG9DbMmoQEdvo6X8R54xVTLkQ\"",
-    "mtime": "2026-07-17T20:28:06.093Z",
-    "size": 2247,
-    "path": "../public/img/scenes/bano/black-galaxy.svg.br"
-  },
-  "/img/scenes/bano/black-galaxy.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e42-v0zAxY7o8sxcuq9B3dViaD9SZvA\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 15938,
-    "path": "../public/img/scenes/bano/black-galaxy.svg"
-  },
-  "/img/scenes/bano/black-galaxy.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/aiFlows-pJzXHo0K.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a97-I1fAOqAIVgr8Ac0tclZEnMRfXkE\"",
-    "mtime": "2026-07-17T20:28:06.080Z",
-    "size": 2711,
-    "path": "../public/img/scenes/bano/black-galaxy.svg.gz"
-  },
-  "/img/scenes/bano/black-galaxy.webp": {
-    "type": "image/webp",
-    "etag": "\"85b8-evBbz2yOyNLGh1bfVVf/P/SUiyY\"",
-    "mtime": "2026-07-17T20:28:05.921Z",
-    "size": 34232,
-    "path": "../public/img/scenes/bano/black-galaxy.webp"
-  },
-  "/img/scenes/bano/blanco-carrara-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"a786-sVfijrqCFErv02OaJKFaAOCvRZY\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 42886,
-    "path": "../public/img/scenes/bano/blanco-carrara-1600.avif"
-  },
-  "/img/scenes/bano/blanco-carrara-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"b6a2-09nG9CyUZ5VCm5GaSI6TLiPmLTU\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 46754,
-    "path": "../public/img/scenes/bano/blanco-carrara-1600.webp"
-  },
-  "/img/scenes/bano/blanco-carrara-480.avif": {
-    "type": "image/avif",
-    "etag": "\"1bd1-jkRaJDZ5SnxctsA9TqHZ0CUITEc\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 7121,
-    "path": "../public/img/scenes/bano/blanco-carrara-480.avif"
-  },
-  "/img/scenes/bano/blanco-carrara-480.webp": {
-    "type": "image/webp",
-    "etag": "\"1d08-SVoqXDT/EK9ovRtvJr71K3zlP50\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 7432,
-    "path": "../public/img/scenes/bano/blanco-carrara-480.webp"
-  },
-  "/img/scenes/bano/blanco-carrara-960.avif": {
-    "type": "image/avif",
-    "etag": "\"4c19-loOIoFIRkAC8kPdo52DB9iUaAtQ\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 19481,
-    "path": "../public/img/scenes/bano/blanco-carrara-960.avif"
-  },
-  "/img/scenes/bano/blanco-carrara.avif": {
-    "type": "image/avif",
-    "etag": "\"4c19-loOIoFIRkAC8kPdo52DB9iUaAtQ\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 19481,
-    "path": "../public/img/scenes/bano/blanco-carrara.avif"
-  },
-  "/img/scenes/bano/blanco-carrara-960.webp": {
-    "type": "image/webp",
-    "etag": "\"5088-CpYP4inMvgKG2zFxZlFF1HDaDzE\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 20616,
-    "path": "../public/img/scenes/bano/blanco-carrara-960.webp"
-  },
-  "/img/scenes/bano/blanco-carrara.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"807-wsFqgdfP2pzM1uvU61KSg/d+aQw\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 2055,
-    "path": "../public/img/scenes/bano/blanco-carrara.svg"
-  },
-  "/img/scenes/bano/blanco-carrara.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"20f-718LhFfln/CPkbvnku6QZijVVIA\"",
-    "mtime": "2026-07-17T20:28:06.082Z",
-    "size": 527,
-    "path": "../public/img/scenes/bano/blanco-carrara.svg.br"
-  },
-  "/img/scenes/bano/blanco-carrara.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"285-yFX1uZl3qoiPKA5xF0tpEpVbHn8\"",
-    "mtime": "2026-07-17T20:28:06.082Z",
-    "size": 645,
-    "path": "../public/img/scenes/bano/blanco-carrara.svg.gz"
-  },
-  "/img/scenes/bano/blanco-carrara.webp": {
-    "type": "image/webp",
-    "etag": "\"5088-CpYP4inMvgKG2zFxZlFF1HDaDzE\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 20616,
-    "path": "../public/img/scenes/bano/blanco-carrara.webp"
-  },
-  "/img/scenes/bano/blue-dunes-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"12272-RaAVpxtDIkIv/IREmViarKfT6s0\"",
-    "mtime": "2026-07-17T20:28:05.922Z",
-    "size": 74354,
-    "path": "../public/img/scenes/bano/blue-dunes-1600.avif"
-  },
-  "/img/scenes/bano/blue-dunes-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"15846-w+dNT4KLQGedHTrUL21/etD1WeY\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 88134,
-    "path": "../public/img/scenes/bano/blue-dunes-1600.webp"
-  },
-  "/img/scenes/bano/blue-dunes-480.avif": {
-    "type": "image/avif",
-    "etag": "\"280b-EOabVWU4W8LhnvRyKshjzGTsLBw\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 10251,
-    "path": "../public/img/scenes/bano/blue-dunes-480.avif"
-  },
-  "/img/scenes/bano/blue-dunes-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2e92-QBGxHGrbAs+30I8qESBY3s8S1Oc\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 11922,
-    "path": "../public/img/scenes/bano/blue-dunes-480.webp"
-  },
-  "/img/scenes/bano/blue-dunes-960.avif": {
-    "type": "image/avif",
-    "etag": "\"85c6-1O1CP4RqbfjTCj2N+Jxf6yBd+nI\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 34246,
-    "path": "../public/img/scenes/bano/blue-dunes-960.avif"
-  },
-  "/img/scenes/bano/blue-dunes-960.webp": {
-    "type": "image/webp",
-    "etag": "\"9df2-BBlhG62h05BKWScW5PK+o7FyRbw\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 40434,
-    "path": "../public/img/scenes/bano/blue-dunes-960.webp"
-  },
-  "/img/scenes/bano/blue-dunes.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e25-xSaOZ5F2Np9yxv4Fys793qJ+5Qg\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 15909,
-    "path": "../public/img/scenes/bano/blue-dunes.svg"
-  },
-  "/img/scenes/bano/blue-dunes.avif": {
-    "type": "image/avif",
-    "etag": "\"85c6-1O1CP4RqbfjTCj2N+Jxf6yBd+nI\"",
-    "mtime": "2026-07-17T20:28:05.923Z",
-    "size": 34246,
-    "path": "../public/img/scenes/bano/blue-dunes.avif"
-  },
-  "/img/scenes/bano/blue-dunes.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8c2-qyIrC2eOARkz4BJrVbGPyKBcGko\"",
-    "mtime": "2026-07-17T20:28:06.095Z",
-    "size": 2242,
-    "path": "../public/img/scenes/bano/blue-dunes.svg.br"
-  },
-  "/img/scenes/bano/blue-dunes.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"aa0-jcD++pnxSL1cqbVm5ftqtcR5K4M\"",
-    "mtime": "2026-07-17T20:28:06.091Z",
-    "size": 2720,
-    "path": "../public/img/scenes/bano/blue-dunes.svg.gz"
-  },
-  "/img/scenes/bano/blue-dunes.webp": {
-    "type": "image/webp",
-    "etag": "\"9df2-BBlhG62h05BKWScW5PK+o7FyRbw\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 40434,
-    "path": "../public/img/scenes/bano/blue-dunes.webp"
-  },
-  "/img/scenes/bano/calacatta-oro-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"9ff6-FF4JDxwJfhEINF413y4VSL8h9p4\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 40950,
-    "path": "../public/img/scenes/bano/calacatta-oro-1600.avif"
-  },
-  "/img/scenes/bano/calacatta-oro-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"a36e-C8x1QM4oXSghTv1h6ZAzbE8eRaA\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 41838,
-    "path": "../public/img/scenes/bano/calacatta-oro-1600.webp"
-  },
-  "/img/scenes/bano/calacatta-oro-480.avif": {
-    "type": "image/avif",
-    "etag": "\"1bf9-45qL8PvQV4FkHUzVcLgA7fObbY0\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 7161,
-    "path": "../public/img/scenes/bano/calacatta-oro-480.avif"
-  },
-  "/img/scenes/bano/calacatta-oro-480.webp": {
-    "type": "image/webp",
-    "etag": "\"1b16-LWr+OVg9KDpefjb35viVfWdcCEI\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 6934,
-    "path": "../public/img/scenes/bano/calacatta-oro-480.webp"
-  },
-  "/img/scenes/bano/calacatta-oro-960.webp": {
-    "type": "image/webp",
-    "etag": "\"4ad6-gyy80MREQO7Ovzo/e6s69+peKRI\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 19158,
-    "path": "../public/img/scenes/bano/calacatta-oro-960.webp"
-  },
-  "/img/scenes/bano/calacatta-oro-960.avif": {
-    "type": "image/avif",
-    "etag": "\"4c17-YUKG0Zft23xCNNTaDV+lhfah7Lo\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 19479,
-    "path": "../public/img/scenes/bano/calacatta-oro-960.avif"
-  },
-  "/img/scenes/bano/calacatta-oro.avif": {
-    "type": "image/avif",
-    "etag": "\"4c17-YUKG0Zft23xCNNTaDV+lhfah7Lo\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 19479,
-    "path": "../public/img/scenes/bano/calacatta-oro.avif"
-  },
-  "/img/scenes/bano/calacatta-oro.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7f0-/Pu6+h3ODus7N/NtdHE6KFN+oMQ\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 2032,
-    "path": "../public/img/scenes/bano/calacatta-oro.svg"
-  },
-  "/img/scenes/bano/calacatta-oro.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"21f-lt8kNfxawW5Uoio1VIWX/MaeveI\"",
-    "mtime": "2026-07-17T20:28:06.094Z",
-    "size": 543,
-    "path": "../public/img/scenes/bano/calacatta-oro.svg.br"
-  },
-  "/img/scenes/bano/calacatta-oro.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"28b-vS1Rdiaksla524CLLoxtQif29M4\"",
-    "mtime": "2026-07-17T20:28:06.093Z",
-    "size": 651,
-    "path": "../public/img/scenes/bano/calacatta-oro.svg.gz"
-  },
-  "/img/scenes/bano/calacatta-oro.webp": {
-    "type": "image/webp",
-    "etag": "\"4ad6-gyy80MREQO7Ovzo/e6s69+peKRI\"",
-    "mtime": "2026-07-17T20:28:05.924Z",
-    "size": 19158,
-    "path": "../public/img/scenes/bano/calacatta-oro.webp"
-  },
-  "/img/scenes/bano/gris-niebla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7e3-aJKqHlqkhyrpZopU0/g0vjvx9PM\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 2019,
-    "path": "../public/img/scenes/bano/gris-niebla.svg"
-  },
-  "/img/scenes/bano/gris-niebla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"223-Kob9Wc4kmb93XB+VB0LgpqFeg/4\"",
-    "mtime": "2026-07-17T20:28:06.094Z",
-    "size": 547,
-    "path": "../public/img/scenes/bano/gris-niebla.svg.br"
-  },
-  "/img/scenes/bano/gris-niebla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"28d-JFUyAGYLQHbgEGDY67U6FHajW6A\"",
-    "mtime": "2026-07-17T20:28:06.094Z",
-    "size": 653,
-    "path": "../public/img/scenes/bano/gris-niebla.svg.gz"
-  },
-  "/img/scenes/bano/gris-perla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e38-waEDimcN52RqlngV2QxYRCu05mU\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 15928,
-    "path": "../public/img/scenes/bano/gris-perla.svg"
-  },
-  "/img/scenes/bano/gris-perla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8cc-t9Fj1D7aOQsvKmM0h5XF+sQkdyM\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 2252,
-    "path": "../public/img/scenes/bano/gris-perla.svg.br"
-  },
-  "/img/scenes/bano/luna-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"14aa0-LgVLshDLcL41wq9ylD0TOFq809U\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 84640,
-    "path": "../public/img/scenes/bano/luna-pearl-1600.avif"
-  },
-  "/img/scenes/bano/luna-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1aef4-f8ZKq0eaDI4FJ0JYh5+ZRFb2dyg\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 110324,
-    "path": "../public/img/scenes/bano/luna-pearl-1600.webp"
-  },
-  "/img/scenes/bano/gris-perla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a98-VyxUDct9LZA94HU6ENPlhae6774\"",
-    "mtime": "2026-07-17T20:28:06.094Z",
-    "size": 2712,
-    "path": "../public/img/scenes/bano/gris-perla.svg.gz"
-  },
-  "/img/scenes/bano/luna-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"3200-QYdBtUaD8ehulqvm3hRyofXFgz0\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 12800,
-    "path": "../public/img/scenes/bano/luna-pearl-480.webp"
-  },
-  "/img/scenes/bano/luna-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2e0c-+qcixwoY0M8Xxe9DAV+vkVl9mlw\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 11788,
-    "path": "../public/img/scenes/bano/luna-pearl-480.avif"
-  },
-  "/img/scenes/bano/luna-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"9c47-aXsHUjNbie/p8stH2/2eduppcWA\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 40007,
-    "path": "../public/img/scenes/bano/luna-pearl-960.avif"
-  },
-  "/img/scenes/bano/luna-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"b45a-ZbM61oeuI+/s/fyCfh8G9demjPo\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 46170,
-    "path": "../public/img/scenes/bano/luna-pearl-960.webp"
-  },
-  "/img/scenes/bano/luna-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"9c47-aXsHUjNbie/p8stH2/2eduppcWA\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 40007,
-    "path": "../public/img/scenes/bano/luna-pearl.avif"
-  },
-  "/img/scenes/bano/luna-pearl.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e23-AoiVKuHJKho05i08aZ5FcLA1fvk\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 15907,
-    "path": "../public/img/scenes/bano/luna-pearl.svg"
-  },
-  "/img/scenes/bano/luna-pearl.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"89b-k5Osh4+fNaEKPtphmfdwaZ80srE\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 2203,
-    "path": "../public/img/scenes/bano/luna-pearl.svg.br"
-  },
-  "/img/scenes/bano/luna-pearl.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a9b-00dsAfExcanneaZSYzr97duY/yo\"",
-    "mtime": "2026-07-17T20:28:06.095Z",
-    "size": 2715,
-    "path": "../public/img/scenes/bano/luna-pearl.svg.gz"
-  },
-  "/img/scenes/bano/luna-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"b45a-ZbM61oeuI+/s/fyCfh8G9demjPo\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 46170,
-    "path": "../public/img/scenes/bano/luna-pearl.webp"
-  },
-  "/img/scenes/bano/marron-baltico.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e34-odgiD2/IKgPYvItIfXebP2zP6rY\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 15924,
-    "path": "../public/img/scenes/bano/marron-baltico.svg"
-  },
-  "/img/scenes/bano/marron-baltico.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a85-lQhw0TfJwfBVBg2XFdVPpy3+HHE\"",
-    "mtime": "2026-07-17T20:28:06.107Z",
-    "size": 2693,
-    "path": "../public/img/scenes/bano/marron-baltico.svg.gz"
-  },
-  "/img/scenes/bano/marron-baltico.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8c6-N0kvsBhgr51orPOlahqLhXwTfJk\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 2246,
-    "path": "../public/img/scenes/bano/marron-baltico.svg.br"
-  },
-  "/img/scenes/bano/negro-absoluto.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e3e-DDvidaIgzuQPjT0a1xYRG1Aq2HQ\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 15934,
-    "path": "../public/img/scenes/bano/negro-absoluto.svg"
-  },
-  "/img/scenes/bano/negro-absoluto.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8a1-bvHGcDlf4TcrKspofjPHbk4F0RU\"",
-    "mtime": "2026-07-17T20:28:06.109Z",
-    "size": 2209,
-    "path": "../public/img/scenes/bano/negro-absoluto.svg.br"
-  },
-  "/img/scenes/bano/negro-absoluto.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a89-3lxzTRf4pTcVJBDVQXn/cGshDCM\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 2697,
-    "path": "../public/img/scenes/bano/negro-absoluto.svg.gz"
-  },
-  "/img/scenes/bano/negro-marquina.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7ec-x+y1+ii7o+deRPpDOwdv8MxjJ5Y\"",
-    "mtime": "2026-07-17T20:28:05.925Z",
-    "size": 2028,
-    "path": "../public/img/scenes/bano/negro-marquina.svg"
-  },
-  "/img/scenes/bano/negro-marquina.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"228-7QAZjZkZ/Y47qa4BGtLJ4+EJ2NE\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 552,
-    "path": "../public/img/scenes/bano/negro-marquina.svg.br"
-  },
-  "/img/scenes/bano/negro-marquina.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"28b-fvu7PgmmqwgwIkMn7YB5XMYg9pw\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 651,
-    "path": "../public/img/scenes/bano/negro-marquina.svg.gz"
-  },
-  "/img/scenes/bano/smithtown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"b4bd-nYrqq1r0Oj8cUkluqfhQ3O88Yqg\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 46269,
-    "path": "../public/img/scenes/bano/smithtown-1600.avif"
-  },
-  "/img/scenes/bano/smithtown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"cab4-vAiwJU02In2dyhBAazoY5FT5kmI\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 51892,
-    "path": "../public/img/scenes/bano/smithtown-1600.webp"
-  },
-  "/img/scenes/bano/smithtown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"1fa4-IEHZ9WASIAEO9LOKM1AbZu9q/wQ\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 8100,
-    "path": "../public/img/scenes/bano/smithtown-480.webp"
-  },
-  "/img/scenes/bano/smithtown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"1e8a-7J3SRb6y/ldJJJ928tCSYmtG3ms\"",
-    "mtime": "2026-07-17T20:28:05.926Z",
-    "size": 7818,
-    "path": "../public/img/scenes/bano/smithtown-480.avif"
-  },
-  "/img/scenes/bano/smithtown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"549c-Uv/9v0ee2YNmZ+SMMCs1fIwLTys\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 21660,
-    "path": "../public/img/scenes/bano/smithtown-960.avif"
-  },
-  "/img/scenes/bano/smithtown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"5b20-5+zU2yDON105YYaXY8gDCFV2qYk\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 23328,
-    "path": "../public/img/scenes/bano/smithtown-960.webp"
-  },
-  "/img/scenes/bano/smithtown.avif": {
-    "type": "image/avif",
-    "etag": "\"549c-Uv/9v0ee2YNmZ+SMMCs1fIwLTys\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 21660,
-    "path": "../public/img/scenes/bano/smithtown.avif"
-  },
-  "/img/scenes/bano/smithtown.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7dc-JllxwqpGOKspe/x9QsRPuO+E7/o\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 2012,
-    "path": "../public/img/scenes/bano/smithtown.svg"
-  },
-  "/img/scenes/bano/smithtown.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"215-LKUjGQJu6/l0rx/6rdKi/FvAFyo\"",
-    "mtime": "2026-07-17T20:28:06.110Z",
-    "size": 533,
-    "path": "../public/img/scenes/bano/smithtown.svg.br"
-  },
-  "/img/scenes/bano/taj-mahal-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1198e-n9/B+CZb0YTXTPzT0m519xWvrW4\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 72078,
-    "path": "../public/img/scenes/bano/taj-mahal-1600.webp"
-  },
-  "/img/scenes/bano/smithtown.webp": {
-    "type": "image/webp",
-    "etag": "\"5b20-5+zU2yDON105YYaXY8gDCFV2qYk\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 23328,
-    "path": "../public/img/scenes/bano/smithtown.webp"
-  },
-  "/img/scenes/bano/taj-mahal-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"10d7d-RyfmhEU96HL6Wr2oMhAofhLjbVc\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 68989,
-    "path": "../public/img/scenes/bano/taj-mahal-1600.avif"
-  },
-  "/img/scenes/bano/smithtown.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"28a-dQT0dt7BKU9kc+HGAAM52WN84y8\"",
-    "mtime": "2026-07-17T20:28:06.108Z",
-    "size": 650,
-    "path": "../public/img/scenes/bano/smithtown.svg.gz"
-  },
-  "/img/scenes/bano/taj-mahal-480.webp": {
-    "type": "image/webp",
-    "etag": "\"243c-v8QlijFAnby0w70klV+GWZRiyTg\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 9276,
-    "path": "../public/img/scenes/bano/taj-mahal-480.webp"
-  },
-  "/img/scenes/bano/taj-mahal-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2271-aq8Km8Nluxtzsh4nBfISP1MhKBM\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 8817,
-    "path": "../public/img/scenes/bano/taj-mahal-480.avif"
-  },
-  "/img/scenes/bano/taj-mahal-960.avif": {
-    "type": "image/avif",
-    "etag": "\"71fc-A0wVGvMhTkiM3SURE6NBFUuUxP8\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 29180,
-    "path": "../public/img/scenes/bano/taj-mahal-960.avif"
-  },
-  "/img/scenes/bano/taj-mahal.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7e5-5EpF6LIe1tBr382ikRo8vQ8wnlI\"",
-    "mtime": "2026-07-17T20:28:05.927Z",
-    "size": 2021,
-    "path": "../public/img/scenes/bano/taj-mahal.svg"
-  },
-  "/img/scenes/bano/taj-mahal-960.webp": {
-    "type": "image/webp",
-    "etag": "\"7afe-K0i2F199eLIO0j57/K6TcfUoYo8\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 31486,
-    "path": "../public/img/scenes/bano/taj-mahal-960.webp"
-  },
-  "/img/scenes/bano/taj-mahal.avif": {
-    "type": "image/avif",
-    "etag": "\"71fc-A0wVGvMhTkiM3SURE6NBFUuUxP8\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 29180,
-    "path": "../public/img/scenes/bano/taj-mahal.avif"
-  },
-  "/img/scenes/bano/taj-mahal.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"286-d5F0xhJK2xJUty1kvtPseb04GKs\"",
-    "mtime": "2026-07-17T20:28:06.109Z",
-    "size": 646,
-    "path": "../public/img/scenes/bano/taj-mahal.svg.gz"
-  },
-  "/img/scenes/bano/verde-ubatuba.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e3b-KztxqsWFIgkPLLbXdhHAgnr5D/Y\"",
-    "mtime": "2026-07-17T20:28:05.928Z",
-    "size": 15931,
-    "path": "../public/img/scenes/bano/verde-ubatuba.svg"
-  },
-  "/img/scenes/bano/taj-mahal.webp": {
-    "type": "image/webp",
-    "etag": "\"7afe-K0i2F199eLIO0j57/K6TcfUoYo8\"",
-    "mtime": "2026-07-17T20:28:05.930Z",
-    "size": 31486,
-    "path": "../public/img/scenes/bano/taj-mahal.webp"
-  },
-  "/img/scenes/bano/verde-ubatuba.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8b3-zxGPq3BeOQWn8Wdk6HuGhYvO1mc\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 2227,
-    "path": "../public/img/scenes/bano/verde-ubatuba.svg.br"
-  },
-  "/img/scenes/bano/taj-mahal.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"215-VOdh8dieE8LliXYl7nvLIfjeA1I\"",
-    "mtime": "2026-07-17T20:28:06.110Z",
-    "size": 533,
-    "path": "../public/img/scenes/bano/taj-mahal.svg.br"
-  },
-  "/img/scenes/bano/verde-ubatuba.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a8e-s2Nsx11c+XXWXRFTpIFN0rG+bBs\"",
-    "mtime": "2026-07-17T20:28:06.109Z",
-    "size": 2702,
-    "path": "../public/img/scenes/bano/verde-ubatuba.svg.gz"
-  },
-  "/img/scenes/barra/black-galaxy-480.avif": {
-    "type": "image/avif",
-    "etag": "\"34fe-/mf7BJnzkKHohjzlddp7mOZPiP0\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 13566,
-    "path": "../public/img/scenes/barra/black-galaxy-480.avif"
-  },
-  "/img/scenes/barra/black-galaxy-480.webp": {
-    "type": "image/webp",
-    "etag": "\"3d36-uFJoz45IMMVZNppVcK2O4OFgJw4\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 15670,
-    "path": "../public/img/scenes/barra/black-galaxy-480.webp"
-  },
-  "/img/scenes/barra/black-galaxy-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1bc1a-ioGLYCgWZl943j6q5DhF5mL56jk\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 113690,
-    "path": "../public/img/scenes/barra/black-galaxy-1600.webp"
-  },
-  "/img/scenes/barra/black-galaxy-960.avif": {
-    "type": "image/avif",
-    "etag": "\"be92-fHY+cPxGMDIRIMw/pZJL0OxMmDs\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 48786,
-    "path": "../public/img/scenes/barra/black-galaxy-960.avif"
-  },
-  "/img/scenes/barra/black-galaxy.avif": {
-    "type": "image/avif",
-    "etag": "\"be92-fHY+cPxGMDIRIMw/pZJL0OxMmDs\"",
-    "mtime": "2026-07-17T20:28:05.931Z",
-    "size": 48786,
-    "path": "../public/img/scenes/barra/black-galaxy.avif"
-  },
-  "/img/scenes/barra/black-galaxy-960.webp": {
-    "type": "image/webp",
-    "etag": "\"d8d4-FktHz+Oy0WyTlcmxfzZTobMlVIU\"",
-    "mtime": "2026-07-17T20:28:05.930Z",
-    "size": 55508,
-    "path": "../public/img/scenes/barra/black-galaxy-960.webp"
-  },
-  "/img/scenes/barra/black-galaxy-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"18b91-HXapogy1VK31o35265WSLQ9zUCQ\"",
-    "mtime": "2026-07-17T20:28:05.901Z",
-    "size": 101265,
-    "path": "../public/img/scenes/barra/black-galaxy-1600.avif"
-  },
-  "/img/scenes/barra/black-galaxy.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3dc6-s8w3Wj/AaTq3MIwazm/I0eptENg\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 15814,
-    "path": "../public/img/scenes/barra/black-galaxy.svg"
-  },
-  "/img/scenes/barra/black-galaxy.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"88c-5HjSTDtlB9A+yIFVH9EG5TZUdD0\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 2188,
-    "path": "../public/img/scenes/barra/black-galaxy.svg.br"
-  },
-  "/img/scenes/barra/black-galaxy.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a65-1cOvTGcXuARvE5tplia3CqQzVKw\"",
-    "mtime": "2026-07-17T20:28:06.110Z",
-    "size": 2661,
-    "path": "../public/img/scenes/barra/black-galaxy.svg.gz"
-  },
-  "/img/scenes/barra/black-galaxy.webp": {
-    "type": "image/webp",
-    "etag": "\"d8d4-FktHz+Oy0WyTlcmxfzZTobMlVIU\"",
-    "mtime": "2026-07-17T20:28:05.930Z",
-    "size": 55508,
-    "path": "../public/img/scenes/barra/black-galaxy.webp"
-  },
-  "/img/scenes/barra/blanco-carrara-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"ed96-8Bm0P2k6ggx0sUDWUL7jlqZKTlo\"",
-    "mtime": "2026-07-17T20:28:05.930Z",
-    "size": 60822,
-    "path": "../public/img/scenes/barra/blanco-carrara-1600.webp"
-  },
-  "/img/scenes/barra/blanco-carrara-480.webp": {
-    "type": "image/webp",
-    "etag": "\"28da-AfdpsOjOiA1Dh5NzXA7Rb6cicQA\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 10458,
-    "path": "../public/img/scenes/barra/blanco-carrara-480.webp"
-  },
-  "/img/scenes/barra/blanco-carrara-480.avif": {
-    "type": "image/avif",
-    "etag": "\"24f6-MZ4iSI+z3qxOMp29eqgWskRD/RM\"",
-    "mtime": "2026-07-17T20:28:05.930Z",
-    "size": 9462,
-    "path": "../public/img/scenes/barra/blanco-carrara-480.avif"
-  },
-  "/img/scenes/barra/blanco-carrara-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"d741-pP4PN2Jh38KfF0p8BzbX9N63xGw\"",
-    "mtime": "2026-07-17T20:28:05.929Z",
-    "size": 55105,
-    "path": "../public/img/scenes/barra/blanco-carrara-1600.avif"
-  },
-  "/img/scenes/barra/blanco-carrara-960.avif": {
-    "type": "image/avif",
-    "etag": "\"6878-Eb2gqq9m/8cfXDU96Z988q15Rc0\"",
-    "mtime": "2026-07-17T20:28:05.933Z",
-    "size": 26744,
-    "path": "../public/img/scenes/barra/blanco-carrara-960.avif"
-  },
-  "/img/scenes/barra/blanco-carrara-960.webp": {
-    "type": "image/webp",
-    "etag": "\"71de-RW0oCx1eofieEQAxMJ7foyxHFNs\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 29150,
-    "path": "../public/img/scenes/barra/blanco-carrara-960.webp"
-  },
-  "/img/scenes/barra/blanco-carrara.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"789-89+0kVppuMiQpQ0VP8wytmuG7jg\"",
-    "mtime": "2026-07-17T20:28:05.932Z",
-    "size": 1929,
-    "path": "../public/img/scenes/barra/blanco-carrara.svg"
-  },
-  "/img/scenes/barra/blanco-carrara.avif": {
-    "type": "image/avif",
-    "etag": "\"6878-Eb2gqq9m/8cfXDU96Z988q15Rc0\"",
-    "mtime": "2026-07-17T20:28:05.932Z",
-    "size": 26744,
-    "path": "../public/img/scenes/barra/blanco-carrara.avif"
-  },
-  "/img/scenes/barra/blanco-carrara.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1d7-ZOTCv6XIwav+NxIdqV+MdvbHDeY\"",
-    "mtime": "2026-07-17T20:28:06.112Z",
-    "size": 471,
-    "path": "../public/img/scenes/barra/blanco-carrara.svg.br"
-  },
-  "/img/scenes/barra/blanco-carrara.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"24c-kuOMFjyddL44GlVPyFm+dBh1XYo\"",
-    "mtime": "2026-07-17T20:28:06.110Z",
-    "size": 588,
-    "path": "../public/img/scenes/barra/blanco-carrara.svg.gz"
-  },
-  "/img/scenes/barra/blanco-carrara.webp": {
-    "type": "image/webp",
-    "etag": "\"71de-RW0oCx1eofieEQAxMJ7foyxHFNs\"",
-    "mtime": "2026-07-17T20:28:05.933Z",
-    "size": 29150,
-    "path": "../public/img/scenes/barra/blanco-carrara.webp"
-  },
-  "/img/scenes/barra/blue-dunes-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1a53f-pvXixS8MelCKunU06pkDzsSTQ98\"",
-    "mtime": "2026-07-17T20:28:05.933Z",
-    "size": 107839,
-    "path": "../public/img/scenes/barra/blue-dunes-1600.avif"
-  },
-  "/img/scenes/barra/blue-dunes-480.avif": {
-    "type": "image/avif",
-    "etag": "\"374f-R/29wzm6BiepndQ1wJfPdgqIyZo\"",
-    "mtime": "2026-07-17T20:28:05.932Z",
-    "size": 14159,
-    "path": "../public/img/scenes/barra/blue-dunes-480.avif"
-  },
-  "/img/scenes/barra/blue-dunes-480.webp": {
-    "type": "image/webp",
-    "etag": "\"41ba-xAMPie37xYa2ZfvQ2iAmyU4w6D0\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 16826,
-    "path": "../public/img/scenes/barra/blue-dunes-480.webp"
-  },
-  "/img/scenes/barra/blue-dunes-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"21516-xYI1SxiJMUI7tU0piIzNo7VJB5I\"",
-    "mtime": "2026-07-17T20:28:05.933Z",
-    "size": 136470,
-    "path": "../public/img/scenes/barra/blue-dunes-1600.webp"
-  },
-  "/img/scenes/barra/blue-dunes-960.avif": {
-    "type": "image/avif",
-    "etag": "\"c6d4-o/VJKmP7X7H0TIoWyMXoNI8L4Jg\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 50900,
-    "path": "../public/img/scenes/barra/blue-dunes-960.avif"
-  },
-  "/img/scenes/barra/blue-dunes-960.webp": {
-    "type": "image/webp",
-    "etag": "\"ea8a-TwB/9J7DydqfWU3pftdtT+oB/WI\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 60042,
-    "path": "../public/img/scenes/barra/blue-dunes-960.webp"
-  },
-  "/img/scenes/barra/blue-dunes.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3dab-OwcF3mgznBpPdwDRqXmkm7h4C2k\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 15787,
-    "path": "../public/img/scenes/barra/blue-dunes.svg"
-  },
-  "/img/scenes/barra/blue-dunes.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"892-BBVzmlO9sXLplVIZu013t9vjiqs\"",
-    "mtime": "2026-07-17T20:28:06.130Z",
-    "size": 2194,
-    "path": "../public/img/scenes/barra/blue-dunes.svg.br"
-  },
-  "/img/scenes/barra/blue-dunes.avif": {
-    "type": "image/avif",
-    "etag": "\"c6d4-o/VJKmP7X7H0TIoWyMXoNI8L4Jg\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 50900,
-    "path": "../public/img/scenes/barra/blue-dunes.avif"
-  },
-  "/img/scenes/barra/blue-dunes.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a6b-zuI0/yN60uFpWua2J13B9rkgggI\"",
-    "mtime": "2026-07-17T20:28:06.112Z",
-    "size": 2667,
-    "path": "../public/img/scenes/barra/blue-dunes.svg.gz"
-  },
-  "/img/scenes/barra/blue-dunes.webp": {
-    "type": "image/webp",
-    "etag": "\"ea8a-TwB/9J7DydqfWU3pftdtT+oB/WI\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 60042,
-    "path": "../public/img/scenes/barra/blue-dunes.webp"
-  },
-  "/img/scenes/barra/calacatta-oro-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"d040-Q9ijZpR0cfqIpcaRplwJqoSMr8c\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 53312,
-    "path": "../public/img/scenes/barra/calacatta-oro-1600.avif"
-  },
-  "/img/scenes/barra/calacatta-oro-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"e5ba-2+JHRwXI1ssTokyGWtpYLf+T1Ag\"",
-    "mtime": "2026-07-17T20:28:05.936Z",
-    "size": 58810,
-    "path": "../public/img/scenes/barra/calacatta-oro-1600.webp"
-  },
-  "/img/scenes/barra/calacatta-oro-480.avif": {
-    "type": "image/avif",
-    "etag": "\"24ed-0ddEFjZideuvs5H1GLzQo3munjs\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 9453,
-    "path": "../public/img/scenes/barra/calacatta-oro-480.avif"
-  },
-  "/img/scenes/barra/calacatta-oro-480.webp": {
-    "type": "image/webp",
-    "etag": "\"289e-S9GNYLepjNU3yUyoPAEmCofY1i0\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 10398,
-    "path": "../public/img/scenes/barra/calacatta-oro-480.webp"
-  },
-  "/img/scenes/barra/calacatta-oro-960.webp": {
-    "type": "image/webp",
-    "etag": "\"701a-IgdWfkO46G4NZJKmYoeCLytpIaw\"",
-    "mtime": "2026-07-17T20:28:05.934Z",
-    "size": 28698,
-    "path": "../public/img/scenes/barra/calacatta-oro-960.webp"
-  },
-  "/img/scenes/barra/calacatta-oro.avif": {
-    "type": "image/avif",
-    "etag": "\"693a-9RIlKaYa5CdoTKwAdv6c5QRYdvU\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 26938,
-    "path": "../public/img/scenes/barra/calacatta-oro.avif"
-  },
-  "/img/scenes/barra/calacatta-oro-960.avif": {
-    "type": "image/avif",
-    "etag": "\"693a-9RIlKaYa5CdoTKwAdv6c5QRYdvU\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 26938,
-    "path": "../public/img/scenes/barra/calacatta-oro-960.avif"
-  },
-  "/img/scenes/barra/calacatta-oro.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1e2-HpHLPWj6pApDgbnO3AJcI5D692s\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 482,
-    "path": "../public/img/scenes/barra/calacatta-oro.svg.br"
-  },
-  "/img/scenes/barra/calacatta-oro.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"253-0rjFmyfB1CwSjPA3oXDa6wpbcoM\"",
-    "mtime": "2026-07-17T20:28:06.121Z",
-    "size": 595,
-    "path": "../public/img/scenes/barra/calacatta-oro.svg.gz"
-  },
-  "/img/scenes/barra/calacatta-oro.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"773-aLyrQIh/VNE6l2OPsiXzxi7wJ5U\"",
-    "mtime": "2026-07-17T20:28:05.936Z",
-    "size": 1907,
-    "path": "../public/img/scenes/barra/calacatta-oro.svg"
-  },
-  "/img/scenes/barra/calacatta-oro.webp": {
-    "type": "image/webp",
-    "etag": "\"701a-IgdWfkO46G4NZJKmYoeCLytpIaw\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 28698,
-    "path": "../public/img/scenes/barra/calacatta-oro.webp"
-  },
-  "/img/scenes/barra/gris-niebla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"768-JSI8ycORaC0XI5Cv7JzkDRTlf28\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 1896,
-    "path": "../public/img/scenes/barra/gris-niebla.svg"
-  },
-  "/img/scenes/barra/gris-niebla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"258-840JbHsXrBMEgBMcV5WUjy6FPY0\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 600,
-    "path": "../public/img/scenes/barra/gris-niebla.svg.gz"
-  },
-  "/img/scenes/barra/gris-niebla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1e4-IVwvG/6HWmBjDc4mNzGJY5MWJbs\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 484,
-    "path": "../public/img/scenes/barra/gris-niebla.svg.br"
-  },
-  "/img/scenes/barra/gris-perla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"896-jhBmiH07oq6qNsqYTXHp0xVzfIE\"",
-    "mtime": "2026-07-17T20:28:06.130Z",
-    "size": 2198,
-    "path": "../public/img/scenes/barra/gris-perla.svg.br"
-  },
-  "/img/scenes/barra/gris-perla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a65-B7QyFZYqw1oI9bKRfR3YNn08mnY\"",
-    "mtime": "2026-07-17T20:28:06.122Z",
-    "size": 2661,
-    "path": "../public/img/scenes/barra/gris-perla.svg.gz"
-  },
-  "/img/scenes/barra/luna-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1d71b-rWAHtEO7Mob+ga32WIiHUI+ppGA\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 120603,
-    "path": "../public/img/scenes/barra/luna-pearl-1600.avif"
-  },
-  "/img/scenes/barra/luna-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"3b6e-v4qu+NtG4dWXCwwRRdZDTDx5nxU\"",
-    "mtime": "2026-07-17T20:28:05.936Z",
-    "size": 15214,
-    "path": "../public/img/scenes/barra/luna-pearl-480.avif"
-  },
-  "/img/scenes/barra/gris-perla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3dbe-2o0RPbOyc++zr27vRRV/EslxoIA\"",
-    "mtime": "2026-07-17T20:28:05.935Z",
-    "size": 15806,
-    "path": "../public/img/scenes/barra/gris-perla.svg"
-  },
-  "/img/scenes/barra/luna-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"27676-KsMpJbbuG7BUhy+3uGFqT/Vk9n4\"",
-    "mtime": "2026-07-17T20:28:05.936Z",
-    "size": 161398,
-    "path": "../public/img/scenes/barra/luna-pearl-1600.webp"
-  },
-  "/img/scenes/barra/luna-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"4948-0MXaDaqf8cjnfOz3Pvg7U7FlqRg\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 18760,
-    "path": "../public/img/scenes/barra/luna-pearl-480.webp"
-  },
-  "/img/scenes/barra/luna-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"da5f-sNyYHoixc6OGv+vj+z2LaX8aQMI\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 55903,
-    "path": "../public/img/scenes/barra/luna-pearl-960.avif"
-  },
-  "/img/scenes/barra/luna-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"115b0-34y2djqJrfUJ3NlE2QOBwxCkxd4\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 71088,
-    "path": "../public/img/scenes/barra/luna-pearl-960.webp"
-  },
-  "/img/scenes/barra/luna-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"da5f-sNyYHoixc6OGv+vj+z2LaX8aQMI\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 55903,
-    "path": "../public/img/scenes/barra/luna-pearl.avif"
-  },
-  "/img/scenes/barra/luna-pearl.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3da9-OHk4ODw+hxA4h2VbeR04ojmuSPk\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 15785,
-    "path": "../public/img/scenes/barra/luna-pearl.svg"
-  },
-  "/img/scenes/barra/luna-pearl.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"87a-uvT5TTDYfXtG4oXp74IaG0Lbk90\"",
-    "mtime": "2026-07-17T20:28:06.135Z",
-    "size": 2170,
-    "path": "../public/img/scenes/barra/luna-pearl.svg.br"
-  },
-  "/img/scenes/barra/luna-pearl.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a67-h7gjGPlYxvsiuHGWewPNLVNwju4\"",
-    "mtime": "2026-07-17T20:28:06.130Z",
-    "size": 2663,
-    "path": "../public/img/scenes/barra/luna-pearl.svg.gz"
-  },
-  "/img/scenes/barra/luna-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"115b0-34y2djqJrfUJ3NlE2QOBwxCkxd4\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 71088,
-    "path": "../public/img/scenes/barra/luna-pearl.webp"
-  },
-  "/img/scenes/barra/marron-baltico.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3db6-7YvbRP9hBtcf6p7wohiKazGlcGI\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 15798,
-    "path": "../public/img/scenes/barra/marron-baltico.svg"
-  },
-  "/img/scenes/barra/marron-baltico.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"892-KBG25FhAq7GGff2sxkXwYDOmIyA\"",
-    "mtime": "2026-07-17T20:28:06.136Z",
-    "size": 2194,
-    "path": "../public/img/scenes/barra/marron-baltico.svg.br"
-  },
-  "/img/scenes/barra/marron-baltico.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a4f-BRnDq+P0a3x3lWoikVkwSPRbcPA\"",
-    "mtime": "2026-07-17T20:28:06.130Z",
-    "size": 2639,
-    "path": "../public/img/scenes/barra/marron-baltico.svg.gz"
-  },
-  "/img/scenes/barra/negro-absoluto.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3dc0-WRbYtS1vSfjmB/pfDzC/8HgSuIE\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 15808,
-    "path": "../public/img/scenes/barra/negro-absoluto.svg"
-  },
-  "/img/scenes/barra/negro-absoluto.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"86b-eDz1NF1RWmS4vLWJppi20IFw/fM\"",
-    "mtime": "2026-07-17T20:28:06.135Z",
-    "size": 2155,
-    "path": "../public/img/scenes/barra/negro-absoluto.svg.br"
-  },
-  "/img/scenes/barra/negro-absoluto.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a50-ngfpDKfagO3EtUXcrw7+zffkkEs\"",
-    "mtime": "2026-07-17T20:28:06.130Z",
-    "size": 2640,
-    "path": "../public/img/scenes/barra/negro-absoluto.svg.gz"
-  },
-  "/img/scenes/barra/negro-marquina.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"76e-lwfWZD+NxTONlG5rmBwzUIoEWhs\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 1902,
-    "path": "../public/img/scenes/barra/negro-marquina.svg"
-  },
-  "/img/scenes/barra/negro-marquina.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1ea-zOvtY7bGoBPjMdh9yPK4kJ0M81Y\"",
-    "mtime": "2026-07-17T20:28:06.131Z",
-    "size": 490,
-    "path": "../public/img/scenes/barra/negro-marquina.svg.br"
-  },
-  "/img/scenes/barra/negro-marquina.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"257-wOuj/ac56P3HMaXtO0cN+/veORg\"",
-    "mtime": "2026-07-17T20:28:06.131Z",
-    "size": 599,
-    "path": "../public/img/scenes/barra/negro-marquina.svg.gz"
-  },
-  "/img/scenes/barra/smithtown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"297b-Al8XP2Mc9nOMZBMTvDIiJTtHIMo\"",
-    "mtime": "2026-07-17T20:28:05.937Z",
-    "size": 10619,
-    "path": "../public/img/scenes/barra/smithtown-480.avif"
-  },
-  "/img/scenes/barra/smithtown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"ec26-Ii/LGTnVcciFmeET0HFQ6u0XHSM\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 60454,
-    "path": "../public/img/scenes/barra/smithtown-1600.avif"
-  },
-  "/img/scenes/barra/smithtown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"f862-konb1Q1SCNw6gpaExk+cmlIbFSQ\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 63586,
-    "path": "../public/img/scenes/barra/smithtown-1600.webp"
-  },
-  "/img/scenes/barra/smithtown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2e66-88+JUKAnEtKuKka/El9eoFf/RPs\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 11878,
-    "path": "../public/img/scenes/barra/smithtown-480.webp"
-  },
-  "/img/scenes/barra/smithtown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"74c0-8XIfUEpnQHnu9tQfgMwtSqubrYY\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 29888,
-    "path": "../public/img/scenes/barra/smithtown-960.avif"
-  },
-  "/img/scenes/barra/smithtown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"7ed8-p4Khlhnn6OdT/60RTnoYE/3/vn4\"",
-    "mtime": "2026-07-17T20:28:05.938Z",
-    "size": 32472,
-    "path": "../public/img/scenes/barra/smithtown-960.webp"
-  },
-  "/img/scenes/barra/smithtown.avif": {
-    "type": "image/avif",
-    "etag": "\"74c0-8XIfUEpnQHnu9tQfgMwtSqubrYY\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 29888,
-    "path": "../public/img/scenes/barra/smithtown.avif"
-  },
-  "/img/scenes/barra/smithtown.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"763-bz64mo4NlioOT8dtAw7TFme87+k\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 1891,
-    "path": "../public/img/scenes/barra/smithtown.svg"
-  },
-  "/img/scenes/barra/smithtown.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1d9-LvzbXHoXtMe25bjpos34XNWiHvc\"",
-    "mtime": "2026-07-17T20:28:06.133Z",
-    "size": 473,
-    "path": "../public/img/scenes/barra/smithtown.svg.br"
-  },
-  "/img/scenes/barra/smithtown.webp": {
-    "type": "image/webp",
-    "etag": "\"7ed8-p4Khlhnn6OdT/60RTnoYE/3/vn4\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 32472,
-    "path": "../public/img/scenes/barra/smithtown.webp"
-  },
-  "/img/scenes/barra/taj-mahal-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"16f53-E4lsK+cIJAWGDCi1BhYiecI+J4M\"",
-    "mtime": "2026-07-17T20:28:05.940Z",
-    "size": 94035,
-    "path": "../public/img/scenes/barra/taj-mahal-1600.avif"
-  },
-  "/img/scenes/barra/smithtown.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"255-vUoLjK8WC91MXh0ekPcvsfSGHok\"",
-    "mtime": "2026-07-17T20:28:06.133Z",
-    "size": 597,
-    "path": "../public/img/scenes/barra/smithtown.svg.gz"
-  },
-  "/img/scenes/barra/taj-mahal-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2adb-WEj3zitFIpdp/xLToSNB73cl4K8\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 10971,
-    "path": "../public/img/scenes/barra/taj-mahal-480.avif"
-  },
-  "/img/scenes/barra/taj-mahal-480.webp": {
-    "type": "image/webp",
-    "etag": "\"30a2-DgoRJFBvim2FXRv09AG9rrsjd4M\"",
-    "mtime": "2026-07-17T20:28:05.939Z",
-    "size": 12450,
-    "path": "../public/img/scenes/barra/taj-mahal-480.webp"
-  },
-  "/img/scenes/barra/taj-mahal-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"18cf2-8hOzDK163umpQT3MJ2ku0LUG3AA\"",
-    "mtime": "2026-07-17T20:28:05.940Z",
-    "size": 101618,
-    "path": "../public/img/scenes/barra/taj-mahal-1600.webp"
-  },
-  "/img/scenes/barra/taj-mahal-960.avif": {
-    "type": "image/avif",
-    "etag": "\"9efc-0KHRe1CxtL3+yg2AgJ6fBkUYqOQ\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 40700,
-    "path": "../public/img/scenes/barra/taj-mahal-960.avif"
-  },
-  "/img/scenes/barra/taj-mahal-960.webp": {
-    "type": "image/webp",
-    "etag": "\"afbc-rTANUJpEcuH+EeklHICccTinSb8\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 44988,
-    "path": "../public/img/scenes/barra/taj-mahal-960.webp"
-  },
-  "/img/scenes/barra/taj-mahal.avif": {
-    "type": "image/avif",
-    "etag": "\"9efc-0KHRe1CxtL3+yg2AgJ6fBkUYqOQ\"",
-    "mtime": "2026-07-17T20:28:05.940Z",
-    "size": 40700,
-    "path": "../public/img/scenes/barra/taj-mahal.avif"
-  },
-  "/img/scenes/barra/taj-mahal.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"1db-+VpbL0rUOS9C6rMKLi9yUXdGvVY\"",
-    "mtime": "2026-07-17T20:28:06.135Z",
-    "size": 475,
-    "path": "../public/img/scenes/barra/taj-mahal.svg.br"
-  },
-  "/img/scenes/barra/taj-mahal.webp": {
-    "type": "image/webp",
-    "etag": "\"afbc-rTANUJpEcuH+EeklHICccTinSb8\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 44988,
-    "path": "../public/img/scenes/barra/taj-mahal.webp"
-  },
-  "/img/scenes/barra/taj-mahal.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"251-91iaa7V0d6DVpTie/A7yhfAXftI\"",
-    "mtime": "2026-07-17T20:28:06.135Z",
-    "size": 593,
-    "path": "../public/img/scenes/barra/taj-mahal.svg.gz"
-  },
-  "/img/scenes/barra/verde-ubatuba.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"86d-GSKYXh0ElqFmj4/hQIW0eh4wq9s\"",
-    "mtime": "2026-07-17T20:28:06.147Z",
-    "size": 2157,
-    "path": "../public/img/scenes/barra/verde-ubatuba.svg.br"
-  },
-  "/img/scenes/barra/taj-mahal.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"76c-a5toXF5K67aATm9UAJmVrW6iwAs\"",
-    "mtime": "2026-07-17T20:28:05.940Z",
-    "size": 1900,
-    "path": "../public/img/scenes/barra/taj-mahal.svg"
-  },
-  "/img/scenes/barra/verde-ubatuba.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3dbe-Y26a+u7OFkprEqowr1yAYhpExGw\"",
-    "mtime": "2026-07-17T20:28:05.940Z",
-    "size": 15806,
-    "path": "../public/img/scenes/barra/verde-ubatuba.svg"
-  },
-  "/img/scenes/barra/verde-ubatuba.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a5b-sLYWtZADzJ94DMqymf7+14jShpc\"",
-    "mtime": "2026-07-17T20:28:06.135Z",
-    "size": 2651,
-    "path": "../public/img/scenes/barra/verde-ubatuba.svg.gz"
-  },
-  "/img/scenes/cocina/black-galaxy-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"176ff-Y0p3wvwSIRo0Q2r13UrIM1OKUeI\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 95999,
-    "path": "../public/img/scenes/cocina/black-galaxy-1600.avif"
-  },
-  "/img/scenes/cocina/black-galaxy-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2e7c-EQLWRWEBv6otxsjXSp6L/VNNEsQ\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 11900,
-    "path": "../public/img/scenes/cocina/black-galaxy-480.avif"
-  },
-  "/img/scenes/cocina/black-galaxy-480.webp": {
-    "type": "image/webp",
-    "etag": "\"3a7c-w5WWnF1a6fb7L/5Eaez41Dt8xAg\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 14972,
-    "path": "../public/img/scenes/cocina/black-galaxy-480.webp"
-  },
-  "/img/scenes/cocina/black-galaxy-960.avif": {
-    "type": "image/avif",
-    "etag": "\"a5ef-IA6rXcITq14RpAaP/be6adWDb0M\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 42479,
-    "path": "../public/img/scenes/cocina/black-galaxy-960.avif"
-  },
-  "/img/scenes/cocina/black-galaxy-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1afa0-22GI/cUp8fFOmuJeMDZDmtGKuRc\"",
-    "mtime": "2026-07-17T20:28:05.901Z",
-    "size": 110496,
-    "path": "../public/img/scenes/cocina/black-galaxy-1600.webp"
-  },
-  "/img/scenes/cocina/black-galaxy.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ec6-QX2I7kL0ImG8dqY4jyOuFI3ZHsg\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 16070,
-    "path": "../public/img/scenes/cocina/black-galaxy.svg"
-  },
-  "/img/scenes/cocina/black-galaxy.avif": {
-    "type": "image/avif",
-    "etag": "\"a5ef-IA6rXcITq14RpAaP/be6adWDb0M\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 42479,
-    "path": "../public/img/scenes/cocina/black-galaxy.avif"
-  },
-  "/img/scenes/cocina/black-galaxy-960.webp": {
-    "type": "image/webp",
-    "etag": "\"c4b6-rHa30CNhaL/Am4Mt+5d0ptqN2vI\"",
-    "mtime": "2026-07-17T20:28:05.941Z",
-    "size": 50358,
-    "path": "../public/img/scenes/cocina/black-galaxy-960.webp"
-  },
-  "/img/scenes/cocina/black-galaxy.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"abe-45yO1CCkt5p9ytJpMyByODXuOuc\"",
-    "mtime": "2026-07-17T20:28:06.136Z",
-    "size": 2750,
-    "path": "../public/img/scenes/cocina/black-galaxy.svg.gz"
-  },
-  "/img/scenes/cocina/blanco-carrara-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"c400-fL4zQ62mhiBK2O17tt8dQ26jJtg\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 50176,
-    "path": "../public/img/scenes/cocina/blanco-carrara-1600.avif"
-  },
-  "/img/scenes/cocina/black-galaxy.webp": {
-    "type": "image/webp",
-    "etag": "\"c4b6-rHa30CNhaL/Am4Mt+5d0ptqN2vI\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 50358,
-    "path": "../public/img/scenes/cocina/black-galaxy.webp"
-  },
-  "/img/scenes/cocina/black-galaxy.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8e4-DvhJYABnrMfwCXBWhs2ZBZw0V/c\"",
-    "mtime": "2026-07-17T20:28:06.149Z",
-    "size": 2276,
-    "path": "../public/img/scenes/cocina/black-galaxy.svg.br"
-  },
-  "/img/scenes/cocina/blanco-carrara-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"d346-rThqkD6UEnDg1LmeYBWNsyqEqGY\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 54086,
-    "path": "../public/img/scenes/cocina/blanco-carrara-1600.webp"
-  },
-  "/img/scenes/cocina/blanco-carrara-480.webp": {
-    "type": "image/webp",
-    "etag": "\"26ce-i4RGUmlr3KFPKjLPN59J/UtZXoE\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 9934,
-    "path": "../public/img/scenes/cocina/blanco-carrara-480.webp"
-  },
-  "/img/scenes/cocina/blanco-carrara-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2349-mpd8WZqDNpWt9xO9PHbcVZq+HqY\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 9033,
-    "path": "../public/img/scenes/cocina/blanco-carrara-480.avif"
-  },
-  "/img/scenes/cocina/blanco-carrara-960.avif": {
-    "type": "image/avif",
-    "etag": "\"5e97-WN3aFFKsmk342Be+HJDoLd8QmqU\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 24215,
-    "path": "../public/img/scenes/cocina/blanco-carrara-960.avif"
-  },
-  "/img/scenes/cocina/blanco-carrara-960.webp": {
-    "type": "image/webp",
-    "etag": "\"65d2-mbRp9wL/TM2v0otjhcQUpmPggJU\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 26066,
-    "path": "../public/img/scenes/cocina/blanco-carrara-960.webp"
-  },
-  "/img/scenes/cocina/blanco-carrara.avif": {
-    "type": "image/avif",
-    "etag": "\"5e97-WN3aFFKsmk342Be+HJDoLd8QmqU\"",
-    "mtime": "2026-07-17T20:28:05.942Z",
-    "size": 24215,
-    "path": "../public/img/scenes/cocina/blanco-carrara.avif"
-  },
-  "/img/scenes/cocina/blanco-carrara.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"88b-ikvH3+YIxVILFBYUyET/RCeCWB4\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 2187,
-    "path": "../public/img/scenes/cocina/blanco-carrara.svg"
-  },
-  "/img/scenes/cocina/blanco-carrara.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"22d-DX2HPjF2KmzlIdr0f9FKz+PvwMU\"",
-    "mtime": "2026-07-17T20:28:06.138Z",
-    "size": 557,
-    "path": "../public/img/scenes/cocina/blanco-carrara.svg.br"
-  },
-  "/img/scenes/cocina/blanco-carrara.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2b0-/sK8Uv49NheVFDFGHOf6xqlHBbA\"",
-    "mtime": "2026-07-17T20:28:06.136Z",
-    "size": 688,
-    "path": "../public/img/scenes/cocina/blanco-carrara.svg.gz"
-  },
-  "/img/scenes/cocina/blanco-carrara.webp": {
-    "type": "image/webp",
-    "etag": "\"65d2-mbRp9wL/TM2v0otjhcQUpmPggJU\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 26066,
-    "path": "../public/img/scenes/cocina/blanco-carrara.webp"
-  },
-  "/img/scenes/cocina/blue-dunes-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2dfb-5XPvVddhmEzusyz6kUmAsiYUqcs\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 11771,
-    "path": "../public/img/scenes/cocina/blue-dunes-480.avif"
-  },
-  "/img/scenes/cocina/blue-dunes-480.webp": {
-    "type": "image/webp",
-    "etag": "\"35c8-cLtt9aduLd++LEiasFbuhxHjO8o\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 13768,
-    "path": "../public/img/scenes/cocina/blue-dunes-480.webp"
-  },
-  "/img/scenes/cocina/blue-dunes-960.avif": {
-    "type": "image/avif",
-    "etag": "\"9c1f-de0NYG1AnXVH6Gi+vEi5okk1BFw\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 39967,
-    "path": "../public/img/scenes/cocina/blue-dunes-960.avif"
-  },
-  "/img/scenes/cocina/blue-dunes.avif": {
-    "type": "image/avif",
-    "etag": "\"9c1f-de0NYG1AnXVH6Gi+vEi5okk1BFw\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 39967,
-    "path": "../public/img/scenes/cocina/blue-dunes.avif"
-  },
-  "/img/scenes/cocina/blue-dunes-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"1981e-bD8zCfNEVYlcgAjbVhi1wDX3uao\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 104478,
-    "path": "../public/img/scenes/cocina/blue-dunes-1600.webp"
-  },
-  "/img/scenes/cocina/blue-dunes-960.webp": {
-    "type": "image/webp",
-    "etag": "\"b318-PVoVXwFcp/8Ti+DvjViqKlMqjko\"",
-    "mtime": "2026-07-17T20:28:05.944Z",
-    "size": 45848,
-    "path": "../public/img/scenes/cocina/blue-dunes-960.webp"
-  },
-  "/img/scenes/cocina/blue-dunes.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ea9-D9jf9pGTd9I4WeO+y3tk/mT0yp0\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 16041,
-    "path": "../public/img/scenes/cocina/blue-dunes.svg"
-  },
-  "/img/scenes/cocina/blue-dunes.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8e3-ezUUdkWX8p9HouiqraWUhq8UCPE\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 2275,
-    "path": "../public/img/scenes/cocina/blue-dunes.svg.br"
-  },
-  "/img/scenes/cocina/blue-dunes-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"15ade-QnC9sVe9kberg6w4oevpvbd0NXs\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 88798,
-    "path": "../public/img/scenes/cocina/blue-dunes-1600.avif"
-  },
-  "/img/scenes/cocina/blue-dunes.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"ac4-IvFNn9KcyqICjZkmr1Newmkdr0U\"",
-    "mtime": "2026-07-17T20:28:06.138Z",
-    "size": 2756,
-    "path": "../public/img/scenes/cocina/blue-dunes.svg.gz"
-  },
-  "/img/scenes/cocina/blue-dunes.webp": {
-    "type": "image/webp",
-    "etag": "\"b318-PVoVXwFcp/8Ti+DvjViqKlMqjko\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 45848,
-    "path": "../public/img/scenes/cocina/blue-dunes.webp"
-  },
-  "/img/scenes/cocina/calacatta-oro-480.avif": {
-    "type": "image/avif",
-    "etag": "\"255d-BpaM2q/GRJWxVkzZWIusGKThi5I\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 9565,
-    "path": "../public/img/scenes/cocina/calacatta-oro-480.avif"
-  },
-  "/img/scenes/cocina/calacatta-oro-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"d5d6-0J/duNXU7IJFVPHag6+RwmlwIoM\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 54742,
-    "path": "../public/img/scenes/cocina/calacatta-oro-1600.avif"
-  },
-  "/img/scenes/cocina/calacatta-oro-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"f390-NKRwwQ3pVsPRBTrkDvGCsK/1FuI\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 62352,
-    "path": "../public/img/scenes/cocina/calacatta-oro-1600.webp"
-  },
-  "/img/scenes/cocina/calacatta-oro-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2aa4-KJT0V/+ou7OZq5MSp1DLqWH8Ne4\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 10916,
-    "path": "../public/img/scenes/cocina/calacatta-oro-480.webp"
-  },
-  "/img/scenes/cocina/calacatta-oro-960.avif": {
-    "type": "image/avif",
-    "etag": "\"6753-qXvvc1em01wNeCgpwduyHwOqOkY\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 26451,
-    "path": "../public/img/scenes/cocina/calacatta-oro-960.avif"
-  },
-  "/img/scenes/cocina/calacatta-oro-960.webp": {
-    "type": "image/webp",
-    "etag": "\"76a0-tomynNvbkWi8MJp4UWgTqDFqAuw\"",
-    "mtime": "2026-07-17T20:28:05.945Z",
-    "size": 30368,
-    "path": "../public/img/scenes/cocina/calacatta-oro-960.webp"
-  },
-  "/img/scenes/cocina/calacatta-oro.avif": {
-    "type": "image/avif",
-    "etag": "\"6753-qXvvc1em01wNeCgpwduyHwOqOkY\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 26451,
-    "path": "../public/img/scenes/cocina/calacatta-oro.avif"
-  },
-  "/img/scenes/cocina/calacatta-oro.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"874-nD4rV+NdtimGwCKiIfrZOGUHCOQ\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 2164,
-    "path": "../public/img/scenes/cocina/calacatta-oro.svg"
-  },
-  "/img/scenes/cocina/calacatta-oro.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"23a-Cp2WTSVkHpJQhcVozPD/qPAVcZA\"",
-    "mtime": "2026-07-17T20:28:06.142Z",
-    "size": 570,
-    "path": "../public/img/scenes/cocina/calacatta-oro.svg.br"
-  },
-  "/img/scenes/cocina/calacatta-oro.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2b4-qkzMEUVrxGM+k0OHgpTi1G1IwoU\"",
-    "mtime": "2026-07-17T20:28:06.142Z",
-    "size": 692,
-    "path": "../public/img/scenes/cocina/calacatta-oro.svg.gz"
-  },
-  "/img/scenes/cocina/calacatta-oro.webp": {
-    "type": "image/webp",
-    "etag": "\"76a0-tomynNvbkWi8MJp4UWgTqDFqAuw\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 30368,
-    "path": "../public/img/scenes/cocina/calacatta-oro.webp"
-  },
-  "/img/scenes/cocina/gris-niebla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"867-ZhrIQxzeatAoqlXbcTe0ihLw/ss\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 2151,
-    "path": "../public/img/scenes/cocina/gris-niebla.svg"
-  },
-  "/img/scenes/cocina/gris-niebla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"240-4h+0QMVeZCd55yJN3FeX5dZQ84E\"",
-    "mtime": "2026-07-17T20:28:06.147Z",
-    "size": 576,
-    "path": "../public/img/scenes/cocina/gris-niebla.svg.br"
-  },
-  "/img/scenes/cocina/gris-niebla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2bb-qA2NgPf9U6XbZWWUUj4xjJtmKUA\"",
-    "mtime": "2026-07-17T20:28:06.147Z",
-    "size": 699,
-    "path": "../public/img/scenes/cocina/gris-niebla.svg.gz"
-  },
-  "/img/scenes/cocina/gris-perla.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ebc-+O58RsVTvPk6FHjyC0GzQPqVyLE\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 16060,
-    "path": "../public/img/scenes/cocina/gris-perla.svg"
-  },
-  "/img/scenes/cocina/gris-perla.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8e9-VNaCURIx3TMtLrI4izFT4uAg87w\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 2281,
-    "path": "../public/img/scenes/cocina/gris-perla.svg.br"
-  },
-  "/img/scenes/cocina/gris-perla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"ac0-/VNwvDrK3aLwxPKjGtV33OLwXCU\"",
-    "mtime": "2026-07-17T20:28:06.147Z",
-    "size": 2752,
-    "path": "../public/img/scenes/cocina/gris-perla.svg.gz"
-  },
-  "/img/scenes/cocina/luna-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1b890-S6c/Mc1nE8zoN+joL04YdowR52g\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 112784,
-    "path": "../public/img/scenes/cocina/luna-pearl-1600.avif"
-  },
-  "/img/scenes/cocina/luna-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"3134-dTSrcyLv4G2wOSOLIeKWMX7zYt0\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 12596,
-    "path": "../public/img/scenes/cocina/luna-pearl-480.avif"
-  },
-  "/img/scenes/cocina/luna-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"24296-rEBtplnj4dbImJOH7dB7GkrRZbA\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 148118,
-    "path": "../public/img/scenes/cocina/luna-pearl-1600.webp"
-  },
-  "/img/scenes/cocina/luna-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"3dd8-E5hLn67Pdj7LcVoGkVHQcBYxrSQ\"",
-    "mtime": "2026-07-17T20:28:05.946Z",
-    "size": 15832,
-    "path": "../public/img/scenes/cocina/luna-pearl-480.webp"
-  },
-  "/img/scenes/cocina/luna-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"c197-j098UWC18PT2y4OpEm9Bej7CSCU\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 49559,
-    "path": "../public/img/scenes/cocina/luna-pearl-960.avif"
-  },
-  "/img/scenes/cocina/luna-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"f11e-E7zYw1DDYE0mmP4Ydmtcfcnl61o\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 61726,
-    "path": "../public/img/scenes/cocina/luna-pearl-960.webp"
-  },
-  "/img/scenes/cocina/luna-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"c197-j098UWC18PT2y4OpEm9Bej7CSCU\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 49559,
-    "path": "../public/img/scenes/cocina/luna-pearl.avif"
-  },
-  "/img/scenes/cocina/luna-pearl.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ea7-JVu6NacyYV8tpy8GYrNFTMRTM3U\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 16039,
-    "path": "../public/img/scenes/cocina/luna-pearl.svg"
-  },
-  "/img/scenes/cocina/luna-pearl.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"ac4-stJeEvokxCcdhBU/a38/zdyPz1A\"",
-    "mtime": "2026-07-17T20:28:06.149Z",
-    "size": 2756,
-    "path": "../public/img/scenes/cocina/luna-pearl.svg.gz"
-  },
-  "/img/scenes/cocina/luna-pearl.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8c3-6ws7Shgx4Y/sX1ax/qPP31kKZtw\"",
-    "mtime": "2026-07-17T20:28:06.161Z",
-    "size": 2243,
-    "path": "../public/img/scenes/cocina/luna-pearl.svg.br"
-  },
-  "/img/scenes/cocina/luna-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"f11e-E7zYw1DDYE0mmP4Ydmtcfcnl61o\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 61726,
-    "path": "../public/img/scenes/cocina/luna-pearl.webp"
-  },
-  "/img/scenes/cocina/marron-baltico.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3eb8-OiB3CWeJYsli+vKMgWBEoIihPh8\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 16056,
-    "path": "../public/img/scenes/cocina/marron-baltico.svg"
-  },
-  "/img/scenes/cocina/marron-baltico.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8e3-MMMamuiatnSdUgMvJWz6vi5cF0s\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 2275,
-    "path": "../public/img/scenes/cocina/marron-baltico.svg.br"
-  },
-  "/img/scenes/cocina/marron-baltico.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"aa7-+fLZc6ueuy/EL6zQGfs1V89rJeg\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 2727,
-    "path": "../public/img/scenes/cocina/marron-baltico.svg.gz"
-  },
-  "/img/scenes/cocina/negro-absoluto.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ec2-PZzzIUdxyvJ8Qh7B6YaFWaSJz8o\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 16066,
-    "path": "../public/img/scenes/cocina/negro-absoluto.svg"
-  },
-  "/img/scenes/cocina/negro-absoluto.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8c2-Cz71pNxUR4ohEufgkhsC7kgAxa8\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 2242,
-    "path": "../public/img/scenes/cocina/negro-absoluto.svg.br"
-  },
-  "/img/scenes/cocina/negro-absoluto.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"aaf-W81pc7nAg5TXpD4iblF49OR9KpQ\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 2735,
-    "path": "../public/img/scenes/cocina/negro-absoluto.svg.gz"
-  },
-  "/img/scenes/cocina/negro-marquina.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"870-o4CPYbkNmjxb9+N+KNF7i7I1hb4\"",
-    "mtime": "2026-07-17T20:28:05.947Z",
-    "size": 2160,
-    "path": "../public/img/scenes/cocina/negro-marquina.svg"
-  },
-  "/img/scenes/cocina/negro-marquina.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"240-7j4F4R6M6V26E2lqtKz0r2ozqyk\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 576,
-    "path": "../public/img/scenes/cocina/negro-marquina.svg.br"
-  },
-  "/img/scenes/cocina/smithtown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"cf16-OI6EbFDWuxom0c6Ae3/ZB+GrIhw\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 53014,
-    "path": "../public/img/scenes/cocina/smithtown-1600.avif"
-  },
-  "/img/scenes/cocina/smithtown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"e60a-ZQZzTRwiiDyhZVb1yulYkapac4M\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 58890,
-    "path": "../public/img/scenes/cocina/smithtown-1600.webp"
-  },
-  "/img/scenes/cocina/negro-marquina.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2b8-7C/jU6jb6SwEFEJW7Ld4MF32lko\"",
-    "mtime": "2026-07-17T20:28:06.157Z",
-    "size": 696,
-    "path": "../public/img/scenes/cocina/negro-marquina.svg.gz"
-  },
-  "/img/scenes/cocina/smithtown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"250a-k3ln5HlHPVVbyi/f3WbH9C1jtY0\"",
-    "mtime": "2026-07-17T20:28:05.948Z",
-    "size": 9482,
-    "path": "../public/img/scenes/cocina/smithtown-480.avif"
-  },
-  "/img/scenes/cocina/smithtown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"6750-I7OtLhKvKSGIMQ+kMy1znZsV5JQ\"",
-    "mtime": "2026-07-17T20:28:05.949Z",
-    "size": 26448,
-    "path": "../public/img/scenes/cocina/smithtown-960.avif"
-  },
-  "/img/scenes/cocina/smithtown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2a6e-K7FgHQ1wcxRnl2/cgtgcUnrofx0\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 10862,
-    "path": "../public/img/scenes/cocina/smithtown-480.webp"
-  },
-  "/img/scenes/cocina/smithtown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"726a-lDcKS5FuSBRnSztHsG9ILu6alG0\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 29290,
-    "path": "../public/img/scenes/cocina/smithtown-960.webp"
-  },
-  "/img/scenes/cocina/smithtown.avif": {
-    "type": "image/avif",
-    "etag": "\"6750-I7OtLhKvKSGIMQ+kMy1znZsV5JQ\"",
-    "mtime": "2026-07-17T20:28:05.949Z",
-    "size": 26448,
-    "path": "../public/img/scenes/cocina/smithtown.avif"
-  },
-  "/img/scenes/cocina/smithtown.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"860-ksn/hNA5hdPCoTP5bu27cohgqHY\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 2144,
-    "path": "../public/img/scenes/cocina/smithtown.svg"
-  },
-  "/img/scenes/cocina/smithtown.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"233-CUVNCLfpKh4eQo43AYURrbkUj/E\"",
-    "mtime": "2026-07-17T20:28:06.159Z",
-    "size": 563,
-    "path": "../public/img/scenes/cocina/smithtown.svg.br"
-  },
-  "/img/scenes/cocina/smithtown.webp": {
-    "type": "image/webp",
-    "etag": "\"726a-lDcKS5FuSBRnSztHsG9ILu6alG0\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 29290,
-    "path": "../public/img/scenes/cocina/smithtown.webp"
-  },
-  "/img/scenes/cocina/taj-mahal-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"10ecf-C+RML4kIe24rwMbIIPA+yRyMLpo\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 69327,
-    "path": "../public/img/scenes/cocina/taj-mahal-1600.avif"
-  },
-  "/img/scenes/cocina/smithtown.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2b9-jpY2cxAHNEUEmMLKitwitH/ctPs\"",
-    "mtime": "2026-07-17T20:28:06.159Z",
-    "size": 697,
-    "path": "../public/img/scenes/cocina/smithtown.svg.gz"
-  },
-  "/img/scenes/cocina/taj-mahal-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"11bec-p0P2s7taEg6Sx8LHdZawPrHJ21c\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 72684,
-    "path": "../public/img/scenes/cocina/taj-mahal-1600.webp"
-  },
-  "/img/scenes/cocina/taj-mahal-480.webp": {
-    "type": "image/webp",
-    "etag": "\"28e4-6Cky8nFitiubfoouPdaFsiEZbbw\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 10468,
-    "path": "../public/img/scenes/cocina/taj-mahal-480.webp"
-  },
-  "/img/scenes/cocina/taj-mahal-960.avif": {
-    "type": "image/avif",
-    "etag": "\"6ff4-8jNIfs5Lo2JSzzJb5QrUfW+tGE4\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 28660,
-    "path": "../public/img/scenes/cocina/taj-mahal-960.avif"
-  },
-  "/img/scenes/cocina/taj-mahal-960.webp": {
-    "type": "image/webp",
-    "etag": "\"796c-nYxcvH8TP/tHPZ3MiG7QvSVw5fk\"",
-    "mtime": "2026-07-17T20:28:05.950Z",
-    "size": 31084,
-    "path": "../public/img/scenes/cocina/taj-mahal-960.webp"
-  },
-  "/img/scenes/cocina/taj-mahal-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2427-abgaQljGde9rZaU7KRLz8EVtT3U\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 9255,
-    "path": "../public/img/scenes/cocina/taj-mahal-480.avif"
-  },
-  "/img/scenes/cocina/taj-mahal.avif": {
-    "type": "image/avif",
-    "etag": "\"6ff4-8jNIfs5Lo2JSzzJb5QrUfW+tGE4\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 28660,
-    "path": "../public/img/scenes/cocina/taj-mahal.avif"
-  },
-  "/img/scenes/cocina/taj-mahal.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"869-oI4HnWIuluNs+wi7ZbPazM+/7VI\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 2153,
-    "path": "../public/img/scenes/cocina/taj-mahal.svg"
-  },
-  "/img/scenes/cocina/taj-mahal.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"2b5-RagUfcW4bK99Q83TZdeexmdbRh0\"",
-    "mtime": "2026-07-17T20:28:06.161Z",
-    "size": 693,
-    "path": "../public/img/scenes/cocina/taj-mahal.svg.gz"
-  },
-  "/img/scenes/cocina/taj-mahal.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"23a-j/doouSynLPsDr/s714EkMrxN/U\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 570,
-    "path": "../public/img/scenes/cocina/taj-mahal.svg.br"
-  },
-  "/img/scenes/cocina/verde-ubatuba.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3ebf-sIrNfLH1rGCTfejYmGx4CzXhM/U\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 16063,
-    "path": "../public/img/scenes/cocina/verde-ubatuba.svg"
-  },
-  "/img/scenes/cocina/taj-mahal.webp": {
-    "type": "image/webp",
-    "etag": "\"796c-nYxcvH8TP/tHPZ3MiG7QvSVw5fk\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 31084,
-    "path": "../public/img/scenes/cocina/taj-mahal.webp"
-  },
-  "/img/scenes/cocina/verde-ubatuba.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8ca-E+8lI04s4HjLkm8qRHxh/CKPa3I\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 2250,
-    "path": "../public/img/scenes/cocina/verde-ubatuba.svg.br"
-  },
-  "/img/scenes/cocina/verde-ubatuba.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"ab3-B3NHfT/vK1EpF1Vhw0hMA7l+dhU\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 2739,
-    "path": "../public/img/scenes/cocina/verde-ubatuba.svg.gz"
-  },
-  "/img/scenes/isla/black-galaxy-480.avif": {
-    "type": "image/avif",
-    "etag": "\"3ee7-BodBUovWKZBkcYhVBmt8AO/HxcM\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 16103,
-    "path": "../public/img/scenes/isla/black-galaxy-480.avif"
-  },
-  "/img/scenes/isla/black-galaxy-480.webp": {
-    "type": "image/webp",
-    "etag": "\"4d6e-6YCeYsGxnJjKFBDuexf3lCsDz1s\"",
-    "mtime": "2026-07-17T20:28:05.951Z",
-    "size": 19822,
-    "path": "../public/img/scenes/isla/black-galaxy-480.webp"
-  },
-  "/img/scenes/isla/black-galaxy-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"22c8f-i+YY+JRFwLyKCkILpc5R/CjdrPQ\"",
-    "mtime": "2026-07-17T20:28:05.901Z",
-    "size": 142479,
-    "path": "../public/img/scenes/isla/black-galaxy-1600.avif"
-  },
-  "/img/scenes/isla/black-galaxy-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"2bbd2-xbc4t1GA4lysuX6VJ9Ci8w4qRP0\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 179154,
-    "path": "../public/img/scenes/isla/black-galaxy-1600.webp"
-  },
-  "/img/scenes/isla/black-galaxy.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"3e33-H5GdBIcYznrpHVJsmbOOv1Vx8u4\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 15923,
-    "path": "../public/img/scenes/isla/black-galaxy.svg"
-  },
-  "/img/scenes/isla/black-galaxy-960.avif": {
-    "type": "image/avif",
-    "etag": "\"f55b-P5EXDklRnMV2nXczCHYQvuSz9Kw\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 62811,
-    "path": "../public/img/scenes/isla/black-galaxy-960.avif"
-  },
-  "/img/scenes/isla/black-galaxy.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"8a7-uMDHZTa0t9bsy29oV1/I59jTE1g\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
+    "etag": "\"8a7-GA5G8OBEy2Z0lBGc+TUE4wuHnWU\"",
+    "mtime": "2026-07-13T18:33:32.320Z",
     "size": 2215,
-    "path": "../public/img/scenes/isla/black-galaxy.svg.br"
+    "path": "../public/_build/assets/aiFlows-pJzXHo0K.js.gz"
   },
-  "/img/scenes/isla/black-galaxy.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a82-4jkNDEpX6YbEywhtf5vnXD05B0c\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 2690,
-    "path": "../public/img/scenes/isla/black-galaxy.svg.gz"
-  },
-  "/img/scenes/isla/black-galaxy-960.webp": {
-    "type": "image/webp",
-    "etag": "\"13818-vVeoEyS+cnSW1Ujaqsd4ttNtYxI\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 79896,
-    "path": "../public/img/scenes/isla/black-galaxy-960.webp"
-  },
-  "/img/scenes/isla/black-galaxy.avif": {
-    "type": "image/avif",
-    "etag": "\"f55b-P5EXDklRnMV2nXczCHYQvuSz9Kw\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 62811,
-    "path": "../public/img/scenes/isla/black-galaxy.avif"
-  },
-  "/img/scenes/isla/blanco-carrara-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1053a-E9+2ToBCp2c0VI7HkdoCcHKZ9Y8\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 66874,
-    "path": "../public/img/scenes/isla/blanco-carrara-1600.avif"
-  },
-  "/img/scenes/isla/blanco-carrara-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"12ee8-1TVT6wGeRALT4UjYqg0kCefUos0\"",
-    "mtime": "2026-07-17T20:28:05.953Z",
-    "size": 77544,
-    "path": "../public/img/scenes/isla/blanco-carrara-1600.webp"
-  },
-  "/img/scenes/isla/blanco-carrara-480.avif": {
-    "type": "image/avif",
-    "etag": "\"29e4-qAlSMF4MHBcDOG0DFYoA8WlYyMU\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 10724,
-    "path": "../public/img/scenes/isla/blanco-carrara-480.avif"
-  },
-  "/img/scenes/isla/black-galaxy.webp": {
-    "type": "image/webp",
-    "etag": "\"13818-vVeoEyS+cnSW1Ujaqsd4ttNtYxI\"",
-    "mtime": "2026-07-17T20:28:05.953Z",
-    "size": 79896,
-    "path": "../public/img/scenes/isla/black-galaxy.webp"
-  },
-  "/img/scenes/isla/blanco-carrara-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2fcc-v8z1i4EfLXO9YThCGSChEdxxOLM\"",
-    "mtime": "2026-07-17T20:28:05.953Z",
-    "size": 12236,
-    "path": "../public/img/scenes/isla/blanco-carrara-480.webp"
-  },
-  "/img/scenes/isla/blanco-carrara-960.avif": {
-    "type": "image/avif",
-    "etag": "\"7c2d-i4hnq1A/Zh2rKg1793WjWEL+vgg\"",
-    "mtime": "2026-07-17T20:28:05.952Z",
-    "size": 31789,
-    "path": "../public/img/scenes/isla/blanco-carrara-960.avif"
-  },
-  "/img/scenes/isla/blanco-carrara-960.webp": {
-    "type": "image/webp",
-    "etag": "\"8cac-nB1ST8Dw640ftx3bGAM2NNUxYUk\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 36012,
-    "path": "../public/img/scenes/isla/blanco-carrara-960.webp"
-  },
-  "/img/scenes/isla/blanco-carrara.avif": {
-    "type": "image/avif",
-    "etag": "\"7c2d-i4hnq1A/Zh2rKg1793WjWEL+vgg\"",
-    "mtime": "2026-07-17T20:28:05.953Z",
-    "size": 31789,
-    "path": "../public/img/scenes/isla/blanco-carrara.avif"
-  },
-  "/img/scenes/isla/blanco-carrara.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/api-Dky6_J7J.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"7fa-JAko4rE89Pg0pPdVgwn5IYMY/NI\"",
-    "mtime": "2026-07-17T20:28:05.954Z",
-    "size": 2042,
-    "path": "../public/img/scenes/isla/blanco-carrara.svg"
+    "etag": "\"5c4-ODI4WhZzP3nLkpD/Fnwwe2KOYks\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 1476,
+    "path": "../public/_build/assets/api-Dky6_J7J.js"
   },
-  "/img/scenes/isla/blanco-carrara.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/api-Dky6_J7J.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"1f7-YYPrgjTEJun+V/cWBX9BCw48IUI\"",
-    "mtime": "2026-07-17T20:28:06.164Z",
-    "size": 503,
-    "path": "../public/img/scenes/isla/blanco-carrara.svg.br"
+    "etag": "\"2be-CZFtx4FrRQkNSNx0Jcq04NMN4dQ\"",
+    "mtime": "2026-07-13T18:33:32.325Z",
+    "size": 702,
+    "path": "../public/_build/assets/api-Dky6_J7J.js.br"
   },
-  "/img/scenes/isla/blanco-carrara.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/api-Dky6_J7J.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"26c-bIK3+MN2BHzVzP5EPtBABUKquoE\"",
-    "mtime": "2026-07-17T20:28:06.162Z",
-    "size": 620,
-    "path": "../public/img/scenes/isla/blanco-carrara.svg.gz"
+    "etag": "\"339-BzclhtQtadlgjewB6aBEMH5j7wE\"",
+    "mtime": "2026-07-13T18:33:32.320Z",
+    "size": 825,
+    "path": "../public/_build/assets/api-Dky6_J7J.js.gz"
   },
-  "/img/scenes/isla/blue-dunes-480.avif": {
-    "type": "image/avif",
-    "etag": "\"3cc9-7Lk6U1D1Km9+QSP6QihUIiC7H2Q\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 15561,
-    "path": "../public/img/scenes/isla/blue-dunes-480.avif"
+  "/_build/assets/arrow-left-wVosysgR.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"ee-4cKTU9XuSzF0SzKVzVML6fbKdGg\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 238,
+    "path": "../public/_build/assets/arrow-left-wVosysgR.js"
   },
-  "/img/scenes/isla/blue-dunes-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"1e40e-y14hfbOSdjcd+0Ll7Y34p2iVbNQ\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 123918,
-    "path": "../public/img/scenes/isla/blue-dunes-1600.avif"
-  },
-  "/img/scenes/isla/blanco-carrara.webp": {
-    "type": "image/webp",
-    "etag": "\"8cac-nB1ST8Dw640ftx3bGAM2NNUxYUk\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 36012,
-    "path": "../public/img/scenes/isla/blanco-carrara.webp"
-  },
-  "/img/scenes/isla/blue-dunes-480.webp": {
-    "type": "image/webp",
-    "etag": "\"4b06-XWadjc1aFojEdTGukGlnGS7HA6Y\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 19206,
-    "path": "../public/img/scenes/isla/blue-dunes-480.webp"
-  },
-  "/img/scenes/isla/blue-dunes-960.avif": {
-    "type": "image/avif",
-    "etag": "\"dc3e-44bdXIEncfQZEySGOlUd/nCFdqs\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 56382,
-    "path": "../public/img/scenes/isla/blue-dunes-960.avif"
-  },
-  "/img/scenes/isla/blue-dunes-960.webp": {
-    "type": "image/webp",
-    "etag": "\"119ba-st3B6XI//L1yOM+cX+e4ic/+3ks\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 72122,
-    "path": "../public/img/scenes/isla/blue-dunes-960.webp"
-  },
-  "/img/scenes/isla/blue-dunes.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/audit-DB3tQL3Z.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e14-1YuRDKgzQY+fgsE4Fk1mW8GOvBg\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 15892,
-    "path": "../public/img/scenes/isla/blue-dunes.svg"
+    "etag": "\"17e2-i/V1/ZzcuBRXUUpNSMmv6xShh1c\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 6114,
+    "path": "../public/_build/assets/audit-DB3tQL3Z.js"
   },
-  "/img/scenes/isla/blue-dunes.avif": {
-    "type": "image/avif",
-    "etag": "\"dc3e-44bdXIEncfQZEySGOlUd/nCFdqs\"",
-    "mtime": "2026-07-17T20:28:05.955Z",
-    "size": 56382,
-    "path": "../public/img/scenes/isla/blue-dunes.avif"
-  },
-  "/img/scenes/isla/blue-dunes.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/audit-DB3tQL3Z.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"89d-BX8XsRMsE5Uv0u9Up0deTE4xW0o\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 2205,
-    "path": "../public/img/scenes/isla/blue-dunes.svg.br"
+    "etag": "\"80b-pWC3p0q/9xW4Th/1b0Bxw18Aw+k\"",
+    "mtime": "2026-07-13T18:33:32.328Z",
+    "size": 2059,
+    "path": "../public/_build/assets/audit-DB3tQL3Z.js.br"
   },
-  "/img/scenes/isla/blue-dunes-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"277d6-Uy4JcjNDfJ0aUebA0V3PZzBlMjU\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 161750,
-    "path": "../public/img/scenes/isla/blue-dunes-1600.webp"
-  },
-  "/img/scenes/isla/blue-dunes.webp": {
-    "type": "image/webp",
-    "etag": "\"119ba-st3B6XI//L1yOM+cX+e4ic/+3ks\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 72122,
-    "path": "../public/img/scenes/isla/blue-dunes.webp"
-  },
-  "/img/scenes/isla/blue-dunes.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/audit-DB3tQL3Z.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a86-UKcGlIeac1A/yIoWxgzrgw/QTas\"",
-    "mtime": "2026-07-17T20:28:06.164Z",
-    "size": 2694,
-    "path": "../public/img/scenes/isla/blue-dunes.svg.gz"
+    "etag": "\"915-oW75zUdbWFnDllWkDV9TM702Aro\"",
+    "mtime": "2026-07-13T18:33:32.325Z",
+    "size": 2325,
+    "path": "../public/_build/assets/audit-DB3tQL3Z.js.gz"
   },
-  "/img/scenes/isla/calacatta-oro-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"11725-EVDF+GDM/H3NylI21pKxZmcawzg\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 71461,
-    "path": "../public/img/scenes/isla/calacatta-oro-1600.avif"
-  },
-  "/img/scenes/isla/calacatta-oro-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"13d0a-aMyVVn/frCNRji535Tl7DAMvGTc\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 81162,
-    "path": "../public/img/scenes/isla/calacatta-oro-1600.webp"
-  },
-  "/img/scenes/isla/calacatta-oro-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2ba2-nrMdpmAdBEKLiz5umyfKEpn56sE\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 11170,
-    "path": "../public/img/scenes/isla/calacatta-oro-480.avif"
-  },
-  "/img/scenes/isla/calacatta-oro-480.webp": {
-    "type": "image/webp",
-    "etag": "\"319a-31+3wTXceJmfHnMb4mQwQnnpEuQ\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 12698,
-    "path": "../public/img/scenes/isla/calacatta-oro-480.webp"
-  },
-  "/img/scenes/isla/calacatta-oro-960.avif": {
-    "type": "image/avif",
-    "etag": "\"82e5-rYdo4vuiX2LtCog3cltxRc96sJ0\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 33509,
-    "path": "../public/img/scenes/isla/calacatta-oro-960.avif"
-  },
-  "/img/scenes/isla/calacatta-oro.avif": {
-    "type": "image/avif",
-    "etag": "\"82e5-rYdo4vuiX2LtCog3cltxRc96sJ0\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 33509,
-    "path": "../public/img/scenes/isla/calacatta-oro.avif"
-  },
-  "/img/scenes/isla/calacatta-oro.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/auth-DFI69Cb9.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"7e2-Lc04wyQrkEojh+0hzXH6pNVI/18\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 2018,
-    "path": "../public/img/scenes/isla/calacatta-oro.svg"
+    "etag": "\"1006-a4rVNL/eVWrrHDdxXRqkc0YgkzI\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 4102,
+    "path": "../public/_build/assets/auth-DFI69Cb9.js"
   },
-  "/img/scenes/isla/calacatta-oro-960.webp": {
-    "type": "image/webp",
-    "etag": "\"9176-YLX9Ik9FrrPF804j0XdeFfr+DSM\"",
-    "mtime": "2026-07-17T20:28:05.959Z",
-    "size": 37238,
-    "path": "../public/img/scenes/isla/calacatta-oro-960.webp"
-  },
-  "/img/scenes/isla/calacatta-oro.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/auth-DFI69Cb9.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"200-pITw1KoEPNart5HKFK1tbwwoSIY\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 512,
-    "path": "../public/img/scenes/isla/calacatta-oro.svg.br"
+    "etag": "\"6b1-ujUEz7Le9O8YPD9vGGri8MuSMsQ\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1713,
+    "path": "../public/_build/assets/auth-DFI69Cb9.js.br"
   },
-  "/img/scenes/isla/calacatta-oro.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/auth-DFI69Cb9.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"26f-Rz4VQihAoqeVE6S8fyqHIFL97sQ\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 623,
-    "path": "../public/img/scenes/isla/calacatta-oro.svg.gz"
+    "etag": "\"766-xFBzjyMRj5wus7QuS6yL/vl0jao\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1894,
+    "path": "../public/_build/assets/auth-DFI69Cb9.js.gz"
   },
-  "/img/scenes/isla/calacatta-oro.webp": {
-    "type": "image/webp",
-    "etag": "\"9176-YLX9Ik9FrrPF804j0XdeFfr+DSM\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 37238,
-    "path": "../public/img/scenes/isla/calacatta-oro.webp"
-  },
-  "/img/scenes/isla/gris-niebla.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/balance-sheet-W3s69okz.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"7d3-IIWnkTUkKZ06NGRFF8nwV49T81s\"",
-    "mtime": "2026-07-17T20:28:05.959Z",
-    "size": 2003,
-    "path": "../public/img/scenes/isla/gris-niebla.svg"
+    "etag": "\"131b-MJAzn5F6lna42b8uKCEx2pMC6m4\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 4891,
+    "path": "../public/_build/assets/balance-sheet-W3s69okz.js"
   },
-  "/img/scenes/isla/gris-niebla.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/balance-sheet-W3s69okz.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"726-DPW+nhPlaZMUE3CBmq4jP35GPI4\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1830,
+    "path": "../public/_build/assets/balance-sheet-W3s69okz.js.gz"
+  },
+  "/_build/assets/balance-sheet-W3s69okz.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"208-eHpDwxH7hwZ9dtUqa0d1w6qAR5Q\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 520,
-    "path": "../public/img/scenes/isla/gris-niebla.svg.br"
+    "etag": "\"66a-gudORSApMeMBnkRIq94FI/wnDyU\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1642,
+    "path": "../public/_build/assets/balance-sheet-W3s69okz.js.br"
   },
-  "/img/scenes/isla/gris-perla.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/callback-CAsCR86o.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"3d4-t+kXjzY/leNrDK6YVMOWXtzMVsg\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 980,
+    "path": "../public/_build/assets/callback-CAsCR86o.js"
+  },
+  "/_build/assets/cash-flow-BxYru15j.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e27-oYrM+IHlcjhpikybZqrzmzLN8i4\"",
-    "mtime": "2026-07-17T20:28:05.958Z",
-    "size": 15911,
-    "path": "../public/img/scenes/isla/gris-perla.svg"
+    "etag": "\"ef0-lMY8uxBtITehMoiqgUGY/UPAnSU\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 3824,
+    "path": "../public/_build/assets/cash-flow-BxYru15j.js"
   },
-  "/img/scenes/isla/gris-perla.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/cash-flow-BxYru15j.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"8aa-k3oDwX6d2sbm5iMstSCBrCbTXag\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 2218,
-    "path": "../public/img/scenes/isla/gris-perla.svg.br"
+    "etag": "\"5dd-iYUKbIfh03cMpr1vblpRslZebWM\"",
+    "mtime": "2026-07-13T18:33:32.328Z",
+    "size": 1501,
+    "path": "../public/_build/assets/cash-flow-BxYru15j.js.br"
   },
-  "/img/scenes/isla/gris-perla.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/cash-flow-BxYru15j.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a84-6EpjB6xjGWcc+g+QK+Mq2Y1RNrs\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 2692,
-    "path": "../public/img/scenes/isla/gris-perla.svg.gz"
+    "etag": "\"699-ZNq/yyABc1bnsPDC4ncRxuxTJXA\"",
+    "mtime": "2026-07-13T18:33:32.326Z",
+    "size": 1689,
+    "path": "../public/_build/assets/cash-flow-BxYru15j.js.gz"
   },
-  "/img/scenes/isla/gris-niebla.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"275-fHyfP1//gR2DSbM/4e5mJFoPohA\"",
-    "mtime": "2026-07-17T20:28:06.174Z",
-    "size": 629,
-    "path": "../public/img/scenes/isla/gris-niebla.svg.gz"
-  },
-  "/img/scenes/isla/luna-pearl-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"23d01-k/YQZvGZC9sC4E36BSaH2IDlPK4\"",
-    "mtime": "2026-07-17T20:28:05.956Z",
-    "size": 146689,
-    "path": "../public/img/scenes/isla/luna-pearl-1600.avif"
-  },
-  "/img/scenes/isla/luna-pearl-480.avif": {
-    "type": "image/avif",
-    "etag": "\"4028-UHkWhUW8afswD190FTFlv+zOcMs\"",
-    "mtime": "2026-07-17T20:28:05.959Z",
-    "size": 16424,
-    "path": "../public/img/scenes/isla/luna-pearl-480.avif"
-  },
-  "/img/scenes/isla/luna-pearl-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"31ec0-oCXp9lUJOmNO8rb67JbfoT0atLY\"",
-    "mtime": "2026-07-17T20:28:05.957Z",
-    "size": 204480,
-    "path": "../public/img/scenes/isla/luna-pearl-1600.webp"
-  },
-  "/img/scenes/isla/luna-pearl-960.avif": {
-    "type": "image/avif",
-    "etag": "\"fe43-MhJIkjxw64jPcIKZUm0Bn9SyHd8\"",
-    "mtime": "2026-07-17T20:28:05.958Z",
-    "size": 65091,
-    "path": "../public/img/scenes/isla/luna-pearl-960.avif"
-  },
-  "/img/scenes/isla/luna-pearl-480.webp": {
-    "type": "image/webp",
-    "etag": "\"544e-yL3JACeSYUSXcqW+LLNhcewiE/M\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 21582,
-    "path": "../public/img/scenes/isla/luna-pearl-480.webp"
-  },
-  "/img/scenes/isla/luna-pearl.avif": {
-    "type": "image/avif",
-    "etag": "\"fe43-MhJIkjxw64jPcIKZUm0Bn9SyHd8\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 65091,
-    "path": "../public/img/scenes/isla/luna-pearl.avif"
-  },
-  "/img/scenes/isla/luna-pearl.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-CdvevsAi.css": {
+    "type": "text/css; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e12-ZWIh1PmzhUTWc8g8xFRBti6jXuE\"",
-    "mtime": "2026-07-17T20:28:05.958Z",
-    "size": 15890,
-    "path": "../public/img/scenes/isla/luna-pearl.svg"
+    "etag": "\"78a0-IMZCpfNsV7zfcnhx9CSfv9P6atY\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 30880,
+    "path": "../public/_build/assets/client-CdvevsAi.css"
   },
-  "/img/scenes/isla/luna-pearl.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-CdvevsAi.css.br": {
+    "type": "text/css; charset=utf-8",
     "encoding": "br",
-    "etag": "\"887-0dFmbinzg1SR0GQQHXHN4GSdSgc\"",
-    "mtime": "2026-07-17T20:28:06.188Z",
-    "size": 2183,
-    "path": "../public/img/scenes/isla/luna-pearl.svg.br"
+    "etag": "\"15a7-Qgi0FhpBAtfEsQioH7tE+IQZXQU\"",
+    "mtime": "2026-07-13T18:33:32.348Z",
+    "size": 5543,
+    "path": "../public/_build/assets/client-CdvevsAi.css.br"
   },
-  "/img/scenes/isla/luna-pearl.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-CdvevsAi.css.gz": {
+    "type": "text/css; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a82-bc7kLZE7Bd+eF1y6PFOLLmgplSs\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 2690,
-    "path": "../public/img/scenes/isla/luna-pearl.svg.gz"
+    "etag": "\"1936-q30HEmsaLH2hhbHthfbxwlCxQcg\"",
+    "mtime": "2026-07-13T18:33:32.328Z",
+    "size": 6454,
+    "path": "../public/_build/assets/client-CdvevsAi.css.gz"
   },
-  "/img/scenes/isla/luna-pearl.webp": {
-    "type": "image/webp",
-    "etag": "\"1585e-4C0Tzb1O8lKW/MbYTHokgbwsdgk\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 88158,
-    "path": "../public/img/scenes/isla/luna-pearl.webp"
-  },
-  "/img/scenes/isla/marron-baltico.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-DyC-Xgla.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e27-L+t/CP1LZnq8iPm0n/jtPNrMppw\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 15911,
-    "path": "../public/img/scenes/isla/marron-baltico.svg"
+    "etag": "\"a51b-EpThvgqNyEUqq1ASmlsgWU6U+6Q\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 42267,
+    "path": "../public/_build/assets/client-DyC-Xgla.js"
   },
-  "/img/scenes/isla/marron-baltico.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"a6b-2CFsbLtXFaPRpCMs4DRjGeNIMcA\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 2667,
-    "path": "../public/img/scenes/isla/marron-baltico.svg.gz"
-  },
-  "/img/scenes/isla/negro-absoluto.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-DyC-Xgla.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"893-jHTBTTrkALDftdPVuBap95cJ+ck\"",
-    "mtime": "2026-07-17T20:28:06.189Z",
-    "size": 2195,
-    "path": "../public/img/scenes/isla/negro-absoluto.svg.br"
+    "etag": "\"2980-XYkTkakosAbyRNU8TAQ0tSc5evM\"",
+    "mtime": "2026-07-13T18:33:32.360Z",
+    "size": 10624,
+    "path": "../public/_build/assets/client-DyC-Xgla.js.br"
   },
-  "/img/scenes/isla/negro-absoluto.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/client-DyC-Xgla.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a72-24vIBbBulpzLHW7zmviT+J1tjSc\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 2674,
-    "path": "../public/img/scenes/isla/negro-absoluto.svg.gz"
+    "etag": "\"2f4f-3VLEuzws5CQKgQur7E3AaHGvagQ\"",
+    "mtime": "2026-07-13T18:33:32.328Z",
+    "size": 12111,
+    "path": "../public/_build/assets/client-DyC-Xgla.js.gz"
   },
-  "/img/scenes/isla/marron-baltico.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"89f-TGzRw1otPZ/0ehFU+xPFkFZ0OwM\"",
-    "mtime": "2026-07-17T20:28:06.189Z",
-    "size": 2207,
-    "path": "../public/img/scenes/isla/marron-baltico.svg.br"
+  "/_build/assets/components-DyM2LSwN.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"3d5-z3d4KUaqM/kqqG69d0Q0XHkbRNs\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 981,
+    "path": "../public/_build/assets/components-DyM2LSwN.js"
   },
-  "/img/scenes/isla/luna-pearl-960.webp": {
-    "type": "image/webp",
-    "etag": "\"1585e-4C0Tzb1O8lKW/MbYTHokgbwsdgk\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 88158,
-    "path": "../public/img/scenes/isla/luna-pearl-960.webp"
-  },
-  "/img/scenes/isla/negro-absoluto.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/compras-Ba7-G8Hy.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e31-caACpcSj6LZFFNK4f95OIhGBy+Q\"",
-    "mtime": "2026-07-17T20:28:05.959Z",
-    "size": 15921,
-    "path": "../public/img/scenes/isla/negro-absoluto.svg"
+    "etag": "\"2252-oY7g/6RZKar7O0MvUNAzKR9n4yI\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 8786,
+    "path": "../public/_build/assets/compras-Ba7-G8Hy.js"
   },
-  "/img/scenes/isla/negro-marquina.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7df-4x+ZSETBhOBXRj2p7lZLRFiuXns\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 2015,
-    "path": "../public/img/scenes/isla/negro-marquina.svg"
-  },
-  "/img/scenes/isla/negro-marquina.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/compras-Ba7-G8Hy.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"205-Y+RScPcqcUnesSFo3VzcKU3xmr4\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 517,
-    "path": "../public/img/scenes/isla/negro-marquina.svg.br"
+    "etag": "\"b6a-59+7VioLqZQr+iC6G8FDiEENz84\"",
+    "mtime": "2026-07-13T18:33:32.340Z",
+    "size": 2922,
+    "path": "../public/_build/assets/compras-Ba7-G8Hy.js.br"
   },
-  "/img/scenes/isla/negro-marquina.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/compras-Ba7-G8Hy.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"271-8EUgJu8x0JY8ppdCiQwjTK8F63c\"",
-    "mtime": "2026-07-17T20:28:06.183Z",
-    "size": 625,
-    "path": "../public/img/scenes/isla/negro-marquina.svg.gz"
+    "etag": "\"d27-MxfoPAw/ovNE8jIJTs6GSFlWzWY\"",
+    "mtime": "2026-07-13T18:33:32.340Z",
+    "size": 3367,
+    "path": "../public/_build/assets/compras-Ba7-G8Hy.js.gz"
   },
-  "/img/scenes/isla/smithtown-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"13408-tPZrG53aVsVmfTC+O4bPHo5Pi9w\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 78856,
-    "path": "../public/img/scenes/isla/smithtown-1600.webp"
-  },
-  "/img/scenes/isla/smithtown-480.avif": {
-    "type": "image/avif",
-    "etag": "\"2a93-UwffkIKUwEmwY0xAUOYRcGBQrW8\"",
-    "mtime": "2026-07-17T20:28:05.960Z",
-    "size": 10899,
-    "path": "../public/img/scenes/isla/smithtown-480.avif"
-  },
-  "/img/scenes/isla/smithtown-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"11e75-katIH1w1F3rRakv84OPL4HDmyi4\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 73333,
-    "path": "../public/img/scenes/isla/smithtown-1600.avif"
-  },
-  "/img/scenes/isla/smithtown-480.webp": {
-    "type": "image/webp",
-    "etag": "\"2ed6-WnV26DMotH0OI52eKPIC8wapzOg\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 11990,
-    "path": "../public/img/scenes/isla/smithtown-480.webp"
-  },
-  "/img/scenes/isla/smithtown-960.webp": {
-    "type": "image/webp",
-    "etag": "\"8eda-mTQsTzLM3TZSjFmIdmb62XTVGqs\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 36570,
-    "path": "../public/img/scenes/isla/smithtown-960.webp"
-  },
-  "/img/scenes/isla/smithtown-960.avif": {
-    "type": "image/avif",
-    "etag": "\"8368-4z+QoJW9W+ijVhVHnJnsnjTVE9M\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 33640,
-    "path": "../public/img/scenes/isla/smithtown-960.avif"
-  },
-  "/img/scenes/isla/smithtown.avif": {
-    "type": "image/avif",
-    "etag": "\"8368-4z+QoJW9W+ijVhVHnJnsnjTVE9M\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 33640,
-    "path": "../public/img/scenes/isla/smithtown.avif"
-  },
-  "/img/scenes/isla/smithtown.svg": {
-    "type": "image/svg+xml",
-    "encoding": null,
-    "etag": "\"7ca-OjqQ65/U+l/PT7wCqAjDntyAEyA\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 1994,
-    "path": "../public/img/scenes/isla/smithtown.svg"
-  },
-  "/img/scenes/isla/smithtown.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/count-DyWmPEuo.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"1f8-mf29xUlmAIxpDmR03SXv/VEouwc\"",
-    "mtime": "2026-07-17T20:28:06.186Z",
-    "size": 504,
-    "path": "../public/img/scenes/isla/smithtown.svg.br"
+    "etag": "\"734-7QSOic87xgCfWHNmbIcTLUQUx5s\"",
+    "mtime": "2026-07-13T18:33:32.340Z",
+    "size": 1844,
+    "path": "../public/_build/assets/count-DyWmPEuo.js.br"
   },
-  "/img/scenes/isla/smithtown.svg.gz": {
-    "type": "image/svg+xml",
-    "encoding": "gzip",
-    "etag": "\"272-Yvy2MU4qVgNDFr9z3yfvRYn2C6Y\"",
-    "mtime": "2026-07-17T20:28:06.186Z",
-    "size": 626,
-    "path": "../public/img/scenes/isla/smithtown.svg.gz"
-  },
-  "/img/scenes/isla/smithtown.webp": {
-    "type": "image/webp",
-    "etag": "\"8eda-mTQsTzLM3TZSjFmIdmb62XTVGqs\"",
-    "mtime": "2026-07-17T20:28:05.963Z",
-    "size": 36570,
-    "path": "../public/img/scenes/isla/smithtown.webp"
-  },
-  "/img/scenes/isla/taj-mahal-1600.avif": {
-    "type": "image/avif",
-    "etag": "\"217ad-L+bItLWFTv0JxsRjNxcDTG8d0/A\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 137133,
-    "path": "../public/img/scenes/isla/taj-mahal-1600.avif"
-  },
-  "/img/scenes/isla/taj-mahal-480.avif": {
-    "type": "image/avif",
-    "etag": "\"36b9-er6HqkHGps1htw708SygnHwV1EE\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 14009,
-    "path": "../public/img/scenes/isla/taj-mahal-480.avif"
-  },
-  "/img/scenes/isla/taj-mahal-480.webp": {
-    "type": "image/webp",
-    "etag": "\"3e0a-DB/2E14wJmr7TTSd9gPASczmasI\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 15882,
-    "path": "../public/img/scenes/isla/taj-mahal-480.webp"
-  },
-  "/img/scenes/isla/taj-mahal-1600.webp": {
-    "type": "image/webp",
-    "etag": "\"2931c-zPyYsJzdu2FPoJOzHlZj33Itq+o\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 168732,
-    "path": "../public/img/scenes/isla/taj-mahal-1600.webp"
-  },
-  "/img/scenes/isla/taj-mahal-960.avif": {
-    "type": "image/avif",
-    "etag": "\"dbd1-/YL94Akw7ztWA/Ky9OFvZwraUUY\"",
-    "mtime": "2026-07-17T20:28:05.961Z",
-    "size": 56273,
-    "path": "../public/img/scenes/isla/taj-mahal-960.avif"
-  },
-  "/img/scenes/isla/taj-mahal.avif": {
-    "type": "image/avif",
-    "etag": "\"dbd1-/YL94Akw7ztWA/Ky9OFvZwraUUY\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 56273,
-    "path": "../public/img/scenes/isla/taj-mahal.avif"
-  },
-  "/img/scenes/isla/taj-mahal-960.webp": {
-    "type": "image/webp",
-    "etag": "\"10d00-Cvch6LisIT19EakaG3cQpsp3juo\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 68864,
-    "path": "../public/img/scenes/isla/taj-mahal-960.webp"
-  },
-  "/img/scenes/isla/taj-mahal.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/count-DyWmPEuo.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"7d3-qsb/W2x2A5l2WYZuC7tIJOZ+HCM\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 2003,
-    "path": "../public/img/scenes/isla/taj-mahal.svg"
+    "etag": "\"13a7-HfSGMvo2eiX/Zm72m1rRH3K4Xag\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 5031,
+    "path": "../public/_build/assets/count-DyWmPEuo.js"
   },
-  "/img/scenes/isla/taj-mahal.svg.br": {
-    "type": "image/svg+xml",
-    "encoding": "br",
-    "etag": "\"201-av0OhkD8xM9esobgc7eUvM/b7oo\"",
-    "mtime": "2026-07-17T20:28:06.188Z",
-    "size": 513,
-    "path": "../public/img/scenes/isla/taj-mahal.svg.br"
-  },
-  "/img/scenes/isla/taj-mahal.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/count-DyWmPEuo.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"26b-oIeIcqcqac7/XZ6eL87lfRDQJbk\"",
-    "mtime": "2026-07-17T20:28:06.188Z",
-    "size": 619,
-    "path": "../public/img/scenes/isla/taj-mahal.svg.gz"
+    "etag": "\"834-Ue8eunybdBN2gA7Vr7oV8G7dEE4\"",
+    "mtime": "2026-07-13T18:33:32.340Z",
+    "size": 2100,
+    "path": "../public/_build/assets/count-DyWmPEuo.js.gz"
   },
-  "/img/scenes/isla/taj-mahal.webp": {
-    "type": "image/webp",
-    "etag": "\"10d00-Cvch6LisIT19EakaG3cQpsp3juo\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 68864,
-    "path": "../public/img/scenes/isla/taj-mahal.webp"
+  "/_build/assets/csv-D2ikwZU9.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"2c8-Mjk/4OGOxOMmKimt51lk52vJf9k\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 712,
+    "path": "../public/_build/assets/csv-D2ikwZU9.js"
   },
-  "/img/scenes/isla/verde-ubatuba.svg": {
-    "type": "image/svg+xml",
+  "/_build/assets/dates-B_ebQcaW.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"b6-rdU8eaEGKt6wddq5AGWok+aYKVo\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 182,
+    "path": "../public/_build/assets/dates-B_ebQcaW.js"
+  },
+  "/_build/assets/defaults-ugUdWWU5.js": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": null,
-    "etag": "\"3e2d-l5D61i2nKNGOvPwmdirIjHBXEZs\"",
-    "mtime": "2026-07-17T20:28:05.962Z",
-    "size": 15917,
-    "path": "../public/img/scenes/isla/verde-ubatuba.svg"
+    "etag": "\"5ba-BK9ImSRTIiSo4KiI9admYO6Wcog\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 1466,
+    "path": "../public/_build/assets/defaults-ugUdWWU5.js"
   },
-  "/img/scenes/isla/verde-ubatuba.svg.br": {
-    "type": "image/svg+xml",
+  "/_build/assets/defaults-ugUdWWU5.js.br": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "br",
-    "etag": "\"88f-OKPqSjEJl/KMCAjq4zT/LZ9lR+g\"",
-    "mtime": "2026-07-17T20:28:06.200Z",
-    "size": 2191,
-    "path": "../public/img/scenes/isla/verde-ubatuba.svg.br"
+    "etag": "\"2aa-IByIIhM2beUSx80v747KCiUE/JQ\"",
+    "mtime": "2026-07-13T18:33:32.341Z",
+    "size": 682,
+    "path": "../public/_build/assets/defaults-ugUdWWU5.js.br"
   },
-  "/img/scenes/isla/verde-ubatuba.svg.gz": {
-    "type": "image/svg+xml",
+  "/_build/assets/defaults-ugUdWWU5.js.gz": {
+    "type": "text/javascript; charset=utf-8",
     "encoding": "gzip",
-    "etag": "\"a75-HijqFKiCkoUZXVKirTi8u7nMnAA\"",
-    "mtime": "2026-07-17T20:28:06.188Z",
-    "size": 2677,
-    "path": "../public/img/scenes/isla/verde-ubatuba.svg.gz"
+    "etag": "\"30a-oyD9vLv57LzynT8eUvxkJOvGXvs\"",
+    "mtime": "2026-07-13T18:33:32.341Z",
+    "size": 778,
+    "path": "../public/_build/assets/defaults-ugUdWWU5.js.gz"
+  },
+  "/_build/assets/employees-DWU8Rzpp.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"211-rXhCCIBikOFQiks/RVZPWZXv5EU\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 529,
+    "path": "../public/_build/assets/employees-DWU8Rzpp.js"
+  },
+  "/_build/assets/facturacion-DFOvg0HH.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"297a-2Zl4QmlJNVfpI/TB40LFflT9/7s\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 10618,
+    "path": "../public/_build/assets/facturacion-DFOvg0HH.js"
+  },
+  "/_build/assets/facturacion-DFOvg0HH.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"c79-1DpKHAqsAAOy4+MHsDdLceDg68g\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 3193,
+    "path": "../public/_build/assets/facturacion-DFOvg0HH.js.br"
+  },
+  "/_build/assets/facturacion-DFOvg0HH.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"e37-tUXGFR4tku6WWmvS5fk09yi7dzM\"",
+    "mtime": "2026-07-13T18:33:32.348Z",
+    "size": 3639,
+    "path": "../public/_build/assets/facturacion-DFOvg0HH.js.gz"
+  },
+  "/_build/assets/gemini-DcnDWG48.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"12ac-7/UHfuyThrwe7xpfUN9KexRRo1k\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 4780,
+    "path": "../public/_build/assets/gemini-DcnDWG48.js"
+  },
+  "/_build/assets/gemini-DcnDWG48.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"685-1w/4NLPKrXHxnFoIDiLY69J1/Iw\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 1669,
+    "path": "../public/_build/assets/gemini-DcnDWG48.js.br"
+  },
+  "/_build/assets/gemini-DcnDWG48.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"775-UxP6qSSGgechZolCUBQyytcmN5E\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 1909,
+    "path": "../public/_build/assets/gemini-DcnDWG48.js.gz"
+  },
+  "/_build/assets/historial-CTnP2Ct9.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"81d0-Rz4+82g/l+DWA+a00squxQNDNMo\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 33232,
+    "path": "../public/_build/assets/historial-CTnP2Ct9.js"
+  },
+  "/_build/assets/historial-CTnP2Ct9.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"209c-bqvwdWe/oivJ+SQQA0tYVCaQkXY\"",
+    "mtime": "2026-07-13T18:33:32.375Z",
+    "size": 8348,
+    "path": "../public/_build/assets/historial-CTnP2Ct9.js.br"
+  },
+  "/_build/assets/historial-CTnP2Ct9.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"24d8-HAhBt3YYURCbBSIr/ZST4lY9ipA\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 9432,
+    "path": "../public/_build/assets/historial-CTnP2Ct9.js.gz"
+  },
+  "/_build/assets/income-statement-B3SxdEbK.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"109b-HiuSdGqers812hj1R5Lgn5xyV2E\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 4251,
+    "path": "../public/_build/assets/income-statement-B3SxdEbK.js"
+  },
+  "/_build/assets/income-statement-B3SxdEbK.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"600-6+XFiac+MjKRY0VE14JY1jlL6M8\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 1536,
+    "path": "../public/_build/assets/income-statement-B3SxdEbK.js.br"
+  },
+  "/_build/assets/income-statement-B3SxdEbK.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"6b2-R7Gm8IX0yi5VUKgM1TpZ4N+fTQc\"",
+    "mtime": "2026-07-13T18:33:32.351Z",
+    "size": 1714,
+    "path": "../public/_build/assets/income-statement-B3SxdEbK.js.gz"
+  },
+  "/_build/assets/index-29kvO1rC.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"d29-kSyRYfoElgq14bCmCwgP60ZaTLQ\"",
+    "mtime": "2026-07-13T18:33:32.361Z",
+    "size": 3369,
+    "path": "../public/_build/assets/index-29kvO1rC.js.br"
+  },
+  "/_build/assets/index-29kvO1rC.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"f23-z3a9u3vQT2ZRqOEWI2IahpocZas\"",
+    "mtime": "2026-07-13T18:33:32.360Z",
+    "size": 3875,
+    "path": "../public/_build/assets/index-29kvO1rC.js.gz"
+  },
+  "/_build/assets/index-B25tf-nU.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"7b39-ICCEjRounvAC+Y27UG5YEJcXeaI\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 31545,
+    "path": "../public/_build/assets/index-B25tf-nU.js"
+  },
+  "/_build/assets/index-B25tf-nU.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1da0-WqAWa/KMny/Dzk3hZUJwFi+lUH4\"",
+    "mtime": "2026-07-13T18:33:32.380Z",
+    "size": 7584,
+    "path": "../public/_build/assets/index-B25tf-nU.js.br"
+  },
+  "/_build/assets/index-B25tf-nU.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"21bc-kKC/v4Uu2qCMUycsAyKQJYHJ78Y\"",
+    "mtime": "2026-07-13T18:33:32.361Z",
+    "size": 8636,
+    "path": "../public/_build/assets/index-B25tf-nU.js.gz"
+  },
+  "/_build/assets/index-29kvO1rC.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"341a-ipky144UogXA3iOxKea37SxJYlA\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 13338,
+    "path": "../public/_build/assets/index-29kvO1rC.js"
+  },
+  "/_build/assets/index-BdUZQ4tz.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"3c41-wJUDoKK941pYyybjY3RFgrt8I04\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 15425,
+    "path": "../public/_build/assets/index-BdUZQ4tz.js"
+  },
+  "/_build/assets/index-BdUZQ4tz.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"fe1-wiB+2PUTHlBO6G3cT7203KhJq7A\"",
+    "mtime": "2026-07-13T18:33:32.375Z",
+    "size": 4065,
+    "path": "../public/_build/assets/index-BdUZQ4tz.js.br"
+  },
+  "/_build/assets/index-BdUZQ4tz.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"124d-4OSw0UEbIFC3rOMKNH3Y6FHujpk\"",
+    "mtime": "2026-07-13T18:33:32.361Z",
+    "size": 4685,
+    "path": "../public/_build/assets/index-BdUZQ4tz.js.gz"
+  },
+  "/_build/assets/index-BigjWbV-.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"9b7d-C4v1HdueNQ0fMhvc1uPZfWc45cE\"",
+    "mtime": "2026-07-13T18:33:32.270Z",
+    "size": 39805,
+    "path": "../public/_build/assets/index-BigjWbV-.js"
+  },
+  "/_build/assets/index-BigjWbV-.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"2b91-5VYl68oz6ID5pNnOd6P+HWJd77A\"",
+    "mtime": "2026-07-13T18:33:32.392Z",
+    "size": 11153,
+    "path": "../public/_build/assets/index-BigjWbV-.js.br"
+  },
+  "/_build/assets/index-BigjWbV-.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"32bc-XiYcwvvKcyMmQnuZw6ZIZl+VwJU\"",
+    "mtime": "2026-07-13T18:33:32.375Z",
+    "size": 12988,
+    "path": "../public/_build/assets/index-BigjWbV-.js.gz"
+  },
+  "/_build/assets/index-CPbo4n5j.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"3d07-aNvSOs3BUu8uk3Y5N6SMfjiBO2w\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 15623,
+    "path": "../public/_build/assets/index-CPbo4n5j.js"
+  },
+  "/_build/assets/index-CPbo4n5j.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1175-DH/RV5Xl4yROOLlYit14dcnJJIA\"",
+    "mtime": "2026-07-13T18:33:32.380Z",
+    "size": 4469,
+    "path": "../public/_build/assets/index-CPbo4n5j.js.br"
+  },
+  "/_build/assets/index-CPbo4n5j.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"13d4-V1R6m142MmGxyIYG7NGx/a7eNE4\"",
+    "mtime": "2026-07-13T18:33:32.375Z",
+    "size": 5076,
+    "path": "../public/_build/assets/index-CPbo4n5j.js.gz"
+  },
+  "/_build/assets/index-CVhoIfqG.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"411b-oxpZrOc58u/PRo1Uaho3brnSiUU\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 16667,
+    "path": "../public/_build/assets/index-CVhoIfqG.js"
+  },
+  "/_build/assets/index-CVhoIfqG.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1563-aE1tCHrSAYF6+1CesWggOtTffY8\"",
+    "mtime": "2026-07-13T18:33:32.390Z",
+    "size": 5475,
+    "path": "../public/_build/assets/index-CVhoIfqG.js.br"
+  },
+  "/_build/assets/index-Cyzascnw.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"c0-gdXuBYpwQgVAoEUrp/r9YZo92EA\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 192,
+    "path": "../public/_build/assets/index-Cyzascnw.js"
+  },
+  "/_build/assets/index-CVhoIfqG.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"17dd-pTAXtPJJWbn/IUqzbYQkZ3nshJc\"",
+    "mtime": "2026-07-13T18:33:32.379Z",
+    "size": 6109,
+    "path": "../public/_build/assets/index-CVhoIfqG.js.gz"
+  },
+  "/_build/assets/index-CzWuzl0X.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"13be-h2PrFgI9cUIhKgyTUGLi4kET75M\"",
+    "mtime": "2026-07-13T18:33:32.391Z",
+    "size": 5054,
+    "path": "../public/_build/assets/index-CzWuzl0X.js.br"
+  },
+  "/_build/assets/index-CzWuzl0X.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"4e00-aQ4ixJAXr6XcqvtTQEf5gh82idY\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 19968,
+    "path": "../public/_build/assets/index-CzWuzl0X.js"
+  },
+  "/_build/assets/index-CzWuzl0X.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"1664-+uxb2O660YWlcrrqm+DvDoN90fk\"",
+    "mtime": "2026-07-13T18:33:32.380Z",
+    "size": 5732,
+    "path": "../public/_build/assets/index-CzWuzl0X.js.gz"
+  },
+  "/_build/assets/index-D00D_coe.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"c1-5x36stfj31Ke9cjwfyB3s0N88Ro\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 193,
+    "path": "../public/_build/assets/index-D00D_coe.js"
+  },
+  "/_build/assets/index-HZeqe-LA.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"591b-rWXBiF52kJ9l+ElGP/WvyXUKGKo\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 22811,
+    "path": "../public/_build/assets/index-HZeqe-LA.js"
+  },
+  "/_build/assets/index-HZeqe-LA.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1726-+EMzSb0m7eanRthHr7EwTpDOjRg\"",
+    "mtime": "2026-07-13T18:33:32.398Z",
+    "size": 5926,
+    "path": "../public/_build/assets/index-HZeqe-LA.js.br"
+  },
+  "/_build/assets/index-HZeqe-LA.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"1a1b-2rBsCFZ+IHwKkE87qEHgRdE9uaQ\"",
+    "mtime": "2026-07-13T18:33:32.390Z",
+    "size": 6683,
+    "path": "../public/_build/assets/index-HZeqe-LA.js.gz"
+  },
+  "/_build/assets/index-dlW0AZ1t.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"2031-zymCYfFDUyZdlsnlSUePtyIEN6I\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 8241,
+    "path": "../public/_build/assets/index-dlW0AZ1t.js"
+  },
+  "/_build/assets/index-dlW0AZ1t.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"a4a-y5y2V3KfF3B35/oBmJYDoDbKN0E\"",
+    "mtime": "2026-07-13T18:33:32.390Z",
+    "size": 2634,
+    "path": "../public/_build/assets/index-dlW0AZ1t.js.br"
+  },
+  "/_build/assets/index-dlW0AZ1t.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"ba8-E+Q4ZCBoLyuW+VJw2b9UBdKRNNU\"",
+    "mtime": "2026-07-13T18:33:32.390Z",
+    "size": 2984,
+    "path": "../public/_build/assets/index-dlW0AZ1t.js.gz"
+  },
+  "/_build/assets/journalBuilder-CuA0sOvc.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"e14-Nuz8vwoyDRXqJhh2RdFb2bwRxqk\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 3604,
+    "path": "../public/_build/assets/journalBuilder-CuA0sOvc.js"
+  },
+  "/_build/assets/journalBuilder-CuA0sOvc.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"505-fseW1t8mlkuDzDhL44xTT2Hqdpc\"",
+    "mtime": "2026-07-13T18:33:32.395Z",
+    "size": 1285,
+    "path": "../public/_build/assets/journalBuilder-CuA0sOvc.js.br"
+  },
+  "/_build/assets/journalBuilder-CuA0sOvc.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"5b1-/f/OOCwB6JSpwo/I0UfOVuiB57I\"",
+    "mtime": "2026-07-13T18:33:32.392Z",
+    "size": 1457,
+    "path": "../public/_build/assets/journalBuilder-CuA0sOvc.js.gz"
+  },
+  "/_build/assets/inventory-CTlUWN2v.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"235-8X1wH52u5C2i8ak3qXm08Am6Vaw\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 565,
+    "path": "../public/_build/assets/inventory-CTlUWN2v.js"
+  },
+  "/_build/assets/login-B3oCLAiZ.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"83e-fahR5f21NIBQnLmhk+YA7hQn9dI\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 2110,
+    "path": "../public/_build/assets/login-B3oCLAiZ.js"
+  },
+  "/_build/assets/login-B3oCLAiZ.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"3dc-IN8FrU067TLvnrEgb/4YX/WRw28\"",
+    "mtime": "2026-07-13T18:33:32.393Z",
+    "size": 988,
+    "path": "../public/_build/assets/login-B3oCLAiZ.js.br"
+  },
+  "/_build/assets/login-B3oCLAiZ.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"452-Rw0ROASLMkE9WiujSSISLrk3Aus\"",
+    "mtime": "2026-07-13T18:33:32.393Z",
+    "size": 1106,
+    "path": "../public/_build/assets/login-B3oCLAiZ.js.gz"
+  },
+  "/_build/assets/mermas-GPz37xX2.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1407-3FlC6JYb+uj0sDK8MXG77XPyTZg\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 5127,
+    "path": "../public/_build/assets/mermas-GPz37xX2.js"
+  },
+  "/_build/assets/mermas-GPz37xX2.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"76f-D4JEYbV4NREqbbfU0iImOHwwJuo\"",
+    "mtime": "2026-07-13T18:33:32.395Z",
+    "size": 1903,
+    "path": "../public/_build/assets/mermas-GPz37xX2.js.br"
+  },
+  "/_build/assets/mermas-GPz37xX2.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"88c-A5iwib7ugaAz+hAJfP//OMCG3uI\"",
+    "mtime": "2026-07-13T18:33:32.393Z",
+    "size": 2188,
+    "path": "../public/_build/assets/mermas-GPz37xX2.js.gz"
+  },
+  "/_build/assets/monthly-pnl-D2j-zKJD.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1663-oEGWi1deOowD7gNq1OnuvgQ291Q\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 5731,
+    "path": "../public/_build/assets/monthly-pnl-D2j-zKJD.js"
+  },
+  "/_build/assets/monthly-pnl-D2j-zKJD.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"874-YEsWl4CiCKxztpewfzcKmrYBT3w\"",
+    "mtime": "2026-07-13T18:33:32.397Z",
+    "size": 2164,
+    "path": "../public/_build/assets/monthly-pnl-D2j-zKJD.js.br"
+  },
+  "/_build/assets/movements-CToiAnov.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1027-fNl6Yx4gqIGlarn9rhZtwhcBfzo\"",
+    "mtime": "2026-07-13T18:33:32.405Z",
+    "size": 4135,
+    "path": "../public/_build/assets/movements-CToiAnov.js.br"
+  },
+  "/_build/assets/movements-CToiAnov.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"3dba-RuX1SBAT8tQJ9zO52GGYV6/zUx4\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 15802,
+    "path": "../public/_build/assets/movements-CToiAnov.js"
+  },
+  "/_build/assets/monthly-pnl-D2j-zKJD.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"952-0ysnKUuW+kfq2gbyuXY8GtqaCu8\"",
+    "mtime": "2026-07-13T18:33:32.395Z",
+    "size": 2386,
+    "path": "../public/_build/assets/monthly-pnl-D2j-zKJD.js.gz"
+  },
+  "/_build/assets/movements-CToiAnov.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"127f-bO1sfRhjB0p/+aXmVK1ExcHbZr8\"",
+    "mtime": "2026-07-13T18:33:32.395Z",
+    "size": 4735,
+    "path": "../public/_build/assets/movements-CToiAnov.js.gz"
+  },
+  "/_build/assets/pencil-DbCIcQ_5.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"15d-btmE4q9+fJ0W94h9e81zr0HJqk4\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 349,
+    "path": "../public/_build/assets/pencil-DbCIcQ_5.js"
+  },
+  "/_build/assets/plus-Dx1U-C1n.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"e2-Iltc9JzxzrqjMcWatEvvMCNSv28\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 226,
+    "path": "../public/_build/assets/plus-Dx1U-C1n.js"
+  },
+  "/_build/assets/print-D8KbxtXD.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1b2d-SL9rTLORfvqh+kL8KKL4MbjGR7Y\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 6957,
+    "path": "../public/_build/assets/print-D8KbxtXD.js"
+  },
+  "/_build/assets/print-D8KbxtXD.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"845-Sy4N8uMQZBzaGIgTd9VEGYCSBvo\"",
+    "mtime": "2026-07-13T18:33:32.403Z",
+    "size": 2117,
+    "path": "../public/_build/assets/print-D8KbxtXD.js.br"
+  },
+  "/_build/assets/print-D8KbxtXD.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"941-i0w4CpkQdZojJapZ8WWQmxHsHE0\"",
+    "mtime": "2026-07-13T18:33:32.397Z",
+    "size": 2369,
+    "path": "../public/_build/assets/print-D8KbxtXD.js.gz"
+  },
+  "/_build/assets/printer-D_Jwaduc.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"188-PPmQCpMm6ba9t7D2n4stZR4nXOs\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 392,
+    "path": "../public/_build/assets/printer-D_Jwaduc.js"
+  },
+  "/_build/assets/providers-BKV6tiXb.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1df-IwkAck1CvogOpuC/MVUILpRRgjg\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 479,
+    "path": "../public/_build/assets/providers-BKV6tiXb.js"
+  },
+  "/_build/assets/recurring-CA2S8Vts.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"57c-5e5G/hm1N958SJcJNr633apLN3Y\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 1404,
+    "path": "../public/_build/assets/recurring-CA2S8Vts.js"
+  },
+  "/_build/assets/recurring-CA2S8Vts.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"28d-UCJz0a2UuXnfocGjFEJ7un7XXwA\"",
+    "mtime": "2026-07-13T18:33:32.398Z",
+    "size": 653,
+    "path": "../public/_build/assets/recurring-CA2S8Vts.js.br"
+  },
+  "/_build/assets/recurring-CA2S8Vts.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"2dd-u533rzrPtYE0dz0EvP/l22waQ8c\"",
+    "mtime": "2026-07-13T18:33:32.398Z",
+    "size": 733,
+    "path": "../public/_build/assets/recurring-CA2S8Vts.js.gz"
+  },
+  "/_build/assets/reports-Bgd-GFEU.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"367-meIK5yQrlGF/w8guimTx93BM5uY\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 871,
+    "path": "../public/_build/assets/reports-Bgd-GFEU.js"
+  },
+  "/_build/assets/routing-BEPNZw43.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1ed2-A0H+movt9VpcLARS9873XqMVFh4\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 7890,
+    "path": "../public/_build/assets/routing-BEPNZw43.js"
+  },
+  "/_build/assets/routing-BEPNZw43.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"d26-6kOAZZ5U8+1LG9RItTj7d674iao\"",
+    "mtime": "2026-07-13T18:33:32.404Z",
+    "size": 3366,
+    "path": "../public/_build/assets/routing-BEPNZw43.js.br"
+  },
+  "/_build/assets/routing-BEPNZw43.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"e53-4uIlCrphxQzntPC594FSqMK3vAc\"",
+    "mtime": "2026-07-13T18:33:32.398Z",
+    "size": 3667,
+    "path": "../public/_build/assets/routing-BEPNZw43.js.gz"
+  },
+  "/_build/assets/scroll-text-DvYD_UQE.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1a6-ALlK01NztNN/utoJNH4diYm8JLw\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 422,
+    "path": "../public/_build/assets/scroll-text-DvYD_UQE.js"
+  },
+  "/_build/assets/search-B90-czUY.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"f7-46DIso2UKChFGNlIe9VPgw6p3I8\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 247,
+    "path": "../public/_build/assets/search-B90-czUY.js"
+  },
+  "/_build/assets/sparkles-DPh9NnqK.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"237-r6CiGFJtB5JuqImEbywgFdukjyU\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 567,
+    "path": "../public/_build/assets/sparkles-DPh9NnqK.js"
+  },
+  "/_build/assets/sso-X8m-jW9J.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"773-4B7J2BFEz2bzxR7BMi8BmMElQMg\"",
+    "mtime": "2026-07-13T18:33:32.271Z",
+    "size": 1907,
+    "path": "../public/_build/assets/sso-X8m-jW9J.js"
+  },
+  "/_build/assets/sso-X8m-jW9J.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"372-sMP+ExH0E8aO/mwz+9qSzQ7POh0\"",
+    "mtime": "2026-07-13T18:33:32.400Z",
+    "size": 882,
+    "path": "../public/_build/assets/sso-X8m-jW9J.js.br"
+  },
+  "/_build/assets/sso-X8m-jW9J.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"3e8-H98witxJ8oFLb0F91lFB5sxTWR4\"",
+    "mtime": "2026-07-13T18:33:32.400Z",
+    "size": 1000,
+    "path": "../public/_build/assets/sso-X8m-jW9J.js.gz"
+  },
+  "/_build/assets/store-BB8JaDZn.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1a81-QvpbvB1rJBL5TKjzWQwBxDrZlUk\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 6785,
+    "path": "../public/_build/assets/store-BB8JaDZn.js"
+  },
+  "/_build/assets/store-BB8JaDZn.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"8a3-jOJfhx3qClTF6s+sWW5E0JSy0o4\"",
+    "mtime": "2026-07-13T18:33:32.407Z",
+    "size": 2211,
+    "path": "../public/_build/assets/store-BB8JaDZn.js.br"
+  },
+  "/_build/assets/store-BB8JaDZn.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"97b-lIMMWv/SwRAl5LQgGAkxS4/K8/U\"",
+    "mtime": "2026-07-13T18:33:32.404Z",
+    "size": 2427,
+    "path": "../public/_build/assets/store-BB8JaDZn.js.gz"
+  },
+  "/_build/assets/store-BbhHI1QO.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1162-kf3bCZ3ArEcK8alEG4qQD/IBbwA\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 4450,
+    "path": "../public/_build/assets/store-BbhHI1QO.js"
+  },
+  "/_build/assets/store-BbhHI1QO.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"6a1-txrICIVuolRyF8o/9R4Ukd1Rk2c\"",
+    "mtime": "2026-07-13T18:33:32.405Z",
+    "size": 1697,
+    "path": "../public/_build/assets/store-BbhHI1QO.js.br"
+  },
+  "/_build/assets/store-BbhHI1QO.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"755-8SUuG47vynoXrCvLhp8joHj4Jyk\"",
+    "mtime": "2026-07-13T18:33:32.405Z",
+    "size": 1877,
+    "path": "../public/_build/assets/store-BbhHI1QO.js.gz"
+  },
+  "/_build/assets/store-BitOu3zS.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1b04-E6M83F0Li3xNtSseEjxHGt8UYOg\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 6916,
+    "path": "../public/_build/assets/store-BitOu3zS.js"
+  },
+  "/_build/assets/store-BitOu3zS.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"9d5-JetCI8/q9eaUSZF1uaB9niY3Ao0\"",
+    "mtime": "2026-07-13T18:33:32.408Z",
+    "size": 2517,
+    "path": "../public/_build/assets/store-BitOu3zS.js.br"
+  },
+  "/_build/assets/store-BitOu3zS.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"ace-izj0YcH2P2ppYqgJAExKrIZgfIk\"",
+    "mtime": "2026-07-13T18:33:32.405Z",
+    "size": 2766,
+    "path": "../public/_build/assets/store-BitOu3zS.js.gz"
+  },
+  "/_build/assets/store-C0eiPwcf.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1196-m7CpeSdqAfAsZqX+xQuN73i/Llg\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 4502,
+    "path": "../public/_build/assets/store-C0eiPwcf.js"
+  },
+  "/_build/assets/store-C0eiPwcf.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"682-eFKVEWKAfsZmODaLdxPV6Ku7a0w\"",
+    "mtime": "2026-07-13T18:33:32.407Z",
+    "size": 1666,
+    "path": "../public/_build/assets/store-C0eiPwcf.js.br"
+  },
+  "/_build/assets/store-C0eiPwcf.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"744-xJPEVlOmfotgZgkHWPPCPRs2eSU\"",
+    "mtime": "2026-07-13T18:33:32.405Z",
+    "size": 1860,
+    "path": "../public/_build/assets/store-C0eiPwcf.js.gz"
+  },
+  "/_build/assets/store-CS7DEtHt.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1413-xOa8EMccymTRF0Acit812T+JIGM\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 5139,
+    "path": "../public/_build/assets/store-CS7DEtHt.js"
+  },
+  "/_build/assets/store-CS7DEtHt.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"6cf-RoaqVkeznhONjCDwJnWDT9gHnxc\"",
+    "mtime": "2026-07-13T18:33:32.408Z",
+    "size": 1743,
+    "path": "../public/_build/assets/store-CS7DEtHt.js.br"
+  },
+  "/_build/assets/store-CS7DEtHt.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"7a5-wX+MMLaj8QbTj1nnIMe+lStMsJA\"",
+    "mtime": "2026-07-13T18:33:32.407Z",
+    "size": 1957,
+    "path": "../public/_build/assets/store-CS7DEtHt.js.gz"
+  },
+  "/_build/assets/store-CbiN3OHO.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"139f-2NhOn1zdbS++YDvhbDs+uZAjAIc\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 5023,
+    "path": "../public/_build/assets/store-CbiN3OHO.js"
+  },
+  "/_build/assets/store-CbiN3OHO.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"710-v5fCzZwGq+yZChsiBW8s7A1TvE4\"",
+    "mtime": "2026-07-13T18:33:32.409Z",
+    "size": 1808,
+    "path": "../public/_build/assets/store-CbiN3OHO.js.br"
+  },
+  "/_build/assets/store-CbiN3OHO.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"7e5-0ZNkXrR4foVEZ3chI60IZhQI+8k\"",
+    "mtime": "2026-07-13T18:33:32.407Z",
+    "size": 2021,
+    "path": "../public/_build/assets/store-CbiN3OHO.js.gz"
+  },
+  "/_build/assets/templates-BKS3lFgL.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"6ba7-+d2EOVPmSziM2x/phSK8zRoiBtA\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 27559,
+    "path": "../public/_build/assets/templates-BKS3lFgL.js"
+  },
+  "/_build/assets/templates-BKS3lFgL.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"1f76-fkBn3Q7uvIWm0jY23PeprFjKcPk\"",
+    "mtime": "2026-07-13T18:33:32.408Z",
+    "size": 8054,
+    "path": "../public/_build/assets/templates-BKS3lFgL.js.gz"
+  },
+  "/_build/assets/templates-BKS3lFgL.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"1bd3-UXIwce4c8NZ3MWSEl4NQTU713fw\"",
+    "mtime": "2026-07-13T18:33:32.426Z",
+    "size": 7123,
+    "path": "../public/_build/assets/templates-BKS3lFgL.js.br"
+  },
+  "/_build/assets/timesheets-DeGukl3D.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"211-s1oBXYdnUdx+s89qoQ70fEk6EkY\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 529,
+    "path": "../public/_build/assets/timesheets-DeGukl3D.js"
+  },
+  "/_build/assets/transactions-DhVvwvmU.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"292-SqkBdQq/HE6s680PB/mYchXJZh4\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 658,
+    "path": "../public/_build/assets/transactions-DhVvwvmU.js"
+  },
+  "/_build/assets/trash-2-HfmI9UQ-.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"191-gkpGonIL+sUl9DHnXWHHvBLeYv4\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 401,
+    "path": "../public/_build/assets/trash-2-HfmI9UQ-.js"
+  },
+  "/_build/assets/trial-balance-ByKcTQvp.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"241e-2azEAMOyJ0oPte6znfwJZrt+tjE\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 9246,
+    "path": "../public/_build/assets/trial-balance-ByKcTQvp.js"
+  },
+  "/_build/assets/trial-balance-ByKcTQvp.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"b3e-TXwt8DYoY2V1ArvsSvyvLunswms\"",
+    "mtime": "2026-07-13T18:33:32.415Z",
+    "size": 2878,
+    "path": "../public/_build/assets/trial-balance-ByKcTQvp.js.br"
+  },
+  "/_build/assets/trial-balance-ByKcTQvp.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"c8c-iiM7DgkCp4pe7i44GGXtNcOUQVw\"",
+    "mtime": "2026-07-13T18:33:32.409Z",
+    "size": 3212,
+    "path": "../public/_build/assets/trial-balance-ByKcTQvp.js.gz"
+  },
+  "/_build/assets/types-CGrVZs_Y.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"ada-M/oL0p6IXayWLE9ti5PiQGclgoE\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 2778,
+    "path": "../public/_build/assets/types-CGrVZs_Y.js"
+  },
+  "/_build/assets/types-CGrVZs_Y.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"40b-XALhkKpolVOqnlm7GQtdlYMbAuw\"",
+    "mtime": "2026-07-13T18:33:32.414Z",
+    "size": 1035,
+    "path": "../public/_build/assets/types-CGrVZs_Y.js.br"
+  },
+  "/_build/assets/types-CGrVZs_Y.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"49e-Gh64meMGlTfMXC7qvNmAJ/gO104\"",
+    "mtime": "2026-07-13T18:33:32.409Z",
+    "size": 1182,
+    "path": "../public/_build/assets/types-CGrVZs_Y.js.gz"
+  },
+  "/_build/assets/types-DG_tf0Jf.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"33e-UxHEZcv1FbVsD0o1fC3q6+GETG0\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 830,
+    "path": "../public/_build/assets/types-DG_tf0Jf.js"
+  },
+  "/_build/assets/types-aFJCvwH0.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"7a-VXkuMHlpZ94Qhp/0v8zzsZsT7TA\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 122,
+    "path": "../public/_build/assets/types-aFJCvwH0.js"
+  },
+  "/_build/assets/types-pExQo7zb.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"72-y1pJ884mGyzNwJULd0jwrepa81o\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 114,
+    "path": "../public/_build/assets/types-pExQo7zb.js"
+  },
+  "/_build/assets/w2-BZO_evnp.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"176c-8RiD1XDKv5DcvnCOqTPZeWQ0aag\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 5996,
+    "path": "../public/_build/assets/w2-BZO_evnp.js"
+  },
+  "/_build/assets/w2-BZO_evnp.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"6b5-YjI70vUMDR3g1xEliDjeod5CMyU\"",
+    "mtime": "2026-07-13T18:33:32.415Z",
+    "size": 1717,
+    "path": "../public/_build/assets/w2-BZO_evnp.js.br"
+  },
+  "/_build/assets/w2-BZO_evnp.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"7c6-en71DHLEet+zoRfOqU+1pB8Kgfk\"",
+    "mtime": "2026-07-13T18:33:32.414Z",
+    "size": 1990,
+    "path": "../public/_build/assets/w2-BZO_evnp.js.gz"
+  },
+  "/_build/assets/web-B50drEWG.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"6b98-JGIHkHtlQznieBhvB+vrWzSSv+Y\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 27544,
+    "path": "../public/_build/assets/web-B50drEWG.js"
+  },
+  "/_build/assets/web-B50drEWG.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"2595-ft+MYMKlBVOLwYVeAQ4kXu58EY0\"",
+    "mtime": "2026-07-13T18:33:32.431Z",
+    "size": 9621,
+    "path": "../public/_build/assets/web-B50drEWG.js.br"
+  },
+  "/_build/assets/web-B50drEWG.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"298d-bm1/TvrTZQVhUoJYM581ju0KRLo\"",
+    "mtime": "2026-07-13T18:33:32.415Z",
+    "size": 10637,
+    "path": "../public/_build/assets/web-B50drEWG.js.gz"
+  },
+  "/_build/assets/year-close-KhDz2yL_.js": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": null,
+    "etag": "\"1bf8-NVSo8JEFJP7raRNKUSqt28TW5U8\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 7160,
+    "path": "../public/_build/assets/year-close-KhDz2yL_.js"
+  },
+  "/_build/assets/year-close-KhDz2yL_.js.br": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "br",
+    "etag": "\"9da-JIm1b5BAVK/YjrDZOiQ9FL7lsnE\"",
+    "mtime": "2026-07-13T18:33:32.419Z",
+    "size": 2522,
+    "path": "../public/_build/assets/year-close-KhDz2yL_.js.br"
+  },
+  "/_build/assets/year-close-KhDz2yL_.js.gz": {
+    "type": "text/javascript; charset=utf-8",
+    "encoding": "gzip",
+    "etag": "\"afe-vT+CwDu4UMP1UfpA6xm8lvkYDhc\"",
+    "mtime": "2026-07-13T18:33:32.415Z",
+    "size": 2814,
+    "path": "../public/_build/assets/year-close-KhDz2yL_.js.gz"
+  },
+  "/_build/assets/yearStore-08JEXQTR.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"1a5-P+KJ65/GjSfKUWnw5kOjT+eJ8ww\"",
+    "mtime": "2026-07-13T18:33:32.272Z",
+    "size": 421,
+    "path": "../public/_build/assets/yearStore-08JEXQTR.js"
   }
 };
 
@@ -9842,7 +6506,7 @@ function getAsset (id) {
 
 const METHODS = /* @__PURE__ */ new Set(["HEAD", "GET"]);
 const EncodingMap = { gzip: ".gz", br: ".br" };
-const _unn3Eh = eventHandler$1((event) => {
+const _CAqWBl = eventHandler((event) => {
   if (event.method && !METHODS.has(event.method)) {
     return;
   }
@@ -9851,7 +6515,7 @@ const _unn3Eh = eventHandler$1((event) => {
   );
   let asset;
   const encodingHeader = String(
-    getRequestHeader$1(event, "accept-encoding") || ""
+    getRequestHeader(event, "accept-encoding") || ""
   );
   const encodings = [
     ...encodingHeader.split(",").map((e) => EncodingMap[e.trim()]).filter(Boolean).sort(),
@@ -9869,2672 +6533,2619 @@ const _unn3Eh = eventHandler$1((event) => {
   }
   if (!asset) {
     if (isPublicAssetURL(id)) {
-      removeResponseHeader$1(event, "Cache-Control");
-      throw createError$2({ statusCode: 404 });
+      removeResponseHeader(event, "Cache-Control");
+      throw createError$1({ statusCode: 404 });
     }
     return;
   }
   if (asset.encoding !== void 0) {
-    appendResponseHeader$1(event, "Vary", "Accept-Encoding");
+    appendResponseHeader(event, "Vary", "Accept-Encoding");
   }
-  const ifNotMatch = getRequestHeader$1(event, "if-none-match") === asset.etag;
+  const ifNotMatch = getRequestHeader(event, "if-none-match") === asset.etag;
   if (ifNotMatch) {
-    setResponseStatus$1(event, 304, "Not Modified");
+    setResponseStatus(event, 304, "Not Modified");
     return "";
   }
-  const ifModifiedSinceH = getRequestHeader$1(event, "if-modified-since");
+  const ifModifiedSinceH = getRequestHeader(event, "if-modified-since");
   const mtimeDate = new Date(asset.mtime);
   if (ifModifiedSinceH && asset.mtime && new Date(ifModifiedSinceH) >= mtimeDate) {
-    setResponseStatus$1(event, 304, "Not Modified");
+    setResponseStatus(event, 304, "Not Modified");
     return "";
   }
-  if (asset.type && !getResponseHeader$1(event, "Content-Type")) {
-    setResponseHeader$1(event, "Content-Type", asset.type);
+  if (asset.type && !getResponseHeader(event, "Content-Type")) {
+    setResponseHeader(event, "Content-Type", asset.type);
   }
-  if (asset.etag && !getResponseHeader$1(event, "ETag")) {
-    setResponseHeader$1(event, "ETag", asset.etag);
+  if (asset.etag && !getResponseHeader(event, "ETag")) {
+    setResponseHeader(event, "ETag", asset.etag);
   }
-  if (asset.mtime && !getResponseHeader$1(event, "Last-Modified")) {
-    setResponseHeader$1(event, "Last-Modified", mtimeDate.toUTCString());
+  if (asset.mtime && !getResponseHeader(event, "Last-Modified")) {
+    setResponseHeader(event, "Last-Modified", mtimeDate.toUTCString());
   }
-  if (asset.encoding && !getResponseHeader$1(event, "Content-Encoding")) {
-    setResponseHeader$1(event, "Content-Encoding", asset.encoding);
+  if (asset.encoding && !getResponseHeader(event, "Content-Encoding")) {
+    setResponseHeader(event, "Content-Encoding", asset.encoding);
   }
-  if (asset.size > 0 && !getResponseHeader$1(event, "Content-Length")) {
-    setResponseHeader$1(event, "Content-Length", asset.size);
+  if (asset.size > 0 && !getResponseHeader(event, "Content-Length")) {
+    setResponseHeader(event, "Content-Length", asset.size);
   }
   return readAsset(id);
 });
 
-function parseSetCookie$1(setCookieValue, options) {
-  const parts = (setCookieValue || "").split(";").filter((str) => typeof str === "string" && !!str.trim());
-  const nameValuePairStr = parts.shift() || "";
-  const parsed = _parseNameValuePair$1(nameValuePairStr);
-  const name = parsed.name;
-  let value = parsed.value;
-  try {
-    value = options?.decode === false ? value : (options?.decode || decodeURIComponent)(value);
-  } catch {
-  }
-  const cookie = {
-    name,
-    value
-  };
-  for (const part of parts) {
-    const sides = part.split("=");
-    const partKey = (sides.shift() || "").trimStart().toLowerCase();
-    const partValue = sides.join("=");
-    switch (partKey) {
-      case "expires": {
-        cookie.expires = new Date(partValue);
-        break;
-      }
-      case "max-age": {
-        cookie.maxAge = Number.parseInt(partValue, 10);
-        break;
-      }
-      case "secure": {
-        cookie.secure = true;
-        break;
-      }
-      case "httponly": {
-        cookie.httpOnly = true;
-        break;
-      }
-      case "samesite": {
-        cookie.sameSite = partValue;
-        break;
-      }
-      default: {
-        cookie[partKey] = partValue;
-      }
-    }
-  }
-  return cookie;
-}
-function _parseNameValuePair$1(nameValuePairStr) {
-  let name = "";
-  let value = "";
-  const nameValueArr = nameValuePairStr.split("=");
-  if (nameValueArr.length > 1) {
-    name = nameValueArr.shift();
-    value = nameValueArr.join("=");
-  } else {
-    value = nameValuePairStr;
-  }
-  return { name, value };
-}
-
-const NullObject = /* @__PURE__ */ (() => {
-  const C = function() {
-  };
-  C.prototype = /* @__PURE__ */ Object.create(null);
-  return C;
-})();
-function parse(str, options) {
-  if (typeof str !== "string") {
-    throw new TypeError("argument str must be a string");
-  }
-  const obj = new NullObject();
-  const opt = {};
-  const dec = opt.decode || decode;
-  let index = 0;
-  while (index < str.length) {
-    const eqIdx = str.indexOf("=", index);
-    if (eqIdx === -1) {
-      break;
-    }
-    let endIdx = str.indexOf(";", index);
-    if (endIdx === -1) {
-      endIdx = str.length;
-    } else if (endIdx < eqIdx) {
-      index = str.lastIndexOf(";", eqIdx - 1) + 1;
-      continue;
-    }
-    const key = str.slice(index, eqIdx).trim();
-    if (opt?.filter && !opt?.filter(key)) {
-      index = endIdx + 1;
-      continue;
-    }
-    if (void 0 === obj[key]) {
-      let val = str.slice(eqIdx + 1, endIdx).trim();
-      if (val.codePointAt(0) === 34) {
-        val = val.slice(1, -1);
-      }
-      obj[key] = tryDecode(val, dec);
-    }
-    index = endIdx + 1;
-  }
-  return obj;
-}
-function decode(str) {
-  return str.includes("%") ? decodeURIComponent(str) : str;
-}
-function tryDecode(str, decode2) {
-  try {
-    return decode2(str);
-  } catch {
-    return str;
-  }
-}
-
-const fieldContentRegExp = /^[\u0009\u0020-\u007E\u0080-\u00FF]+$/;
-function serialize(name, value, options) {
-  const opt = options || {};
-  const enc = opt.encode || encodeURIComponent;
-  if (typeof enc !== "function") {
-    throw new TypeError("option encode is invalid");
-  }
-  if (!fieldContentRegExp.test(name)) {
-    throw new TypeError("argument name is invalid");
-  }
-  const encodedValue = enc(value);
-  if (encodedValue && !fieldContentRegExp.test(encodedValue)) {
-    throw new TypeError("argument val is invalid");
-  }
-  let str = name + "=" + encodedValue;
-  if (void 0 !== opt.maxAge && opt.maxAge !== null) {
-    const maxAge = opt.maxAge - 0;
-    if (Number.isNaN(maxAge) || !Number.isFinite(maxAge)) {
-      throw new TypeError("option maxAge is invalid");
-    }
-    str += "; Max-Age=" + Math.floor(maxAge);
-  }
-  if (opt.domain) {
-    if (!fieldContentRegExp.test(opt.domain)) {
-      throw new TypeError("option domain is invalid");
-    }
-    str += "; Domain=" + opt.domain;
-  }
-  if (opt.path) {
-    if (!fieldContentRegExp.test(opt.path)) {
-      throw new TypeError("option path is invalid");
-    }
-    str += "; Path=" + opt.path;
-  }
-  if (opt.expires) {
-    if (!isDate(opt.expires) || Number.isNaN(opt.expires.valueOf())) {
-      throw new TypeError("option expires is invalid");
-    }
-    str += "; Expires=" + opt.expires.toUTCString();
-  }
-  if (opt.httpOnly) {
-    str += "; HttpOnly";
-  }
-  if (opt.secure) {
-    str += "; Secure";
-  }
-  if (opt.priority) {
-    const priority = typeof opt.priority === "string" ? opt.priority.toLowerCase() : opt.priority;
-    switch (priority) {
-      case "low": {
-        str += "; Priority=Low";
-        break;
-      }
-      case "medium": {
-        str += "; Priority=Medium";
-        break;
-      }
-      case "high": {
-        str += "; Priority=High";
-        break;
-      }
-      default: {
-        throw new TypeError("option priority is invalid");
-      }
-    }
-  }
-  if (opt.sameSite) {
-    const sameSite = typeof opt.sameSite === "string" ? opt.sameSite.toLowerCase() : opt.sameSite;
-    switch (sameSite) {
-      case true: {
-        str += "; SameSite=Strict";
-        break;
-      }
-      case "lax": {
-        str += "; SameSite=Lax";
-        break;
-      }
-      case "strict": {
-        str += "; SameSite=Strict";
-        break;
-      }
-      case "none": {
-        str += "; SameSite=None";
-        break;
-      }
-      default: {
-        throw new TypeError("option sameSite is invalid");
-      }
-    }
-  }
-  if (opt.partitioned) {
-    str += "; Partitioned";
-  }
-  return str;
-}
-function isDate(val) {
-  return Object.prototype.toString.call(val) === "[object Date]" || val instanceof Date;
-}
-
-function parseSetCookie(setCookieValue, options) {
-  const parts = (setCookieValue || "").split(";").filter((str) => typeof str === "string" && !!str.trim());
-  const nameValuePairStr = parts.shift() || "";
-  const parsed = _parseNameValuePair(nameValuePairStr);
-  const name = parsed.name;
-  let value = parsed.value;
-  try {
-    value = options?.decode === false ? value : (options?.decode || decodeURIComponent)(value);
-  } catch {
-  }
-  const cookie = {
-    name,
-    value
-  };
-  for (const part of parts) {
-    const sides = part.split("=");
-    const partKey = (sides.shift() || "").trimStart().toLowerCase();
-    const partValue = sides.join("=");
-    switch (partKey) {
-      case "expires": {
-        cookie.expires = new Date(partValue);
-        break;
-      }
-      case "max-age": {
-        cookie.maxAge = Number.parseInt(partValue, 10);
-        break;
-      }
-      case "secure": {
-        cookie.secure = true;
-        break;
-      }
-      case "httponly": {
-        cookie.httpOnly = true;
-        break;
-      }
-      case "samesite": {
-        cookie.sameSite = partValue;
-        break;
-      }
-      default: {
-        cookie[partKey] = partValue;
-      }
-    }
-  }
-  return cookie;
-}
-function _parseNameValuePair(nameValuePairStr) {
-  let name = "";
-  let value = "";
-  const nameValueArr = nameValuePairStr.split("=");
-  if (nameValueArr.length > 1) {
-    name = nameValueArr.shift();
-    value = nameValueArr.join("=");
-  } else {
-    value = nameValuePairStr;
-  }
-  return { name, value };
-}
-
-function hasProp(obj, prop) {
-  try {
-    return prop in obj;
-  } catch {
-    return false;
-  }
-}
-
-class H3Error extends Error {
-  static __h3_error__ = true;
-  statusCode = 500;
-  fatal = false;
-  unhandled = false;
-  statusMessage;
-  data;
-  cause;
-  constructor(message, opts = {}) {
-    super(message, opts);
-    if (opts.cause && !this.cause) {
-      this.cause = opts.cause;
-    }
-  }
-  toJSON() {
-    const obj = {
-      message: this.message,
-      statusCode: sanitizeStatusCode(this.statusCode, 500)
-    };
-    if (this.statusMessage) {
-      obj.statusMessage = sanitizeStatusMessage(this.statusMessage);
-    }
-    if (this.data !== void 0) {
-      obj.data = this.data;
-    }
-    return obj;
-  }
-}
-function createError(input) {
-  if (typeof input === "string") {
-    return new H3Error(input);
-  }
-  if (isError(input)) {
-    return input;
-  }
-  const err = new H3Error(input.message ?? input.statusMessage ?? "", {
-    cause: input.cause || input
-  });
-  if (hasProp(input, "stack")) {
-    try {
-      Object.defineProperty(err, "stack", {
-        get() {
-          return input.stack;
-        }
-      });
-    } catch {
-      try {
-        err.stack = input.stack;
-      } catch {
-      }
-    }
-  }
-  if (input.data) {
-    err.data = input.data;
-  }
-  if (input.statusCode) {
-    err.statusCode = sanitizeStatusCode(input.statusCode, err.statusCode);
-  } else if (input.status) {
-    err.statusCode = sanitizeStatusCode(input.status, err.statusCode);
-  }
-  if (input.statusMessage) {
-    err.statusMessage = input.statusMessage;
-  } else if (input.statusText) {
-    err.statusMessage = input.statusText;
-  }
-  if (err.statusMessage) {
-    const originalMessage = err.statusMessage;
-    const sanitizedMessage = sanitizeStatusMessage(err.statusMessage);
-    if (sanitizedMessage !== originalMessage) {
-      console.warn(
-        "[h3] Please prefer using `message` for longer error messages instead of `statusMessage`. In the future, `statusMessage` will be sanitized by default."
-      );
-    }
-  }
-  if (input.fatal !== void 0) {
-    err.fatal = input.fatal;
-  }
-  if (input.unhandled !== void 0) {
-    err.unhandled = input.unhandled;
-  }
-  return err;
-}
-function isError(input) {
-  return input?.constructor?.__h3_error__ === true;
-}
-function isMethod(event, expected, allowHead) {
-  if (typeof expected === "string") {
-    if (event.method === expected) {
-      return true;
-    }
-  } else if (expected.includes(event.method)) {
-    return true;
-  }
-  return false;
-}
-function assertMethod(event, expected, allowHead) {
-  if (!isMethod(event, expected)) {
-    throw createError({
-      statusCode: 405,
-      statusMessage: "HTTP method is not allowed."
-    });
-  }
-}
-function getRequestHeaders(event) {
-  const _headers = {};
-  for (const key in event.node.req.headers) {
-    const val = event.node.req.headers[key];
-    _headers[key] = Array.isArray(val) ? val.filter(Boolean).join(", ") : val;
-  }
-  return _headers;
-}
-function getRequestHeader(event, name) {
-  const headers = getRequestHeaders(event);
-  const value = headers[name.toLowerCase()];
-  return value;
-}
-function getRequestHost(event, opts = {}) {
-  if (opts.xForwardedHost) {
-    const xForwardedHost = event.node.req.headers["x-forwarded-host"];
-    if (xForwardedHost) {
-      return xForwardedHost;
-    }
-  }
-  return event.node.req.headers.host || "localhost";
-}
-function getRequestProtocol(event, opts = {}) {
-  if (opts.xForwardedProto !== false && event.node.req.headers["x-forwarded-proto"] === "https") {
-    return "https";
-  }
-  return event.node.req.connection?.encrypted ? "https" : "http";
-}
-function getRequestURL(event, opts = {}) {
-  const host = getRequestHost(event, opts);
-  const protocol = getRequestProtocol(event, opts);
-  const path = (event.node.req.originalUrl || event.path).replace(
-    /^[/\\]+/g,
-    "/"
-  );
-  return new URL(path, `${protocol}://${host}`);
-}
-function getRequestIP(event, opts = {}) {
-  if (event.context.clientAddress) {
-    return event.context.clientAddress;
-  }
-  if (opts.xForwardedFor) {
-    const xForwardedFor = getRequestHeader(event, "x-forwarded-for")?.split(",").shift()?.trim();
-    if (xForwardedFor) {
-      return xForwardedFor;
-    }
-  }
-  if (event.node.req.socket.remoteAddress) {
-    return event.node.req.socket.remoteAddress;
-  }
-}
-
-const RawBodySymbol = Symbol.for("h3RawBody");
-const PayloadMethods$1 = ["PATCH", "POST", "PUT", "DELETE"];
-function readRawBody(event, encoding = "utf8") {
-  assertMethod(event, PayloadMethods$1);
-  const _rawBody = event._requestBody || event.web?.request?.body || event.node.req[RawBodySymbol] || event.node.req.rawBody || event.node.req.body;
-  if (_rawBody) {
-    const promise2 = Promise.resolve(_rawBody).then((_resolved) => {
-      if (Buffer.isBuffer(_resolved)) {
-        return _resolved;
-      }
-      if (typeof _resolved.pipeTo === "function") {
-        return new Promise((resolve, reject) => {
-          const chunks = [];
-          _resolved.pipeTo(
-            new WritableStream({
-              write(chunk) {
-                chunks.push(chunk);
-              },
-              close() {
-                resolve(Buffer.concat(chunks));
-              },
-              abort(reason) {
-                reject(reason);
-              }
-            })
-          ).catch(reject);
-        });
-      } else if (typeof _resolved.pipe === "function") {
-        return new Promise((resolve, reject) => {
-          const chunks = [];
-          _resolved.on("data", (chunk) => {
-            chunks.push(chunk);
-          }).on("end", () => {
-            resolve(Buffer.concat(chunks));
-          }).on("error", reject);
-        });
-      }
-      if (_resolved.constructor === Object) {
-        return Buffer.from(JSON.stringify(_resolved));
-      }
-      if (_resolved instanceof URLSearchParams) {
-        return Buffer.from(_resolved.toString());
-      }
-      if (_resolved instanceof FormData) {
-        return new Response(_resolved).bytes().then((uint8arr) => Buffer.from(uint8arr));
-      }
-      return Buffer.from(_resolved);
-    });
-    return encoding ? promise2.then((buff) => buff.toString(encoding)) : promise2;
-  }
-  if (!Number.parseInt(event.node.req.headers["content-length"] || "") && !String(event.node.req.headers["transfer-encoding"] ?? "").split(",").map((e) => e.trim()).filter(Boolean).includes("chunked")) {
-    return Promise.resolve(void 0);
-  }
-  const promise = event.node.req[RawBodySymbol] = new Promise(
-    (resolve, reject) => {
-      const bodyData = [];
-      event.node.req.on("error", (err) => {
-        reject(err);
-      }).on("data", (chunk) => {
-        bodyData.push(chunk);
-      }).on("end", () => {
-        resolve(Buffer.concat(bodyData));
-      });
-    }
-  );
-  const result = encoding ? promise.then((buff) => buff.toString(encoding)) : promise;
-  return result;
-}
-function getRequestWebStream(event) {
-  if (!PayloadMethods$1.includes(event.method)) {
-    return;
-  }
-  const bodyStream = event.web?.request?.body || event._requestBody;
-  if (bodyStream) {
-    return bodyStream;
-  }
-  const _hasRawBody = RawBodySymbol in event.node.req || "rawBody" in event.node.req || "body" in event.node.req || "__unenv__" in event.node.req;
-  if (_hasRawBody) {
-    return new ReadableStream({
-      async start(controller) {
-        const _rawBody = await readRawBody(event, false);
-        if (_rawBody) {
-          controller.enqueue(_rawBody);
-        }
-        controller.close();
-      }
-    });
-  }
-  return new ReadableStream({
-    start: (controller) => {
-      event.node.req.on("data", (chunk) => {
-        controller.enqueue(chunk);
-      });
-      event.node.req.on("end", () => {
-        controller.close();
-      });
-      event.node.req.on("error", (err) => {
-        controller.error(err);
-      });
-    }
-  });
-}
-
-const MIMES = {
-  html: "text/html"};
-
-const DISALLOWED_STATUS_CHARS = /[^\u0009\u0020-\u007E]/g;
-function sanitizeStatusMessage(statusMessage = "") {
-  return statusMessage.replace(DISALLOWED_STATUS_CHARS, "");
-}
-function sanitizeStatusCode(statusCode, defaultStatusCode = 200) {
-  if (!statusCode) {
-    return defaultStatusCode;
-  }
-  if (typeof statusCode === "string") {
-    statusCode = Number.parseInt(statusCode, 10);
-  }
-  if (statusCode < 100 || statusCode > 999) {
-    return defaultStatusCode;
-  }
-  return statusCode;
-}
-
-function getDistinctCookieKey(name, opts) {
-  return [name, opts.domain || "", opts.path || "/"].join(";");
-}
-
-function parseCookies(event) {
-  return parse(event.node.req.headers.cookie || "");
-}
-function getCookie(event, name) {
-  return parseCookies(event)[name];
-}
-function setCookie(event, name, value, serializeOptions = {}) {
-  if (!serializeOptions.path) {
-    serializeOptions = { path: "/", ...serializeOptions };
-  }
-  const newCookie = serialize(name, value, serializeOptions);
-  const currentCookies = splitCookiesString(
-    event.node.res.getHeader("set-cookie")
-  );
-  if (currentCookies.length === 0) {
-    event.node.res.setHeader("set-cookie", newCookie);
-    return;
-  }
-  const newCookieKey = getDistinctCookieKey(name, serializeOptions);
-  event.node.res.removeHeader("set-cookie");
-  for (const cookie of currentCookies) {
-    const parsed = parseSetCookie(cookie);
-    const key = getDistinctCookieKey(parsed.name, parsed);
-    if (key === newCookieKey) {
-      continue;
-    }
-    event.node.res.appendHeader("set-cookie", cookie);
-  }
-  event.node.res.appendHeader("set-cookie", newCookie);
-}
-function splitCookiesString(cookiesString) {
-  if (Array.isArray(cookiesString)) {
-    return cookiesString.flatMap((c) => splitCookiesString(c));
-  }
-  if (typeof cookiesString !== "string") {
-    return [];
-  }
-  const cookiesStrings = [];
-  let pos = 0;
-  let start;
-  let ch;
-  let lastComma;
-  let nextStart;
-  let cookiesSeparatorFound;
-  const skipWhitespace = () => {
-    while (pos < cookiesString.length && /\s/.test(cookiesString.charAt(pos))) {
-      pos += 1;
-    }
-    return pos < cookiesString.length;
-  };
-  const notSpecialChar = () => {
-    ch = cookiesString.charAt(pos);
-    return ch !== "=" && ch !== ";" && ch !== ",";
-  };
-  while (pos < cookiesString.length) {
-    start = pos;
-    cookiesSeparatorFound = false;
-    while (skipWhitespace()) {
-      ch = cookiesString.charAt(pos);
-      if (ch === ",") {
-        lastComma = pos;
-        pos += 1;
-        skipWhitespace();
-        nextStart = pos;
-        while (pos < cookiesString.length && notSpecialChar()) {
-          pos += 1;
-        }
-        if (pos < cookiesString.length && cookiesString.charAt(pos) === "=") {
-          cookiesSeparatorFound = true;
-          pos = nextStart;
-          cookiesStrings.push(cookiesString.slice(start, lastComma));
-          start = pos;
-        } else {
-          pos = lastComma + 1;
-        }
-      } else {
-        pos += 1;
-      }
-    }
-    if (!cookiesSeparatorFound || pos >= cookiesString.length) {
-      cookiesStrings.push(cookiesString.slice(start));
-    }
-  }
-  return cookiesStrings;
-}
-
-const defer = typeof setImmediate === "undefined" ? (fn) => fn() : setImmediate;
-function send(event, data, type) {
-  {
-    defaultContentType(event, type);
-  }
-  return new Promise((resolve) => {
-    defer(() => {
-      if (!event.handled) {
-        event.node.res.end(data);
-      }
-      resolve();
-    });
-  });
-}
-function setResponseStatus(event, code, text) {
-  if (code) {
-    event.node.res.statusCode = sanitizeStatusCode(
-      code,
-      event.node.res.statusCode
-    );
-  }
-  if (text) {
-    event.node.res.statusMessage = sanitizeStatusMessage(text);
-  }
-}
-function getResponseStatus(event) {
-  return event.node.res.statusCode;
-}
-function getResponseStatusText(event) {
-  return event.node.res.statusMessage;
-}
-function defaultContentType(event, type) {
-  if (event.node.res.statusCode !== 304 && !event.node.res.getHeader("content-type")) {
-    event.node.res.setHeader("content-type", type);
-  }
-}
-function sendRedirect(event, location, code = 302) {
-  event.node.res.statusCode = sanitizeStatusCode(
-    code,
-    event.node.res.statusCode
-  );
-  event.node.res.setHeader("location", location);
-  const encodedLoc = location.replace(/"/g, "%22");
-  const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0; url=${encodedLoc}"></head></html>`;
-  return send(event, html, MIMES.html);
-}
-function getResponseHeaders(event) {
-  return event.node.res.getHeaders();
-}
-function getResponseHeader(event, name) {
-  return event.node.res.getHeader(name);
-}
-function setResponseHeader(event, name, value) {
-  event.node.res.setHeader(name, value);
-}
-const setHeader = setResponseHeader;
-function appendResponseHeader(event, name, value) {
-  let current = event.node.res.getHeader(name);
-  if (!current) {
-    event.node.res.setHeader(name, value);
-    return;
-  }
-  if (!Array.isArray(current)) {
-    current = [current.toString()];
-  }
-  event.node.res.setHeader(name, [...current, value]);
-}
-function removeResponseHeader(event, name) {
-  return event.node.res.removeHeader(name);
-}
-function sendStream(event, stream) {
-  if (!stream || typeof stream !== "object") {
-    throw new Error("[h3] Invalid stream provided.");
-  }
-  event.node.res._data = stream;
-  if (!event.node.res.socket) {
-    event._handled = true;
-    return Promise.resolve();
-  }
-  if (hasProp(stream, "pipeTo") && typeof stream.pipeTo === "function") {
-    return stream.pipeTo(
-      new WritableStream({
-        write(chunk) {
-          event.node.res.write(chunk);
-        }
-      })
-    ).then(() => {
-      event.node.res.end();
-    });
-  }
-  if (hasProp(stream, "pipe") && typeof stream.pipe === "function") {
-    return new Promise((resolve, reject) => {
-      stream.pipe(event.node.res);
-      if (stream.on) {
-        stream.on("end", () => {
-          event.node.res.end();
-          resolve();
-        });
-        stream.on("error", (error) => {
-          reject(error);
-        });
-      }
-      event.node.res.on("close", () => {
-        if (stream.abort) {
-          stream.abort();
-        }
-      });
-    });
-  }
-  throw new Error("[h3] Invalid or incompatible stream provided.");
-}
-function sendWebResponse(event, response) {
-  for (const [key, value] of response.headers) {
-    if (key === "set-cookie") {
-      event.node.res.appendHeader(key, splitCookiesString(value));
-    } else {
-      event.node.res.setHeader(key, value);
-    }
-  }
-  if (response.status) {
-    event.node.res.statusCode = sanitizeStatusCode(
-      response.status,
-      event.node.res.statusCode
-    );
-  }
-  if (response.statusText) {
-    event.node.res.statusMessage = sanitizeStatusMessage(response.statusText);
-  }
-  if (response.redirected) {
-    event.node.res.setHeader("location", response.url);
-  }
-  if (!response.body) {
-    event.node.res.end();
-    return;
-  }
-  return sendStream(event, response.body);
-}
-
-class H3Event {
-  "__is_event__" = true;
-  // Context
-  node;
-  // Node
-  web;
-  // Web
-  context = {};
-  // Shared
-  // Request
-  _method;
-  _path;
-  _headers;
-  _requestBody;
-  // Response
-  _handled = false;
-  // Hooks
-  _onBeforeResponseCalled;
-  _onAfterResponseCalled;
-  constructor(req, res) {
-    this.node = { req, res };
-  }
-  // --- Request ---
-  get method() {
-    if (!this._method) {
-      this._method = (this.node.req.method || "GET").toUpperCase();
-    }
-    return this._method;
-  }
-  get path() {
-    return this._path || this.node.req.url || "/";
-  }
-  get headers() {
-    if (!this._headers) {
-      this._headers = _normalizeNodeHeaders(this.node.req.headers);
-    }
-    return this._headers;
-  }
-  // --- Respoonse ---
-  get handled() {
-    return this._handled || this.node.res.writableEnded || this.node.res.headersSent;
-  }
-  respondWith(response) {
-    return Promise.resolve(response).then(
-      (_response) => sendWebResponse(this, _response)
-    );
-  }
-  // --- Utils ---
-  toString() {
-    return `[${this.method}] ${this.path}`;
-  }
-  toJSON() {
-    return this.toString();
-  }
-  // --- Deprecated ---
-  /** @deprecated Please use `event.node.req` instead. */
-  get req() {
-    return this.node.req;
-  }
-  /** @deprecated Please use `event.node.res` instead. */
-  get res() {
-    return this.node.res;
-  }
-}
-function _normalizeNodeHeaders(nodeHeaders) {
-  const headers = new Headers();
-  for (const [name, value] of Object.entries(nodeHeaders)) {
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        headers.append(name, item);
-      }
-    } else if (value) {
-      headers.set(name, value);
-    }
-  }
-  return headers;
-}
-
-function defineEventHandler(handler) {
-  if (typeof handler === "function") {
-    handler.__is_handler__ = true;
-    return handler;
-  }
-  const _hooks = {
-    onRequest: _normalizeArray(handler.onRequest),
-    onBeforeResponse: _normalizeArray(handler.onBeforeResponse)
-  };
-  const _handler = (event) => {
-    return _callHandler(event, handler.handler, _hooks);
-  };
-  _handler.__is_handler__ = true;
-  _handler.__resolve__ = handler.handler.__resolve__;
-  _handler.__websocket__ = handler.websocket;
-  return _handler;
-}
-function _normalizeArray(input) {
-  return input ? Array.isArray(input) ? input : [input] : void 0;
-}
-async function _callHandler(event, handler, hooks) {
-  if (hooks.onRequest) {
-    for (const hook of hooks.onRequest) {
-      await hook(event);
-      if (event.handled) {
-        return;
-      }
-    }
-  }
-  const body = await handler(event);
-  const response = { body };
-  if (hooks.onBeforeResponse) {
-    for (const hook of hooks.onBeforeResponse) {
-      await hook(event, response);
-    }
-  }
-  return response.body;
-}
-const eventHandler = defineEventHandler;
-
-const a$1 = ["cocina", "bano", "isla", "barra"], s$1 = [{ slug: "blanco-carrara", nombre: "White Carrara", tipo: "marmol", tono: "claro", veta: { es: "veta suave", en: "soft veining" }, dureza: "media", nivel: 2, desc: { es: "M\xE1rmol blanco perla con vetas grises suaves y plumosas, acabado honed sutil.", en: "Pearl-white marble with soft feathery gray veining, subtle honed finish." }, swatch: "/img/swatches/blanco-carrara", escenas: [...a$1] }, { slug: "calacatta-oro", nombre: "Calacatta Gold", tipo: "cuarzo", tono: "calido", veta: { es: "veta dram\xE1tica", en: "dramatic veining" }, dureza: "muy-alta", nivel: 3, desc: { es: "Cuarzo blanco c\xE1lido con vetas doradas y grises dram\xE1ticas en diagonal.", en: "Warm white quartz with bold dramatic gold and gray diagonal veins." }, swatch: "/img/swatches/calacatta-oro", escenas: [...a$1] }, { slug: "blue-dunes", nombre: "Blue Dunes", tipo: "granito", tono: "medio", veta: { es: "bandeado fluido", en: "flowing bands" }, dureza: "muy-alta", nivel: 3, desc: { es: "Granito ex\xF3tico con bandas fluidas de gris, taupe y arena que cruzan la losa en diagonal, salpicado de cristales plateados.", en: "Exotic granite with flowing bands of grey, taupe and sand crossing the slab diagonally, flecked with silver crystals." }, swatch: "/img/swatches/blue-dunes", escenas: [...a$1] }, { slug: "smithtown", nombre: "Smithtown", tipo: "cuarzo", tono: "claro", veta: { es: "veta gris difusa", en: "diffuse grey veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco brillante con una red de vetas grises finas y una veta central m\xE1s marcada, estilo m\xE1rmol.", en: "Bright white quartz with a network of fine grey veins and a bolder central vein, marble look." }, swatch: "/img/swatches/smithtown", escenas: [...a$1] }, { slug: "luna-pearl", nombre: "Luna Pearl", tipo: "granito", tono: "claro", veta: { es: "moteado gris y negro", en: "grey and black speckling" }, dureza: "muy-alta", nivel: 1, desc: { es: "Granito Luna Pearl con moteado uniforme en blanco, gris y perla salpicado de peque\xF1os puntos negros; un cl\xE1sico vers\xE1til.", en: "Luna Pearl granite with uniform white, grey and pearl speckling flecked with small black dots; a versatile classic." }, swatch: "/img/swatches/luna-pearl", escenas: [...a$1] }, { slug: "taj-mahal", nombre: "Taj Mahal", tipo: "cuarzo", tono: "calido", veta: { es: "veta dorada suave", en: "soft golden veining" }, dureza: "muy-alta", nivel: 3, desc: { es: "Taj Mahal Quartz en crema c\xE1lido con vetas doradas y grises suaves; elegancia serena y alt\xEDsima resistencia.", en: "Taj Mahal Quartz in warm cream with soft golden and grey veining; serene elegance and very high durability." }, swatch: "/img/swatches/taj-mahal", escenas: [...a$1] }, { slug: "black-galaxy", nombre: "Black Galaxy", tipo: "granito", tono: "oscuro", veta: { es: "destellos dorados", en: "gold flecks" }, dureza: "muy-alta", nivel: 2, desc: { es: "Granito Black Galaxy negro profundo con destellos dorados y cobrizos que brillan como estrellas; dram\xE1tico y atemporal.", en: "Deep black Black Galaxy granite with gold and copper flecks that sparkle like stars; dramatic and timeless." }, swatch: "/img/swatches/black-galaxy", escenas: [...a$1] }, { slug: "black-pearl", nombre: "Black Pearl", tipo: "granito", tono: "oscuro", veta: { es: "grano fino", en: "fine grain" }, dureza: "muy-alta", nivel: 2, desc: { es: "Granito Black Pearl negro profundo y uniforme con un grano mineral fino y destellos plateados sutiles; elegante y discreto.", en: "Deep uniform black Black Pearl granite with a fine mineral grain and subtle silver shimmer; elegant and understated." }, swatch: "/img/swatches/black-pearl", escenas: [] }, { slug: "valiant-avila", nombre: "Valiant Avila", tipo: "cuarzo", tono: "claro", veta: { es: "veta gris suave", en: "soft grey veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con vetas grises suaves y difusas; limpio y luminoso.", en: "White quartz with soft diffuse grey veining; clean and luminous." }, swatch: "/img/swatches/valiant-avila", escenas: [] }, { slug: "cincinnati", nombre: "Cincinnati", tipo: "cuarzo", tono: "claro", veta: { es: "veta fina", en: "fine veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con una red de vetas grises finas; estilo m\xE1rmol contempor\xE1neo.", en: "White quartz with a network of fine grey veins; contemporary marble look." }, swatch: "/img/swatches/cincinnati", escenas: [] }, { slug: "bay-shore", nombre: "Bay Shore", tipo: "cuarzo", tono: "claro", veta: { es: "moteado suave", en: "soft speckling" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con moteado y vetas suaves en gris c\xE1lido; sereno y vers\xE1til.", en: "White quartz with soft warm-grey speckling and veining; serene and versatile." }, swatch: "/img/swatches/bay-shore", escenas: [] }, { slug: "fantasy-brown", nombre: "Fantasy Brown", tipo: "marmol", tono: "medio", veta: { es: "veta marr\xF3n fluida", en: "flowing brown veining" }, dureza: "alta", nivel: 3, desc: { es: "M\xE1rmol Fantasy Brown con ondas fluidas de gris, marr\xF3n y crema; movimiento natural y c\xE1lido.", en: "Fantasy Brown marble with flowing waves of grey, brown and cream; warm natural movement." }, swatch: "/img/swatches/fantasy-brown", escenas: [] }];
-async function o$1() {
-  return s$1;
-}
-async function t$1(e) {
-  return (await o$1()).find((n) => n.slug === e);
-}
-async function i$1() {
-  return [];
-}
-
-function Ee$1() {
-  let e = /* @__PURE__ */ new Set();
-  function t(r) {
-    return e.add(r), () => e.delete(r);
-  }
-  let n = false;
-  function o(r, s) {
-    if (n) return !(n = false);
-    const c = { to: r, options: s, defaultPrevented: false, preventDefault: () => c.defaultPrevented = true };
-    for (const h of e) h.listener({ ...c, from: h.location, retry: (m) => {
-      m && (n = true), h.navigate(r, { ...s, resolve: false });
-    } });
-    return !c.defaultPrevented;
-  }
-  return { subscribe: t, confirm: o };
-}
-let z$1;
-function ae$1() {
-  (!window.history.state || window.history.state._depth == null) && window.history.replaceState({ ...window.history.state, _depth: window.history.length - 1 }, ""), z$1 = window.history.state._depth;
-}
-isServer || ae$1();
-function Qe$2(e) {
-  return { ...e, _depth: window.history.state && window.history.state._depth };
-}
-function Ve$2(e, t) {
-  let n = false;
-  return () => {
-    const o = z$1;
-    ae$1();
-    const r = o == null ? null : z$1 - o;
-    if (n) {
-      n = false;
-      return;
-    }
-    r && t(r) ? (n = true, window.history.go(-r)) : e();
-  };
-}
-const Se = /^(?:[a-z0-9]+:)?\/\//i, Ae = /^\/+|(\/)\/+$/g, Ce$1 = "http://sr";
-function I$1(e, t = false) {
-  const n = e.replace(Ae, "$1");
-  return n ? t || /^[?#]/.test(n) ? n : "/" + n : "";
-}
-function U$3(e, t, n) {
-  if (Se.test(t)) return;
-  const o = I$1(e), r = n && I$1(n);
-  let s = "";
-  return !r || t.startsWith("/") ? s = o : r.toLowerCase().indexOf(o.toLowerCase()) !== 0 ? s = o + r : s = r, (s || "/") + I$1(t, !s);
-}
-function Le(e, t) {
-  if (e == null) throw new Error(t);
-  return e;
-}
-function Fe(e, t) {
-  return I$1(e).replace(/\/*(\*.*)?$/g, "") + I$1(t);
-}
-function ce$1(e) {
-  const t = {};
-  return e.searchParams.forEach((n, o) => {
-    o in t ? Array.isArray(t[o]) ? t[o].push(n) : t[o] = [t[o], n] : t[o] = n;
-  }), t;
-}
-function _e$1(e, t, n) {
-  const [o, r] = e.split("/*", 2), s = o.split("/").filter(Boolean), c = s.length;
-  return (h) => {
-    const m = h.split("/").filter(Boolean), p = m.length - c;
-    if (p < 0 || p > 0 && r === void 0 && !t) return null;
-    const i = { path: c ? "" : "/", params: {} }, a = (g) => n === void 0 ? void 0 : n[g];
-    for (let g = 0; g < c; g++) {
-      const u = s[g], y = u[0] === ":", f = y ? m[g] : m[g].toLowerCase(), w = y ? u.slice(1) : u.toLowerCase();
-      if (y && H$1(f, a(w))) i.params[w] = f;
-      else if (y || !H$1(f, w)) return null;
-      i.path += `/${f}`;
-    }
-    if (r) {
-      const g = p ? m.slice(-p).join("/") : "";
-      if (H$1(g, a(r))) i.params[r] = g;
-      else return null;
-    }
-    return i;
-  };
-}
-function H$1(e, t) {
-  const n = (o) => o === e;
-  return t === void 0 ? true : typeof t == "string" ? n(t) : typeof t == "function" ? t(e) : Array.isArray(t) ? t.some(n) : t instanceof RegExp ? t.test(e) : false;
-}
-function je(e) {
-  const [t, n] = e.pattern.split("/*", 2), o = t.split("/").filter(Boolean);
-  return o.reduce((r, s) => r + (s.startsWith(":") ? 2 : 3), o.length - (n === void 0 ? 0 : 1));
-}
-function ie$2(e) {
-  const t = /* @__PURE__ */ new Map(), n = getOwner();
-  return new Proxy({}, { get(o, r) {
-    return t.has(r) || runWithOwner(n, () => t.set(r, createMemo(() => e()[r]))), t.get(r)();
-  }, getOwnPropertyDescriptor() {
-    return { enumerable: true, configurable: true };
-  }, ownKeys() {
-    return Reflect.ownKeys(e());
-  }, has(o, r) {
-    return r in e();
-  } });
-}
-function qe(e, t) {
-  const n = new URLSearchParams(e);
-  Object.entries(t).forEach(([r, s]) => {
-    s == null || s === "" || s instanceof Array && !s.length ? n.delete(r) : s instanceof Array ? (n.delete(r), s.forEach((c) => {
-      n.append(r, String(c));
-    })) : n.set(r, String(s));
-  });
-  const o = n.toString();
-  return o ? `?${o}` : "";
-}
-function ue$1(e) {
-  let t = /(\/?\:[^\/]+)\?/.exec(e);
-  if (!t) return [e];
-  let n = e.slice(0, t.index), o = e.slice(t.index + t[0].length);
-  const r = [n, n += t[1]];
-  for (; t = /^(\/\:[^\/]+)\?/.exec(o); ) r.push(n += t[1]), o = o.slice(t[0].length);
-  return ue$1(o).reduce((s, c) => [...s, ...r.map((h) => h + c)], []);
-}
-const Be$1 = 100, Ie = createContext$1(), le$1 = createContext$1(), M$1 = () => Le(useContext(Ie), "<A> and 'use' router primitives can be only used inside a Route."), Me = () => useContext(le$1) || M$1().base, Ze$2 = (e) => {
-  const t = Me();
-  return createMemo(() => t.resolvePath(e()));
-}, et$2 = (e) => {
-  const t = M$1();
-  return createMemo(() => {
-    const n = e();
-    return n !== void 0 ? t.renderPath(n) : n;
-  });
-}, fe = () => M$1().navigatorFactory(), De$1 = () => M$1().location, tt$2 = () => M$1().params, nt$2 = () => {
-  const e = De$1(), t = fe(), n = (o, r) => {
-    const s = untrack(() => qe(e.search, o) + e.hash);
-    t(s, { scroll: false, resolve: false, ...r });
-  };
-  return [e.query, n];
-};
-function Te$1(e, t = "") {
-  const { component: n, preload: o, load: r, children: s, info: c } = e, h = !s || Array.isArray(s) && !s.length, m = { key: e, component: n, preload: o || r, info: c };
-  return he(e.path).reduce((p, i) => {
-    for (const a of ue$1(i)) {
-      const g = Fe(t, a);
-      let u = h ? g : g.split("/*", 1)[0];
-      u = u.split("/").map((y) => y.startsWith(":") || y.startsWith("*") ? y : encodeURIComponent(y)).join("/"), p.push({ ...m, originalPath: i, pattern: u, matcher: _e$1(u, !h, e.matchFilters) });
-    }
-    return p;
-  }, []);
-}
-function We$2(e, t = 0) {
-  return { routes: e, score: je(e[e.length - 1]) * 1e4 - t, matcher(n) {
-    const o = [];
-    for (let r = e.length - 1; r >= 0; r--) {
-      const s = e[r], c = s.matcher(n);
-      if (!c) return null;
-      o.unshift({ ...c, route: s });
-    }
-    return o;
-  } };
-}
-function he(e) {
-  return Array.isArray(e) ? e : [e];
-}
-function $e(e, t = "", n = [], o = []) {
-  const r = he(e);
-  for (let s = 0, c = r.length; s < c; s++) {
-    const h = r[s];
-    if (h && typeof h == "object") {
-      h.hasOwnProperty("path") || (h.path = "");
-      const m = Te$1(h, t);
-      for (const p of m) {
-        n.push(p);
-        const i = Array.isArray(h.children) && h.children.length === 0;
-        if (h.children && !i) $e(h.children, p.pattern, n, o);
-        else {
-          const a = We$2([...n], o.length);
-          o.push(a);
-        }
-        n.pop();
-      }
-    }
-  }
-  return n.length ? o : o.sort((s, c) => c.score - s.score);
-}
-function K$2(e, t) {
-  for (let n = 0, o = e.length; n < o; n++) {
-    const r = e[n].matcher(t);
-    if (r) return r;
-  }
-  return [];
-}
-function Ue$1(e, t, n) {
-  const o = new URL(Ce$1), r = createMemo((i) => {
-    const a = e();
-    try {
-      return new URL(a, o);
-    } catch {
-      return console.error(`Invalid path ${a}`), i;
-    }
-  }, o, { equals: (i, a) => i.href === a.href }), s = createMemo(() => r().pathname), c = createMemo(() => r().search, true), h = createMemo(() => r().hash), m = () => "", p = on(c, () => ce$1(r()));
-  return { get pathname() {
-    return s();
-  }, get search() {
-    return c();
-  }, get hash() {
-    return h();
-  }, get state() {
-    return t();
-  }, get key() {
-    return m();
-  }, query: n ? n(p) : ie$2(p) };
-}
-let S$1;
-function ke$1() {
-  return S$1;
-}
-let B$3 = false;
-function He$1() {
-  return B$3;
-}
-function rt$2(e) {
-  B$3 = e;
-}
-function ot$2(e, t, n, o = {}) {
-  const { signal: [r, s], utils: c = {} } = e, h = c.parsePath || ((l) => l), m = c.renderPath || ((l) => l), p = c.beforeLeave || Ee$1(), i = U$3("", o.base || "");
-  if (i === void 0) throw new Error(`${i} is not a valid base path`);
-  i && !r().value && s({ value: i, replace: true, scroll: false });
-  const [a, g] = createSignal(false);
-  let u;
-  const y = (l, d) => {
-    d.value === f() && d.state === P() || (u === void 0 && g(true), S$1 = l, u = d, startTransition(() => {
-      u === d && (w(u.value), C(u.state), resetErrorBoundaries(), isServer || J[1]((v) => v.filter((L) => L.pending)));
-    }).finally(() => {
-      u === d && batch(() => {
-        S$1 = void 0, l === "navigate" && ge(u), g(false), u = void 0;
-      });
-    }));
-  }, [f, w] = createSignal(r().value), [P, C] = createSignal(r().state), b = Ue$1(f, P, c.queryWrapper), O = [], J = createSignal(isServer ? we() : []), X = createMemo(() => typeof o.transformUrl == "function" ? K$2(t(), o.transformUrl(b.pathname)) : K$2(t(), b.pathname)), Y = () => {
-    const l = X(), d = {};
-    for (let v = 0; v < l.length; v++) Object.assign(d, l[v].params);
-    return d;
-  }, de = c.paramsWrapper ? c.paramsWrapper(Y, t) : ie$2(Y), Q = { pattern: i, path: () => i, outlet: () => null, resolvePath(l) {
-    return U$3(i, l);
-  } };
-  return createRenderEffect(on(r, (l) => y("native", l), { defer: true })), { base: Q, location: b, params: de, isRouting: a, renderPath: m, parsePath: h, navigatorFactory: me, matches: X, beforeLeave: p, preloadRoute: ye, singleFlight: o.singleFlight === void 0 ? true : o.singleFlight, submissions: J };
-  function pe(l, d, v) {
-    untrack(() => {
-      if (typeof d == "number") {
-        d && (c.go ? c.go(d) : console.warn("Router integration does not support relative routing"));
-        return;
-      }
-      const L = !d || d[0] === "?", { replace: T, resolve: F, scroll: W, state: _ } = { replace: false, resolve: !L, scroll: true, ...v }, j = F ? l.resolvePath(d) : U$3(L && b.pathname || "", d);
-      if (j === void 0) throw new Error(`Path '${d}' is not a routable path`);
-      if (O.length >= Be$1) throw new Error("Too many redirects");
-      const V = f();
-      if (j !== V || _ !== P()) if (isServer) {
-        const Z = getRequestEvent();
-        Z && (Z.response = { status: 302, headers: new Headers({ Location: j }) }), s({ value: j, replace: T, scroll: W, state: _ });
-      } else p.confirm(j, v) && (O.push({ value: V, replace: T, scroll: W, state: P() }), y("navigate", { value: j, state: _ }));
-    });
-  }
-  function me(l) {
-    return l = l || useContext(le$1) || Q, (d, v) => pe(l, d, v);
-  }
-  function ge(l) {
-    const d = O[0];
-    d && (s({ ...l, replace: d.replace, scroll: d.scroll }), O.length = 0);
-  }
-  function ye(l, d) {
-    const v = K$2(t(), l.pathname), L = S$1;
-    S$1 = "preload";
-    for (let T in v) {
-      const { route: F, params: W } = v[T];
-      F.component && F.component.preload && F.component.preload();
-      const { preload: _ } = F;
-      B$3 = true, d && _ && runWithOwner(n(), () => _({ params: W, location: { pathname: l.pathname, search: l.search, hash: l.hash, query: ce$1(l), state: null, key: "" }, intent: "preload" })), B$3 = false;
-    }
-    S$1 = L;
-  }
-  function we() {
-    const l = getRequestEvent();
-    return l && l.router && l.router.submission ? [l.router.submission] : [];
-  }
-}
-function st$2(e, t, n, o) {
-  const { base: r, location: s, params: c } = e, { pattern: h, component: m, preload: p } = o().route, i = createMemo(() => o().path);
-  m && m.preload && m.preload(), B$3 = true;
-  const a = p ? p({ params: c, location: s, intent: S$1 || "initial" }) : void 0;
-  return B$3 = false, { parent: t, pattern: h, path: i, outlet: () => m ? createComponent(m, { params: c, location: s, data: a, get children() {
-    return n();
-  } }) : n(), resolvePath(u) {
-    return U$3(r.path(), u, i());
-  } };
-}
-const Ke$2 = "Location", ze$1 = 5e3, Ne$1 = 18e4;
-let N$1 = /* @__PURE__ */ new Map();
-isServer || setInterval(() => {
-  const e = Date.now();
-  for (let [t, n] of N$1.entries()) !n[4].count && e - n[0] > Ne$1 && N$1.delete(t);
-}, 3e5);
-function D$2() {
-  if (!isServer) return N$1;
-  const e = getRequestEvent();
-  if (!e) throw new Error("Cannot find cache context");
-  return (e.router || (e.router = {})).cache || (e.router.cache = /* @__PURE__ */ new Map());
-}
-function k$1(e, t) {
-  e.GET && (e = e.GET);
-  const n = (...o) => {
-    const r = D$2(), s = ke$1(), c = He$1(), m = getOwner() ? fe() : void 0, p = Date.now(), i = t + ee(o);
-    let a = r.get(i), g;
-    if (isServer) {
-      const f = getRequestEvent();
-      if (f) {
-        const w = (f.router || (f.router = {})).dataOnly;
-        if (w) {
-          const P = f && (f.router.data || (f.router.data = {}));
-          if (P && i in P) return P[i];
-          if (Array.isArray(w) && !Ge$2(i, w)) return P[i] = void 0, Promise.resolve();
-        }
-      }
-    }
-    if (getListener() && !isServer && (g = true, onCleanup(() => a[4].count--)), a && a[0] && (isServer || s === "native" || a[4].count || Date.now() - a[0] < ze$1)) {
-      g && (a[4].count++, a[4][0]()), a[3] === "preload" && s !== "preload" && (a[0] = p);
-      let f = a[1];
-      return s !== "preload" && (f = "then" in a[1] ? a[1].then(y(false), y(true)) : y(false)(a[1]), !isServer && s === "navigate" && startTransition(() => a[4][1](a[0]))), c && "then" in f && f.catch(() => {
-      }), f;
-    }
-    let u;
-    if (!isServer && sharedConfig.has && sharedConfig.has(i) ? (u = sharedConfig.load(i), delete globalThis._$HY.r[i]) : u = e(...o), a ? (a[0] = p, a[1] = u, a[3] = s, !isServer && s === "navigate" && startTransition(() => a[4][1](a[0]))) : (r.set(i, a = [p, u, , s, createSignal(p)]), a[4].count = 0), g && (a[4].count++, a[4][0]()), isServer) {
-      const f = getRequestEvent();
-      if (f && f.router.dataOnly) return f.router.data[i] = u;
-    }
-    if (s !== "preload" && (u = "then" in u ? u.then(y(false), y(true)) : y(false)(u)), c && "then" in u && u.catch(() => {
-    }), isServer && sharedConfig.context && sharedConfig.context.async && !sharedConfig.context.noHydrate) {
-      const f = getRequestEvent();
-      (!f || !f.serverOnly) && sharedConfig.context.serialize(i, u);
-    }
-    return u;
-    function y(f) {
-      return async (w) => {
-        if (w instanceof Response) {
-          const P = getRequestEvent();
-          if (P) for (const [b, O] of w.headers) b == "set-cookie" ? P.response.headers.append("set-cookie", O) : P.response.headers.set(b, O);
-          const C = w.headers.get(Ke$2);
-          if (C !== null) {
-            m && C.startsWith("/") ? startTransition(() => {
-              m(C, { replace: true });
-            }) : isServer ? P && (P.response.status = 302) : window.location.href = C;
-            return;
-          }
-          w.customBody && (w = await w.customBody());
-        }
-        if (f) throw w;
-        return a[2] = w, w;
-      };
-    }
-  };
-  return n.keyFor = (...o) => t + ee(o), n.key = t, n;
-}
-k$1.get = (e) => D$2().get(e)[2];
-k$1.set = (e, t) => {
-  const n = D$2(), o = Date.now();
-  let r = n.get(e);
-  r ? (r[0] = o, r[1] = Promise.resolve(t), r[2] = t, r[3] = "preload") : (n.set(e, r = [o, Promise.resolve(t), t, "preload", createSignal(o)]), r[4].count = 0);
-};
-k$1.delete = (e) => D$2().delete(e);
-k$1.clear = () => D$2().clear();
-function Ge$2(e, t) {
-  for (let n of t) if (n && e.startsWith(n)) return true;
-  return false;
-}
-function ee(e) {
-  return JSON.stringify(e, (t, n) => Je$2(n) ? Object.keys(n).sort().reduce((o, r) => (o[r] = n[r], o), {}) : n);
-}
-function Je$2(e) {
-  let t;
-  return e != null && typeof e == "object" && (!(t = Object.getPrototypeOf(e)) || t === Object.prototype);
-}
-
 var __defProp$1 = Object.defineProperty;
 var __defNormalProp$1 = (obj, key, value) => key in obj ? __defProp$1(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField$1 = (obj, key, value) => __defNormalProp$1(obj, typeof key !== "symbol" ? key + "" : key, value);
-function Ne(e) {
-  let r;
-  const t = M(e), n = { duplex: "half", method: e.method, headers: e.headers };
-  return e.node.req.body instanceof ArrayBuffer ? new Request(t, { ...n, body: e.node.req.body }) : new Request(t, { ...n, get body() {
-    return r || (r = Ze$1(e), r);
-  } });
-}
-function ze(e) {
-  var _a;
-  return (_a = e.web) != null ? _a : e.web = { request: Ne(e), url: M(e) }, e.web.request;
-}
-function We$1() {
-  return rt$1();
-}
-const D$1 = /* @__PURE__ */ Symbol("$HTTPEvent");
-function Be(e) {
-  return typeof e == "object" && (e instanceof H3Event || (e == null ? void 0 : e[D$1]) instanceof H3Event || (e == null ? void 0 : e.__is_event__) === true);
-}
-function u$1(e) {
-  return function(...r) {
-    var _a;
-    let t = r[0];
-    if (Be(t)) r[0] = t instanceof H3Event || t.__is_event__ ? t : t[D$1];
-    else {
-      if (!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext)) throw new Error("AsyncLocalStorage was not enabled. Use the `server.experimental.asyncContext: true` option in your app configuration to enable it. Or, pass the instance of HTTPEvent that you have as the first argument to the function.");
-      if (t = We$1(), !t) throw new Error("No HTTPEvent found in AsyncLocalStorage. Make sure you are using the function within the server runtime.");
-      r.unshift(t);
-    }
-    return e(...r);
-  };
-}
-const M = u$1(getRequestURL), Je$1 = u$1(getRequestIP), $$1 = u$1(setResponseStatus), P = u$1(getResponseStatus), Xe$1 = u$1(getResponseStatusText), S = u$1(getResponseHeaders), H = u$1(getResponseHeader), Qe$1 = u$1(setResponseHeader), N = u$1(appendResponseHeader), Ge$1 = u$1(parseCookies), Ke$1 = u$1(getCookie), Ve$1 = u$1(setCookie), h = u$1(setHeader), Ze$1 = u$1(getRequestWebStream), Ye$1 = u$1(removeResponseHeader), et$1 = u$1(ze);
-function tt$1() {
-  var _a;
-  return getContext("nitro-app", { asyncContext: !!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext), AsyncLocalStorage: AsyncLocalStorage });
-}
-function rt$1() {
-  return tt$1().use().event;
-}
-const w = "Invariant Violation", { setPrototypeOf: st$1 = function(e, r) {
-  return e.__proto__ = r, e;
-} } = Object;
-let q$1 = class q extends Error {
-  constructor(r = w) {
-    super(typeof r == "number" ? `${w}: ${r} (see https://github.com/apollographql/invariant-packages)` : r);
-    __publicField$1(this, "framesToPop", 1);
-    __publicField$1(this, "name", w);
-    st$1(this, q.prototype);
-  }
-};
-function nt$1(e, r) {
-  if (!e) throw new q$1(r);
-}
-const k = "solidFetchEvent";
-function ot$1(e) {
-  return { request: et$1(e), response: ut$1(e), clientAddress: Je$1(e), locals: {}, nativeEvent: e };
-}
-function at$1(e) {
-  return { ...e };
-}
-function it$1(e) {
-  if (!e.context[k]) {
-    const r = ot$1(e);
-    e.context[k] = r;
-  }
-  return e.context[k];
-}
-function A$1(e, r) {
-  for (const [t, n] of r.entries()) N(e, t, n);
-}
-let ct$1 = class ct {
-  constructor(r) {
-    __publicField$1(this, "event");
-    this.event = r;
-  }
-  get(r) {
-    const t = H(this.event, r);
-    return Array.isArray(t) ? t.join(", ") : t || null;
-  }
-  has(r) {
-    return this.get(r) !== null;
-  }
-  set(r, t) {
-    return Qe$1(this.event, r, t);
-  }
-  delete(r) {
-    return Ye$1(this.event, r);
-  }
-  append(r, t) {
-    N(this.event, r, t);
-  }
-  getSetCookie() {
-    const r = H(this.event, "Set-Cookie");
-    return Array.isArray(r) ? r : [r];
-  }
-  forEach(r) {
-    return Object.entries(S(this.event)).forEach(([t, n]) => r(Array.isArray(n) ? n.join(", ") : n, t, this));
-  }
-  entries() {
-    return Object.entries(S(this.event)).map(([r, t]) => [r, Array.isArray(t) ? t.join(", ") : t])[Symbol.iterator]();
-  }
-  keys() {
-    return Object.keys(S(this.event))[Symbol.iterator]();
-  }
-  values() {
-    return Object.values(S(this.event)).map((r) => Array.isArray(r) ? r.join(", ") : r)[Symbol.iterator]();
-  }
-  [Symbol.iterator]() {
-    return this.entries()[Symbol.iterator]();
-  }
-};
-function ut$1(e) {
-  return { get status() {
-    return P(e);
-  }, set status(r) {
-    $$1(e, r);
-  }, get statusText() {
-    return Xe$1(e);
-  }, set statusText(r) {
-    $$1(e, P(e), r);
-  }, headers: new ct$1(e) };
-}
-const lt$2 = k$1(() => o$1(), "materials"), pt$2 = { preload: () => lt$2() }, dt$2 = k$1(() => o$1(), "materials"), ft$2 = k$1(() => i$1(), "trabajos"), mt$2 = { preload: () => Promise.all([dt$2(), ft$2()]) }, ht$2 = k$1((e) => t$1(e), "material"), gt$2 = { preload: ({ params: e }) => ht$2(e.slug) }, yt$1 = k$1(() => o$1(), "materials"), Rt$2 = { preload: () => yt$1() }, St$2 = k$1(() => i$1(), "trabajos"), $t$1 = k$1(() => o$1(), "materials"), bt$2 = { preload: () => Promise.all([St$2(), $t$1()]) }, z = [{ page: true, $component: { src: "src/routes/cotizacion.tsx?pick=default&pick=$css", build: () => import('../build/cotizacion.mjs'), import: () => import('../build/cotizacion.mjs') }, $$route: { require: () => ({ route: pt$2 }), src: "src/routes/cotizacion.tsx?pick=route" }, path: "/cotizacion", filePath: "/Users/hector/Documents/granite_concepts/src/routes/cotizacion.tsx" }, { page: true, $component: { src: "src/routes/index.tsx?pick=default&pick=$css", build: () => import('../build/index.mjs'), import: () => import('../build/index.mjs') }, $$route: { require: () => ({ route: mt$2 }), src: "src/routes/index.tsx?pick=route" }, path: "/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/index.tsx" }, { page: true, $component: { src: "src/routes/materiales/[slug].tsx?pick=default&pick=$css", build: () => import('../build/_slug_.mjs'), import: () => import('../build/_slug_.mjs') }, $$route: { require: () => ({ route: gt$2 }), src: "src/routes/materiales/[slug].tsx?pick=route" }, path: "/materiales/:slug", filePath: "/Users/hector/Documents/granite_concepts/src/routes/materiales/[slug].tsx" }, { page: true, $component: { src: "src/routes/materiales/index.tsx?pick=default&pick=$css", build: () => import('../build/index2.mjs'), import: () => import('../build/index2.mjs') }, $$route: { require: () => ({ route: Rt$2 }), src: "src/routes/materiales/index.tsx?pick=route" }, path: "/materiales/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/materiales/index.tsx" }, { page: false, $GET: { src: "src/routes/sitemap.xml.ts?pick=GET", build: () => import('../build/sitemap.xml.mjs'), import: () => import('../build/sitemap.xml.mjs') }, $HEAD: { src: "src/routes/sitemap.xml.ts?pick=GET", build: () => import('../build/sitemap.xml.mjs'), import: () => import('../build/sitemap.xml.mjs') }, path: "/sitemap.xml", filePath: "/Users/hector/Documents/granite_concepts/src/routes/sitemap.xml.ts" }, { page: true, $component: { src: "src/routes/trabajos/[slug].tsx?pick=default&pick=$css", build: () => import('../build/_slug_2.mjs'), import: () => import('../build/_slug_2.mjs') }, path: "/trabajos/:slug", filePath: "/Users/hector/Documents/granite_concepts/src/routes/trabajos/[slug].tsx" }, { page: true, $component: { src: "src/routes/trabajos/index.tsx?pick=default&pick=$css", build: () => import('../build/index3.mjs'), import: () => import('../build/index3.mjs') }, $$route: { require: () => ({ route: bt$2 }), src: "src/routes/trabajos/index.tsx?pick=route" }, path: "/trabajos/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/trabajos/index.tsx" }], xt$2 = wt$2(z.filter((e) => e.page));
-function wt$2(e) {
-  function r(t, n, o, a) {
-    const i = Object.values(t).find((c) => o.startsWith(c.id + "/"));
-    return i ? (r(i.children || (i.children = []), n, o.slice(i.id.length)), t) : (t.push({ ...n, id: o, path: o.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/") }), t);
-  }
-  return e.sort((t, n) => t.path.length - n.path.length).reduce((t, n) => r(t, n, n.path, n.path), []);
-}
-function kt$1(e) {
-  return e.$HEAD || e.$GET || e.$POST || e.$PUT || e.$PATCH || e.$DELETE;
-}
-createRouter$1({ routes: z.reduce((e, r) => {
-  if (!kt$1(r)) return e;
-  let t = r.path.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/").replace(/\*([^/]*)/g, (n, o) => `**:${o}`).split("/").map((n) => n.startsWith(":") || n.startsWith("*") ? n : encodeURIComponent(n)).join("/");
-  if (/:[^/]*\?/g.test(t)) throw new Error(`Optional parameters are not supported in API routes: ${t}`);
-  if (e[t]) throw new Error(`Duplicate API routes for "${t}" found at "${e[t].route.path}" and "${r.path}"`);
-  return e[t] = { route: r }, e;
-}, {}) });
-var Tt$2 = " ";
-const qt$1 = { style: (e) => ssrElement("style", e.attrs, () => e.children, true), link: (e) => ssrElement("link", e.attrs, void 0, true), script: (e) => e.attrs.src ? ssrElement("script", mergeProps(() => e.attrs, { get id() {
-  return e.key;
-} }), () => ssr(Tt$2), true) : null, noscript: (e) => ssrElement("noscript", e.attrs, () => escape(e.children), true) };
-function Et$2(e, r) {
-  let { tag: t, attrs: { key: n, ...o } = { key: void 0 }, children: a } = e;
-  return qt$1[t]({ attrs: { ...o, nonce: r }, key: n, children: a });
-}
-function Pt$2(e, r, t, n = "default") {
-  return lazy(async () => {
-    var _a;
-    {
-      const a = (await e.import())[n], c = (await ((_a = r.inputs) == null ? void 0 : _a[e.src].assets())).filter((l) => l.tag === "style" || l.attrs.rel === "stylesheet");
-      return { default: (l) => [...c.map((g) => Et$2(g)), createComponent(a, l)] };
-    }
-  });
-}
-function W() {
-  function e(t) {
-    return { ...t, ...t.$$route ? t.$$route.require().route : void 0, info: { ...t.$$route ? t.$$route.require().route.info : {}, filesystem: true }, component: t.$component && Pt$2(t.$component, globalThis.MANIFEST.client, globalThis.MANIFEST.ssr), children: t.children ? t.children.map(e) : void 0 };
-  }
-  return xt$2.map(e);
-}
-let C;
-const Vt$1 = isServer ? () => getRequestEvent().routes : () => C || (C = W());
-function Ht$1(e) {
-  const r = Ke$1(e.nativeEvent, "flash");
-  if (r) try {
-    let t = JSON.parse(r);
-    if (!t || !t.result) return;
-    const n = [...t.input.slice(0, -1), new Map(t.input[t.input.length - 1])], o = t.error ? new Error(t.result) : t.result;
-    return { input: n, url: t.url, pending: false, result: t.thrown ? void 0 : o, error: t.thrown ? o : void 0 };
-  } catch (t) {
-    console.error(t);
-  } finally {
-    Ve$1(e.nativeEvent, "flash", "", { maxAge: 0 });
-  }
-}
-async function At$1(e) {
-  const r = globalThis.MANIFEST.client;
-  return globalThis.MANIFEST.ssr, e.response.headers.set("Content-Type", "text/html"), Object.assign(e, { manifest: await r.json(), assets: [...await r.inputs[r.handler].assets()], router: { submission: Ht$1(e) }, routes: W(), complete: false, $islands: /* @__PURE__ */ new Set() });
-}
-const Ct$2 = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
-function Ft$1(e) {
-  return e.status && Ct$2.has(e.status) ? e.status : 302;
-}
-const Lt$2 = {}, E = [AbortSignalPlugin, CustomEventPlugin, DOMExceptionPlugin, EventPlugin, FormDataPlugin, HeadersPlugin, ReadableStreamPlugin, RequestPlugin, ResponsePlugin, URLSearchParamsPlugin, URLPlugin], Ut$1 = 64, B$2 = Feature.RegExp;
-function J$2(e) {
-  const r = new TextEncoder().encode(e), t = r.length, n = t.toString(16), o = "00000000".substring(0, 8 - n.length) + n, a = new TextEncoder().encode(`;0x${o};`), i = new Uint8Array(12 + t);
-  return i.set(a), i.set(r, 12), i;
-}
-function F$1(e, r) {
-  return new ReadableStream({ start(t) {
-    crossSerializeStream(r, { scopeId: e, plugins: E, onSerialize(n, o) {
-      t.enqueue(J$2(o ? `(${getCrossReferenceHeader(e)},${n})` : n));
-    }, onDone() {
-      t.close();
-    }, onError(n) {
-      t.error(n);
-    } });
-  } });
-}
-function _t$1(e) {
-  return new ReadableStream({ start(r) {
-    toCrossJSONStream(e, { disabledFeatures: B$2, depthLimit: Ut$1, plugins: E, onParse(t) {
-      r.enqueue(J$2(JSON.stringify(t)));
-    }, onDone() {
-      r.close();
-    }, onError(t) {
-      r.error(t);
-    } });
-  } });
-}
-async function L$1(e) {
-  return fromJSON(JSON.parse(e), { plugins: E, disabledFeatures: B$2 });
-}
-async function jt$2(e) {
-  const r = it$1(e), t = r.request, n = t.headers.get("X-Server-Id"), o = t.headers.get("X-Server-Instance"), a = t.headers.has("X-Single-Flight"), i = new URL(t.url);
-  let c, d;
-  if (n) nt$1(typeof n == "string", "Invalid server function"), [c, d] = decodeURIComponent(n).split("#");
-  else if (c = i.searchParams.get("id"), d = i.searchParams.get("name"), !c || !d) return new Response(null, { status: 404 });
-  const l = Lt$2[c];
-  let g;
-  if (!l) return new Response(null, { status: 404 });
-  g = await l.importer();
-  const X = g[l.functionName];
-  let f = [];
-  if (!o || e.method === "GET") {
-    const s = i.searchParams.get("args");
-    if (s) {
-      const p = await L$1(s);
-      for (const y of p) f.push(y);
-    }
-  }
-  if (e.method === "POST") {
-    const s = t.headers.get("content-type"), p = e.node.req, y = p instanceof ReadableStream, Q = p.body instanceof ReadableStream, G = y && p.locked || Q && p.body.locked, K = y ? p : p.body, x = G ? t : new Request(t, { ...t, body: K });
-    t.headers.get("x-serialized") ? f = await L$1(await x.text()) : (s == null ? void 0 : s.startsWith("multipart/form-data")) || (s == null ? void 0 : s.startsWith("application/x-www-form-urlencoded")) ? f.push(await x.formData()) : (s == null ? void 0 : s.startsWith("application/json")) && (f = await x.json());
-  }
+function Wr(e, t) {
+  const r = (e || "").split(";").filter((c) => typeof c == "string" && !!c.trim()), n = r.shift() || "", a = Xr(n), o = a.name;
+  let i = a.value;
   try {
-    let s = await provideRequestEvent(r, async () => (sharedConfig.context = { event: r }, r.locals.serverFunctionMeta = { id: c + "#" + d }, X(...f)));
-    if (a && o && (s = await _$1(r, s)), s instanceof Response) {
-      if (s.headers && s.headers.has("X-Content-Raw")) return s;
-      o && (s.headers && A$1(e, s.headers), s.status && (s.status < 300 || s.status >= 400) && $$1(e, s.status), s.customBody ? s = await s.customBody() : s.body == null && (s = null));
-    }
-    if (!o) return U$2(s, t, f);
-    return h(e, "x-serialized", "true"), h(e, "content-type", "text/javascript"), F$1(o, s);
-    return _t$1(s);
-  } catch (s) {
-    if (s instanceof Response) a && o && (s = await _$1(r, s)), s.headers && A$1(e, s.headers), s.status && (!o || s.status < 300 || s.status >= 400) && $$1(e, s.status), s.customBody ? s = s.customBody() : s.body == null && (s = null), h(e, "X-Error", "true");
-    else if (o) {
-      const p = s instanceof Error ? s.message : typeof s == "string" ? s : "true";
-      h(e, "X-Error", p.replace(/[\r\n]+/g, ""));
-    } else s = U$2(s, t, f, true);
-    return o ? (h(e, "x-serialized", "true"), h(e, "content-type", "text/javascript"), F$1(o, s)) : s;
+    i = (t == null ? void 0 : t.decode) === false ? i : ((t == null ? void 0 : t.decode) || decodeURIComponent)(i);
+  } catch {
   }
-}
-function U$2(e, r, t, n) {
-  const o = new URL(r.url), a = e instanceof Error;
-  let i = 302, c;
-  return e instanceof Response ? (c = new Headers(e.headers), e.headers.has("Location") && (c.set("Location", new URL(e.headers.get("Location"), o.origin + "").toString()), i = Ft$1(e))) : c = new Headers({ Location: new URL(r.headers.get("referer")).toString() }), e && c.append("Set-Cookie", `flash=${encodeURIComponent(JSON.stringify({ url: o.pathname + o.search, result: a ? e.message : e, thrown: n, error: a, input: [...t.slice(0, -1), [...t[t.length - 1].entries()]] }))}; Secure; HttpOnly;`), new Response(null, { status: i, headers: c });
-}
-let v;
-function It$1(e) {
-  var _a;
-  const r = new Headers(e.request.headers), t = Ge$1(e.nativeEvent), n = e.response.headers.getSetCookie();
-  r.delete("cookie");
-  let o = false;
-  return ((_a = e.nativeEvent.node) == null ? void 0 : _a.req) && (o = true, e.nativeEvent.node.req.headers.cookie = ""), n.forEach((a) => {
-    if (!a) return;
-    const { maxAge: i, expires: c, name: d, value: l } = parseSetCookie$1(a);
-    if (i != null && i <= 0) {
-      delete t[d];
-      return;
-    }
-    if (c != null && c.getTime() <= Date.now()) {
-      delete t[d];
-      return;
-    }
-    t[d] = l;
-  }), Object.entries(t).forEach(([a, i]) => {
-    r.append("cookie", `${a}=${i}`), o && (e.nativeEvent.node.req.headers.cookie += `${a}=${i};`);
-  }), r;
-}
-async function _$1(e, r) {
-  let t, n = new URL(e.request.headers.get("referer")).toString();
-  r instanceof Response && (r.headers.has("X-Revalidate") && (t = r.headers.get("X-Revalidate").split(",")), r.headers.has("Location") && (n = new URL(r.headers.get("Location"), new URL(e.request.url).origin + "").toString()));
-  const o = at$1(e);
-  return o.request = new Request(n, { headers: It$1(e) }), await provideRequestEvent(o, async () => {
-    await At$1(o), v || (v = (await import('../build/app-CSYErsz3.mjs')).default), o.router.dataOnly = t || true, o.router.previousUrl = e.request.headers.get("referer");
-    try {
-      renderToString(() => {
-        sharedConfig.context.event = o, v();
-      });
-    } catch (c) {
-      console.log(c);
-    }
-    const a = o.router.data;
-    if (!a) return r;
-    let i = false;
-    for (const c in a) a[c] === void 0 ? delete a[c] : i = true;
-    return i && (r instanceof Response ? r.customBody && (a._$value = r.customBody()) : (a._$value = r, r = new Response(null, { status: 200 })), r.customBody = () => a, r.headers.set("X-Single-Flight", "true")), r;
-  });
-}
-const Zt$1 = eventHandler(jt$2);
-
-const a = ["cocina", "bano", "isla", "barra"], s = [{ slug: "blanco-carrara", nombre: "White Carrara", tipo: "marmol", tono: "claro", veta: { es: "veta suave", en: "soft veining" }, dureza: "media", nivel: 2, desc: { es: "M\xE1rmol blanco perla con vetas grises suaves y plumosas, acabado honed sutil.", en: "Pearl-white marble with soft feathery gray veining, subtle honed finish." }, swatch: "/img/swatches/blanco-carrara", escenas: [...a] }, { slug: "calacatta-oro", nombre: "Calacatta Gold", tipo: "cuarzo", tono: "calido", veta: { es: "veta dram\xE1tica", en: "dramatic veining" }, dureza: "muy-alta", nivel: 3, desc: { es: "Cuarzo blanco c\xE1lido con vetas doradas y grises dram\xE1ticas en diagonal.", en: "Warm white quartz with bold dramatic gold and gray diagonal veins." }, swatch: "/img/swatches/calacatta-oro", escenas: [...a] }, { slug: "blue-dunes", nombre: "Blue Dunes", tipo: "granito", tono: "medio", veta: { es: "bandeado fluido", en: "flowing bands" }, dureza: "muy-alta", nivel: 3, desc: { es: "Granito ex\xF3tico con bandas fluidas de gris, taupe y arena que cruzan la losa en diagonal, salpicado de cristales plateados.", en: "Exotic granite with flowing bands of grey, taupe and sand crossing the slab diagonally, flecked with silver crystals." }, swatch: "/img/swatches/blue-dunes", escenas: [...a] }, { slug: "smithtown", nombre: "Smithtown", tipo: "cuarzo", tono: "claro", veta: { es: "veta gris difusa", en: "diffuse grey veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco brillante con una red de vetas grises finas y una veta central m\xE1s marcada, estilo m\xE1rmol.", en: "Bright white quartz with a network of fine grey veins and a bolder central vein, marble look." }, swatch: "/img/swatches/smithtown", escenas: [...a] }, { slug: "luna-pearl", nombre: "Luna Pearl", tipo: "granito", tono: "claro", veta: { es: "moteado gris y negro", en: "grey and black speckling" }, dureza: "muy-alta", nivel: 1, desc: { es: "Granito Luna Pearl con moteado uniforme en blanco, gris y perla salpicado de peque\xF1os puntos negros; un cl\xE1sico vers\xE1til.", en: "Luna Pearl granite with uniform white, grey and pearl speckling flecked with small black dots; a versatile classic." }, swatch: "/img/swatches/luna-pearl", escenas: [...a] }, { slug: "taj-mahal", nombre: "Taj Mahal", tipo: "cuarzo", tono: "calido", veta: { es: "veta dorada suave", en: "soft golden veining" }, dureza: "muy-alta", nivel: 3, desc: { es: "Taj Mahal Quartz en crema c\xE1lido con vetas doradas y grises suaves; elegancia serena y alt\xEDsima resistencia.", en: "Taj Mahal Quartz in warm cream with soft golden and grey veining; serene elegance and very high durability." }, swatch: "/img/swatches/taj-mahal", escenas: [...a] }, { slug: "black-galaxy", nombre: "Black Galaxy", tipo: "granito", tono: "oscuro", veta: { es: "destellos dorados", en: "gold flecks" }, dureza: "muy-alta", nivel: 2, desc: { es: "Granito Black Galaxy negro profundo con destellos dorados y cobrizos que brillan como estrellas; dram\xE1tico y atemporal.", en: "Deep black Black Galaxy granite with gold and copper flecks that sparkle like stars; dramatic and timeless." }, swatch: "/img/swatches/black-galaxy", escenas: [...a] }, { slug: "black-pearl", nombre: "Black Pearl", tipo: "granito", tono: "oscuro", veta: { es: "grano fino", en: "fine grain" }, dureza: "muy-alta", nivel: 2, desc: { es: "Granito Black Pearl negro profundo y uniforme con un grano mineral fino y destellos plateados sutiles; elegante y discreto.", en: "Deep uniform black Black Pearl granite with a fine mineral grain and subtle silver shimmer; elegant and understated." }, swatch: "/img/swatches/black-pearl", escenas: [] }, { slug: "valiant-avila", nombre: "Valiant Avila", tipo: "cuarzo", tono: "claro", veta: { es: "veta gris suave", en: "soft grey veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con vetas grises suaves y difusas; limpio y luminoso.", en: "White quartz with soft diffuse grey veining; clean and luminous." }, swatch: "/img/swatches/valiant-avila", escenas: [] }, { slug: "cincinnati", nombre: "Cincinnati", tipo: "cuarzo", tono: "claro", veta: { es: "veta fina", en: "fine veining" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con una red de vetas grises finas; estilo m\xE1rmol contempor\xE1neo.", en: "White quartz with a network of fine grey veins; contemporary marble look." }, swatch: "/img/swatches/cincinnati", escenas: [] }, { slug: "bay-shore", nombre: "Bay Shore", tipo: "cuarzo", tono: "claro", veta: { es: "moteado suave", en: "soft speckling" }, dureza: "muy-alta", nivel: 2, desc: { es: "Cuarzo blanco con moteado y vetas suaves en gris c\xE1lido; sereno y vers\xE1til.", en: "White quartz with soft warm-grey speckling and veining; serene and versatile." }, swatch: "/img/swatches/bay-shore", escenas: [] }, { slug: "fantasy-brown", nombre: "Fantasy Brown", tipo: "marmol", tono: "medio", veta: { es: "veta marr\xF3n fluida", en: "flowing brown veining" }, dureza: "alta", nivel: 3, desc: { es: "M\xE1rmol Fantasy Brown con ondas fluidas de gris, marr\xF3n y crema; movimiento natural y c\xE1lido.", en: "Fantasy Brown marble with flowing waves of grey, brown and cream; warm natural movement." }, swatch: "/img/swatches/fantasy-brown", escenas: [] }];
-async function o() {
-  return s;
-}
-async function t(e) {
-  return (await o()).find((n) => n.slug === e);
-}
-async function i() {
-  return [];
-}
-
-function We() {
-  let t = /* @__PURE__ */ new Set();
-  function r(o) {
-    return t.add(o), () => t.delete(o);
-  }
-  let e = false;
-  function n(o, a) {
-    if (e) return !(e = false);
-    const s = { to: o, options: a, defaultPrevented: false, preventDefault: () => s.defaultPrevented = true };
-    for (const l of t) l.listener({ ...s, from: l.location, retry: (p) => {
-      p && (e = true), l.navigate(o, { ...a, resolve: false });
-    } });
-    return !s.defaultPrevented;
-  }
-  return { subscribe: r, confirm: n };
-}
-let U$1;
-function me() {
-  (!window.history.state || window.history.state._depth == null) && window.history.replaceState({ ...window.history.state, _depth: window.history.length - 1 }, ""), U$1 = window.history.state._depth;
-}
-isServer || me();
-function bt$1(t) {
-  return { ...t, _depth: window.history.state && window.history.state._depth };
-}
-function wt$1(t, r) {
-  let e = false;
-  return () => {
-    const n = U$1;
-    me();
-    const o = n == null ? null : U$1 - n;
-    if (e) {
-      e = false;
-      return;
-    }
-    o && r(o) ? (e = true, window.history.go(-o)) : t();
-  };
-}
-const ke = /^(?:[a-z0-9]+:)?\/\//i, _e = /^\/+|(\/)\/+$/g, Ke = "http://sr";
-function q(t, r = false) {
-  const e = t.replace(_e, "$1");
-  return e ? r || /^[?#]/.test(e) ? e : "/" + e : "";
-}
-function _(t, r, e) {
-  if (ke.test(r)) return;
-  const n = q(t), o = e && q(e);
-  let a = "";
-  return !o || r.startsWith("/") ? a = n : o.toLowerCase().indexOf(n.toLowerCase()) !== 0 ? a = n + o : a = o, (a || "/") + q(r, !a);
-}
-function He(t, r) {
-  if (t == null) throw new Error(r);
-  return t;
-}
-function Ve(t, r) {
-  return q(t).replace(/\/*(\*.*)?$/g, "") + q(r);
-}
-function ge(t) {
-  const r = {};
-  return t.searchParams.forEach((e, n) => {
-    n in r ? Array.isArray(r[n]) ? r[n].push(e) : r[n] = [r[n], e] : r[n] = e;
-  }), r;
-}
-function De(t, r, e) {
-  const [n, o] = t.split("/*", 2), a = n.split("/").filter(Boolean), s = a.length;
-  return (l) => {
-    const p = l.split("/").filter(Boolean), f = p.length - s;
-    if (f < 0 || f > 0 && o === void 0 && !r) return null;
-    const i = { path: s ? "" : "/", params: {} }, c = (g) => e === void 0 ? void 0 : e[g];
-    for (let g = 0; g < s; g++) {
-      const u = a[g], y = u[0] === ":", h = y ? p[g] : p[g].toLowerCase(), v = y ? u.slice(1) : u.toLowerCase();
-      if (y && D(h, c(v))) i.params[v] = h;
-      else if (y || !D(h, v)) return null;
-      i.path += `/${h}`;
-    }
-    if (o) {
-      const g = f ? p.slice(-f).join("/") : "";
-      if (D(g, c(o))) i.params[o] = g;
-      else return null;
-    }
-    return i;
-  };
-}
-function D(t, r) {
-  const e = (n) => n === t;
-  return r === void 0 ? true : typeof r == "string" ? e(r) : typeof r == "function" ? r(t) : Array.isArray(r) ? r.some(e) : r instanceof RegExp ? r.test(t) : false;
-}
-function Ge(t) {
-  const [r, e] = t.pattern.split("/*", 2), n = r.split("/").filter(Boolean);
-  return n.reduce((o, a) => o + (a.startsWith(":") ? 2 : 3), n.length - (e === void 0 ? 0 : 1));
-}
-function ye(t) {
-  const r = /* @__PURE__ */ new Map(), e = getOwner();
-  return new Proxy({}, { get(n, o) {
-    return r.has(o) || runWithOwner(e, () => r.set(o, createMemo(() => t()[o]))), r.get(o)();
-  }, getOwnPropertyDescriptor() {
-    return { enumerable: true, configurable: true };
-  }, ownKeys() {
-    return Reflect.ownKeys(t());
-  }, has(n, o) {
-    return o in t();
-  } });
-}
-function Ue(t, r) {
-  const e = new URLSearchParams(t);
-  Object.entries(r).forEach(([o, a]) => {
-    a == null || a === "" || a instanceof Array && !a.length ? e.delete(o) : a instanceof Array ? (e.delete(o), a.forEach((s) => {
-      e.append(o, String(s));
-    })) : e.set(o, String(a));
-  });
-  const n = e.toString();
-  return n ? `?${n}` : "";
-}
-function ve(t) {
-  let r = /(\/?\:[^\/]+)\?/.exec(t);
-  if (!r) return [t];
-  let e = t.slice(0, r.index), n = t.slice(r.index + r[0].length);
-  const o = [e, e += r[1]];
-  for (; r = /^(\/\:[^\/]+)\?/.exec(n); ) o.push(e += r[1]), n = n.slice(r[0].length);
-  return ve(n).reduce((a, s) => [...a, ...o.map((l) => l + s)], []);
-}
-const Qe = 100, Ye = createContext$1(), be = createContext$1(), $ = () => He(useContext(Ye), "<A> and 'use' router primitives can be only used inside a Route."), Je = () => useContext(be) || $().base, Pt$1 = (t) => {
-  const r = Je();
-  return createMemo(() => r.resolvePath(t()));
-}, Et$1 = (t) => {
-  const r = $();
-  return createMemo(() => {
-    const e = t();
-    return e !== void 0 ? r.renderPath(e) : e;
-  });
-}, we = () => $().navigatorFactory(), Xe = () => $().location, Ct$1 = () => $().params, xt$1 = () => {
-  const t = Xe(), r = we(), e = (n, o) => {
-    const a = untrack(() => Ue(t.search, n) + t.hash);
-    r(a, { scroll: false, resolve: false, ...o });
-  };
-  return [t.query, e];
-};
-function Ze(t, r = "") {
-  const { component: e, preload: n, load: o, children: a, info: s } = t, l = !a || Array.isArray(a) && !a.length, p = { key: t, component: e, preload: n || o, info: s };
-  return Pe(t.path).reduce((f, i) => {
-    for (const c of ve(i)) {
-      const g = Ve(r, c);
-      let u = l ? g : g.split("/*", 1)[0];
-      u = u.split("/").map((y) => y.startsWith(":") || y.startsWith("*") ? y : encodeURIComponent(y)).join("/"), f.push({ ...p, originalPath: i, pattern: u, matcher: De(u, !l, t.matchFilters) });
-    }
-    return f;
-  }, []);
-}
-function et(t, r = 0) {
-  return { routes: t, score: Ge(t[t.length - 1]) * 1e4 - r, matcher(e) {
-    const n = [];
-    for (let o = t.length - 1; o >= 0; o--) {
-      const a = t[o], s = a.matcher(e);
-      if (!s) return null;
-      n.unshift({ ...s, route: a });
-    }
-    return n;
-  } };
-}
-function Pe(t) {
-  return Array.isArray(t) ? t : [t];
-}
-function tt(t, r = "", e = [], n = []) {
-  const o = Pe(t);
-  for (let a = 0, s = o.length; a < s; a++) {
-    const l = o[a];
-    if (l && typeof l == "object") {
-      l.hasOwnProperty("path") || (l.path = "");
-      const p = Ze(l, r);
-      for (const f of p) {
-        e.push(f);
-        const i = Array.isArray(l.children) && l.children.length === 0;
-        if (l.children && !i) tt(l.children, f.pattern, e, n);
-        else {
-          const c = et([...e], n.length);
-          n.push(c);
-        }
-        e.pop();
-      }
-    }
-  }
-  return e.length ? n : n.sort((a, s) => s.score - a.score);
-}
-function G$1(t, r) {
-  for (let e = 0, n = t.length; e < n; e++) {
-    const o = t[e].matcher(r);
-    if (o) return o;
-  }
-  return [];
-}
-function rt(t, r, e) {
-  const n = new URL(Ke), o = createMemo((i) => {
-    const c = t();
-    try {
-      return new URL(c, n);
-    } catch {
-      return console.error(`Invalid path ${c}`), i;
-    }
-  }, n, { equals: (i, c) => i.href === c.href }), a = createMemo(() => o().pathname), s = createMemo(() => o().search, true), l = createMemo(() => o().hash), p = () => "", f = on(s, () => ge(o()));
-  return { get pathname() {
-    return a();
-  }, get search() {
-    return s();
-  }, get hash() {
-    return l();
-  }, get state() {
-    return r();
-  }, get key() {
-    return p();
-  }, query: e ? e(f) : ye(f) };
-}
-let O$1;
-function nt() {
-  return O$1;
-}
-let I = false;
-function ot() {
-  return I;
-}
-function Tt$1(t) {
-  I = t;
-}
-function Ot$1(t, r, e, n = {}) {
-  const { signal: [o, a], utils: s = {} } = t, l = s.parsePath || ((d) => d), p = s.renderPath || ((d) => d), f = s.beforeLeave || We(), i = _("", n.base || "");
-  if (i === void 0) throw new Error(`${i} is not a valid base path`);
-  i && !o().value && a({ value: i, replace: true, scroll: false });
-  const [c, g] = createSignal(false);
-  let u;
-  const y = (d, m) => {
-    m.value === h() && m.state === w() || (u === void 0 && g(true), O$1 = d, u = m, startTransition(() => {
-      u === m && (v(u.value), R(u.state), resetErrorBoundaries(), isServer || X[1]((P) => P.filter((M) => M.pending)));
-    }).finally(() => {
-      u === m && batch(() => {
-        O$1 = void 0, d === "navigate" && Re(u), g(false), u = void 0;
-      });
-    }));
-  }, [h, v] = createSignal(o().value), [w, R] = createSignal(o().state), x = rt(h, w, s.queryWrapper), T = [], X = createSignal(isServer ? Le() : []), Z = createMemo(() => typeof n.transformUrl == "function" ? G$1(r(), n.transformUrl(x.pathname)) : G$1(r(), x.pathname)), ee = () => {
-    const d = Z(), m = {};
-    for (let P = 0; P < d.length; P++) Object.assign(m, d[P].params);
-    return m;
-  }, Oe = s.paramsWrapper ? s.paramsWrapper(ee, r) : ye(ee), te = { pattern: i, path: () => i, outlet: () => null, resolvePath(d) {
-    return _(i, d);
-  } };
-  return createRenderEffect(on(o, (d) => y("native", d), { defer: true })), { base: te, location: x, params: Oe, isRouting: c, renderPath: p, parsePath: l, navigatorFactory: je, matches: Z, beforeLeave: f, preloadRoute: Me, singleFlight: n.singleFlight === void 0 ? true : n.singleFlight, submissions: X };
-  function Se(d, m, P) {
-    untrack(() => {
-      if (typeof m == "number") {
-        m && (s.go ? s.go(m) : console.warn("Router integration does not support relative routing"));
-        return;
-      }
-      const M = !m || m[0] === "?", { replace: F, resolve: L, scroll: W, state: z } = { replace: false, resolve: !M, scroll: true, ...P }, A = L ? d.resolvePath(m) : _(M && x.pathname || "", m);
-      if (A === void 0) throw new Error(`Path '${m}' is not a routable path`);
-      if (T.length >= Qe) throw new Error("Too many redirects");
-      const re = h();
-      if (A !== re || z !== w()) if (isServer) {
-        const ne = getRequestEvent();
-        ne && (ne.response = { status: 302, headers: new Headers({ Location: A }) }), a({ value: A, replace: F, scroll: W, state: z });
-      } else f.confirm(A, P) && (T.push({ value: re, replace: F, scroll: W, state: w() }), y("navigate", { value: A, state: z }));
-    });
-  }
-  function je(d) {
-    return d = d || useContext(be) || te, (m, P) => Se(d, m, P);
-  }
-  function Re(d) {
-    const m = T[0];
-    m && (a({ ...d, replace: m.replace, scroll: m.scroll }), T.length = 0);
-  }
-  function Me(d, m) {
-    const P = G$1(r(), d.pathname), M = O$1;
-    O$1 = "preload";
-    for (let F in P) {
-      const { route: L, params: W } = P[F];
-      L.component && L.component.preload && L.component.preload();
-      const { preload: z } = L;
-      I = true, m && z && runWithOwner(e(), () => z({ params: W, location: { pathname: d.pathname, search: d.search, hash: d.hash, query: ge(d), state: null, key: "" }, intent: "preload" })), I = false;
-    }
-    O$1 = M;
-  }
-  function Le() {
-    const d = getRequestEvent();
-    return d && d.router && d.router.submission ? [d.router.submission] : [];
-  }
-}
-function St$1(t, r, e, n) {
-  const { base: o, location: a, params: s } = t, { pattern: l, component: p, preload: f } = n().route, i = createMemo(() => n().path);
-  p && p.preload && p.preload(), I = true;
-  const c = f ? f({ params: s, location: a, intent: O$1 || "initial" }) : void 0;
-  return I = false, { parent: r, pattern: l, path: i, outlet: () => p ? createComponent(p, { params: s, location: a, data: c, get children() {
-    return e();
-  } }) : e(), resolvePath(u) {
-    return _(o.path(), u, i());
-  } };
-}
-const at = "Location", st = 5e3, it = 18e4;
-let Q$1 = /* @__PURE__ */ new Map();
-isServer || setInterval(() => {
-  const t = Date.now();
-  for (let [r, e] of Q$1.entries()) !e[4].count && t - e[0] > it && Q$1.delete(r);
-}, 3e5);
-function B$1() {
-  if (!isServer) return Q$1;
-  const t = getRequestEvent();
-  if (!t) throw new Error("Cannot find cache context");
-  return (t.router || (t.router = {})).cache || (t.router.cache = /* @__PURE__ */ new Map());
-}
-function V$1(t, r) {
-  t.GET && (t = t.GET);
-  const e = (...n) => {
-    const o = B$1(), a = nt(), s = ot(), p = getOwner() ? we() : void 0, f = Date.now(), i = r + ie$1(n);
-    let c = o.get(i), g;
-    if (isServer) {
-      const h = getRequestEvent();
-      if (h) {
-        const v = (h.router || (h.router = {})).dataOnly;
-        if (v) {
-          const w = h && (h.router.data || (h.router.data = {}));
-          if (w && i in w) return w[i];
-          if (Array.isArray(v) && !ct(i, v)) return w[i] = void 0, Promise.resolve();
-        }
-      }
-    }
-    if (getListener() && !isServer && (g = true, onCleanup(() => c[4].count--)), c && c[0] && (isServer || a === "native" || c[4].count || Date.now() - c[0] < st)) {
-      g && (c[4].count++, c[4][0]()), c[3] === "preload" && a !== "preload" && (c[0] = f);
-      let h = c[1];
-      return a !== "preload" && (h = "then" in c[1] ? c[1].then(y(false), y(true)) : y(false)(c[1]), !isServer && a === "navigate" && startTransition(() => c[4][1](c[0]))), s && "then" in h && h.catch(() => {
-      }), h;
-    }
-    let u;
-    if (!isServer && sharedConfig.has && sharedConfig.has(i) ? (u = sharedConfig.load(i), delete globalThis._$HY.r[i]) : u = t(...n), c ? (c[0] = f, c[1] = u, c[3] = a, !isServer && a === "navigate" && startTransition(() => c[4][1](c[0]))) : (o.set(i, c = [f, u, , a, createSignal(f)]), c[4].count = 0), g && (c[4].count++, c[4][0]()), isServer) {
-      const h = getRequestEvent();
-      if (h && h.router.dataOnly) return h.router.data[i] = u;
-    }
-    if (a !== "preload" && (u = "then" in u ? u.then(y(false), y(true)) : y(false)(u)), s && "then" in u && u.catch(() => {
-    }), isServer && sharedConfig.context && sharedConfig.context.async && !sharedConfig.context.noHydrate) {
-      const h = getRequestEvent();
-      (!h || !h.serverOnly) && sharedConfig.context.serialize(i, u);
-    }
-    return u;
-    function y(h) {
-      return async (v) => {
-        if (v instanceof Response) {
-          const w = getRequestEvent();
-          if (w) for (const [x, T] of v.headers) x == "set-cookie" ? w.response.headers.append("set-cookie", T) : w.response.headers.set(x, T);
-          const R = v.headers.get(at);
-          if (R !== null) {
-            p && R.startsWith("/") ? startTransition(() => {
-              p(R, { replace: true });
-            }) : isServer ? w && (w.response.status = 302) : window.location.href = R;
-            return;
-          }
-          v.customBody && (v = await v.customBody());
-        }
-        if (h) throw v;
-        return c[2] = v, v;
-      };
-    }
-  };
-  return e.keyFor = (...n) => r + ie$1(n), e.key = r, e;
-}
-V$1.get = (t) => B$1().get(t)[2];
-V$1.set = (t, r) => {
-  const e = B$1(), n = Date.now();
-  let o = e.get(t);
-  o ? (o[0] = n, o[1] = Promise.resolve(r), o[2] = r, o[3] = "preload") : (e.set(t, o = [n, Promise.resolve(r), r, "preload", createSignal(n)]), o[4].count = 0);
-};
-V$1.delete = (t) => B$1().delete(t);
-V$1.clear = () => B$1().clear();
-function ct(t, r) {
-  for (let e of r) if (e && t.startsWith(e)) return true;
-  return false;
-}
-function ie$1(t) {
-  return JSON.stringify(t, (r, e) => lt$1(e) ? Object.keys(e).sort().reduce((n, o) => (n[o] = e[o], n), {}) : e);
-}
-function lt$1(t) {
-  let r;
-  return t != null && typeof t == "object" && (!(r = Object.getPrototypeOf(t)) || r === Object.prototype);
-}
-const Ee = createContext$1(), Ce = ["title", "meta"], Y$1 = [], J$1 = ["name", "http-equiv", "content", "charset", "media"].concat(["property"]), K$1 = (t, r) => {
-  const e = Object.fromEntries(Object.entries(t.props).filter(([n]) => r.includes(n)).sort());
-  return (Object.hasOwn(e, "name") || Object.hasOwn(e, "property")) && (e.name = e.name || e.property, delete e.property), t.tag + JSON.stringify(e);
-};
-function ut() {
-  if (!sharedConfig.context) {
-    const e = document.head.querySelectorAll("[data-sm]");
-    Array.prototype.forEach.call(e, (n) => n.parentNode.removeChild(n));
-  }
-  const t = /* @__PURE__ */ new Map();
-  function r(e) {
-    if (e.ref) return e.ref;
-    let n = document.querySelector(`[data-sm="${e.id}"]`);
-    return n ? (n.tagName.toLowerCase() !== e.tag && (n.parentNode && n.parentNode.removeChild(n), n = document.createElement(e.tag)), n.removeAttribute("data-sm")) : n = document.createElement(e.tag), n;
-  }
-  return { addTag(e) {
-    if (Ce.indexOf(e.tag) !== -1) {
-      const a = e.tag === "title" ? Y$1 : J$1, s = K$1(e, a);
-      t.has(s) || t.set(s, []);
-      let l = t.get(s), p = l.length;
-      l = [...l, e], t.set(s, l);
-      let f = r(e);
-      e.ref = f, spread(f, e.props);
-      let i = null;
-      for (var n = p - 1; n >= 0; n--) if (l[n] != null) {
-        i = l[n];
+  const u = { name: o, value: i };
+  for (const c of r) {
+    const l = c.split("="), p = (l.shift() || "").trimStart().toLowerCase(), d = l.join("=");
+    switch (p) {
+      case "expires": {
+        u.expires = new Date(d);
         break;
       }
-      return f.parentNode != document.head && document.head.appendChild(f), i && i.ref && i.ref.parentNode && document.head.removeChild(i.ref), p;
+      case "max-age": {
+        u.maxAge = Number.parseInt(d, 10);
+        break;
+      }
+      case "secure": {
+        u.secure = true;
+        break;
+      }
+      case "httponly": {
+        u.httpOnly = true;
+        break;
+      }
+      case "samesite": {
+        u.sameSite = d;
+        break;
+      }
+      default:
+        u[p] = d;
     }
-    let o = r(e);
-    return e.ref = o, spread(o, e.props), o.parentNode != document.head && document.head.appendChild(o), -1;
-  }, removeTag(e, n) {
-    const o = e.tag === "title" ? Y$1 : J$1, a = K$1(e, o);
-    if (e.ref) {
-      const s = t.get(a);
-      if (s) {
-        if (e.ref.parentNode) {
-          e.ref.parentNode.removeChild(e.ref);
-          for (let l = n - 1; l >= 0; l--) s[l] != null && document.head.appendChild(s[l].ref);
-        }
-        s[n] = null, t.set(a, s);
-      } else e.ref.parentNode && e.ref.parentNode.removeChild(e.ref);
-    }
-  } };
+  }
+  return u;
 }
-function dt$1() {
-  const t = [];
-  return useAssets(() => ssr(ht$1(t))), { addTag(r) {
-    if (Ce.indexOf(r.tag) !== -1) {
-      const e = r.tag === "title" ? Y$1 : J$1, n = K$1(r, e), o = t.findIndex((a) => a.tag === r.tag && K$1(a, e) === n);
-      o !== -1 && t.splice(o, 1);
-    }
-    return t.push(r), t.length;
-  }, removeTag(r, e) {
-  } };
+function Xr(e) {
+  let t = "", r = "";
+  const n = e.split("=");
+  return n.length > 1 ? (t = n.shift(), r = n.join("=")) : r = e, { name: t, value: r };
 }
-const jt$1 = (t) => {
-  const r = isServer ? dt$1() : ut();
-  return createComponent$1(Ee.Provider, { value: r, get children() {
-    return t.children;
-  } });
-}, xe = (t, r, e) => (ft$1({ tag: t, props: r, setting: e, id: createUniqueId(), get name() {
-  return r.name || r.property;
-} }), null);
-function ft$1(t) {
-  const r = useContext(Ee);
-  if (!r) throw new Error("<MetaProvider /> should be in the tree");
-  createRenderEffect(() => {
-    const e = r.addTag(t);
-    onCleanup(() => r.removeTag(t, e));
-  });
-}
-function ht$1(t) {
-  return t.map((r) => {
-    var _a, _b;
-    const n = Object.keys(r.props).map((a) => a === "children" ? "" : ` ${a}="${escape(r.props[a], true)}"`).join("");
-    let o = r.props.children;
-    return Array.isArray(o) && (o = o.join("")), ((_a = r.setting) == null ? void 0 : _a.close) ? `<${r.tag} data-sm="${r.id}"${n}>${((_b = r.setting) == null ? void 0 : _b.escape) ? escape(o) : o || ""}</${r.tag}>` : `<${r.tag} data-sm="${r.id}"${n}/>`;
-  }).join("");
-}
-const Rt$1 = (t) => xe("title", t, { escape: true, close: true }), Mt$1 = (t) => xe("meta", t), pt$1 = { valores: { tipo: { granito: "Granito", cuarzo: "Cuarzo", marmol: "M\xE1rmol", cuarcita: "Cuarcita" }, tono: { claro: "Claro", medio: "Medio", oscuro: "Oscuro", calido: "C\xE1lido" }, dureza: { media: "Media", alta: "Alta", "muy-alta": "Muy alta" } }, nav: { inicio: "Inicio", materiales: "Materiales", trabajos: "Trabajos", cotizacion: "Cotizaci\xF3n" }, footer: { lema: "Encimeras de granito y cuarzo en Louisville, KY", contacto: "Contacto", derechos: "Todos los derechos reservados" }, home: { titulo: "La piedra que transforma tu espacio", tituloL1: "La piedra que", tituloL2: "transforma tu espacio", subtitulo: "Granito, cuarzo y m\xE1rmol seleccionados a mano, fabricados e instalados por expertos en Louisville.", cta: "Pide tu cotizaci\xF3n", verMateriales: "Ver materiales" }, cotizacion: { titulo: "Pide tu cotizaci\xF3n", intro: "Cu\xE9ntanos de tu proyecto y te contactamos el mismo d\xEDa h\xE1bil. Sin compromiso.", nombre: "Nombre", telefono: "Tel\xE9fono", tipoProyecto: "Tipo de proyecto", tipos: { cocina: "Cocina", bano: "Ba\xF1o", isla: "Isla", barra: "Barra", otro: "Otro" }, material: "Material de inter\xE9s (opcional)", sinPreferencia: "Sin preferencia", mensaje: "Cu\xE9ntanos m\xE1s (opcional)", enviar: "Enviar solicitud", enviando: "Enviando\u2026", exito: "\xA1Recibido! Te contactamos pronto.", errorEnvio: "No pudimos enviar tu solicitud en este momento. Ll\xE1manos o escr\xEDbenos y te atendemos al instante.", errorNombre: "Escribe tu nombre", errorTelefono: "Escribe un tel\xE9fono v\xE1lido" }, catalogo: { titulo: "Materiales", intro: "Cada losa es \xFAnica. Estas son las familias que trabajamos; vis\xEDtanos para ver el inventario actual.", verEnEscena: "Ver en escena", detalleCta: "\xBFTe gusta esta piedra? Pide tu cotizaci\xF3n", disponibleEn: "Disponible en el visualizador" }, trabajos: { titulo: "Trabajos", destacados: "Trabajos recientes", verTodos: "Ver todos los trabajos", intro: "Proyectos fabricados e instalados por nuestro equipo en Louisville.", filtroMaterial: "Material", filtroEspacio: "Espacio", todos: "Todos", vacio: "Estamos fotografiando nuestros proyectos recientes. Vuelve pronto \u2014 o visita el showroom.", noResultados: "Sin proyectos con esos filtros." }, visualizador: { titulo: "Visualiza tu espacio", escenas: { cocina: "Cocina", bano: "Ba\xF1o", isla: "Isla", barra: "Barra" }, proximamente: "Foto pr\xF3ximamente", tipo: "Tipo", tono: "Tono", veta: "Veta", dureza: "Dureza", inversion: "Inversi\xF3n" } }, mt$1 = { valores: { tipo: { granito: "Granite", cuarzo: "Quartz", marmol: "Marble", cuarcita: "Quartzite" }, tono: { claro: "Light", medio: "Medium", oscuro: "Dark", calido: "Warm" }, dureza: { media: "Medium", alta: "High", "muy-alta": "Very high" } }, nav: { inicio: "Home", materiales: "Materials", trabajos: "Our Work", cotizacion: "Free Quote" }, footer: { lema: "Granite & quartz countertops in Louisville, KY", contacto: "Contact", derechos: "All rights reserved" }, home: { titulo: "Stone that transforms your space", tituloL1: "Stone that", tituloL2: "transforms your space", subtitulo: "Hand-selected granite, quartz and marble, fabricated and installed by experts in Louisville.", cta: "Get your free quote", verMateriales: "Browse materials" }, cotizacion: { titulo: "Get your free quote", intro: "Tell us about your project and we'll reach out the same business day. No commitment.", nombre: "Name", telefono: "Phone", tipoProyecto: "Project type", tipos: { cocina: "Kitchen", bano: "Bathroom", isla: "Island", barra: "Bar", otro: "Other" }, material: "Material of interest (optional)", sinPreferencia: "No preference", mensaje: "Tell us more (optional)", enviar: "Send request", enviando: "Sending\u2026", exito: "Received! We'll be in touch soon.", errorEnvio: "We couldn't send your request right now. Call or text us and we'll help you right away.", errorNombre: "Enter your name", errorTelefono: "Enter a valid phone number" }, catalogo: { titulo: "Materials", intro: "Every slab is unique. These are the families we work with; visit us to see current inventory.", verEnEscena: "See it in a room", detalleCta: "Love this stone? Get your free quote", disponibleEn: "Available in the visualizer" }, trabajos: { titulo: "Our Work", destacados: "Recent projects", verTodos: "See all projects", intro: "Projects fabricated and installed by our team in Louisville.", filtroMaterial: "Material", filtroEspacio: "Space", todos: "All", vacio: "We're photographing our recent projects. Check back soon \u2014 or visit the showroom.", noResultados: "No projects match those filters." }, visualizador: { titulo: "Visualize your space", escenas: { cocina: "Kitchen", bano: "Bathroom", isla: "Island", barra: "Bar" }, proximamente: "Photo coming soon", tipo: "Type", tono: "Tone", veta: "Veining", dureza: "Hardness", inversion: "Investment" } }, gt$1 = { es: pt$1, en: mt$1 }, Te = createContext$1();
-function Lt$1(t) {
-  const [r, e] = createSignal("es");
-  onMount(() => {
-    localStorage.getItem("lang") === "en" && (e("en"), document.documentElement.lang = "en");
-  });
-  const n = createMemo(() => se.flatten(gt$1[r()])), o = se.translator(n), a = (s) => {
-    e(s), isServer || (localStorage.setItem("lang", s), document.documentElement.lang = s);
+function Gr(e = {}) {
+  let t, r = false;
+  const n = (i) => {
+    if (t && t !== i) throw new Error("Context conflict");
   };
-  return createComponent$1(Te.Provider, { value: { lang: r, setLang: a, t: o }, get children() {
-    return t.children;
-  } });
+  let a;
+  if (e.asyncContext) {
+    const i = e.AsyncLocalStorage || globalThis.AsyncLocalStorage;
+    i ? a = new i() : console.warn("[unctx] `AsyncLocalStorage` is not provided.");
+  }
+  const o = () => {
+    if (a) {
+      const i = a.getStore();
+      if (i !== void 0) return i;
+    }
+    return t;
+  };
+  return { use: () => {
+    const i = o();
+    if (i === void 0) throw new Error("Context is not available");
+    return i;
+  }, tryUse: () => o(), set: (i, u) => {
+    u || n(i), t = i, r = true;
+  }, unset: () => {
+    t = void 0, r = false;
+  }, call: (i, u) => {
+    n(i), t = i;
+    try {
+      return a ? a.run(i, u) : u();
+    } finally {
+      r || (t = void 0);
+    }
+  }, async callAsync(i, u) {
+    t = i;
+    const c = () => {
+      t = i;
+    }, l = () => t === i ? c : void 0;
+    qe$1.add(l);
+    try {
+      const p = a ? a.run(i, u) : u();
+      return r || (t = void 0), await p;
+    } finally {
+      qe$1.delete(l);
+    }
+  } };
 }
-function zt$1() {
-  const t = useContext(Te);
-  if (!t) throw new Error("useI18n fuera de I18nProvider");
-  return t;
+function Jr(e = {}) {
+  const t = {};
+  return { get(r, n = {}) {
+    return t[r] || (t[r] = Gr({ ...e, ...n })), t[r];
+  } };
 }
-
-function A(t) {
-  t = mergeProps$1({ inactiveClass: "inactive", activeClass: "active" }, t);
-  const [, r] = splitProps(t, ["href", "state", "class", "activeClass", "inactiveClass", "end"]), i = Pt$1(() => t.href), o = Et$1(i), l = Xe(), a = createMemo(() => {
-    const n = i();
-    if (n === void 0) return [false, false];
-    const e = q(n.split(/[?#]/, 1)[0]).toLowerCase(), s = decodeURI(q(l.pathname).toLowerCase());
-    return [t.end ? e === s : s.startsWith(e + "/") || s === e, e === s];
-  });
-  return ssrElement("a", mergeProps(r, { get href() {
-    return o() || t.href;
-  }, get state() {
-    return JSON.stringify(t.state);
-  }, get classList() {
-    return { ...t.class && { [t.class]: true }, [t.inactiveClass]: !a()[0], [t.activeClass]: a()[0], ...r.classList };
-  }, link: true, get "aria-current"() {
-    return a()[1] ? "page" : void 0;
-  } }), void 0, true);
-}
-
-const u = isServer ? (t) => {
-  const e = getRequestEvent();
-  return e.response.status = t.code, e.response.statusText = t.text, onCleanup(() => !e.nativeEvent.handled && !e.complete && (e.response.status = 200)), null;
-} : (t) => null;
-
-var __defProp = Object.defineProperty;
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __publicField = (obj, key, value) => __defNormalProp(obj, key + "" , value);
-function lt(e) {
+const oe = typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : typeof global < "u" ? global : {}, Ne$1 = "__unctx__", Yr = oe[Ne$1] || (oe[Ne$1] = Jr()), Kr = (e, t = {}) => Yr.get(e, t), Fe$1 = "__unctx_async_handlers__", qe$1 = oe[Fe$1] || (oe[Fe$1] = /* @__PURE__ */ new Set());
+function Qr(e) {
   let t;
-  const r = ae(e), s = { duplex: "half", method: e.method, headers: e.headers };
-  return e.node.req.body instanceof ArrayBuffer ? new Request(r, { ...s, body: e.node.req.body }) : new Request(r, { ...s, get body() {
-    return t || (t = wt(e), t);
+  const r = yt(e), n = { duplex: "half", method: e.method, headers: e.headers };
+  return e.node.req.body instanceof ArrayBuffer ? new Request(r, { ...n, body: e.node.req.body }) : new Request(r, { ...n, get body() {
+    return t || (t = cn(e), t);
   } });
 }
-function dt(e) {
-  var _a;
-  return (_a = e.web) != null ? _a : e.web = { request: lt(e), url: ae(e) }, e.web.request;
+function Zr(e) {
+  var _a2;
+  return (_a2 = e.web) != null ? _a2 : e.web = { request: Qr(e), url: yt(e) }, e.web.request;
 }
-function pt() {
-  return At();
+function en() {
+  return dn();
 }
-const oe = /* @__PURE__ */ Symbol("$HTTPEvent");
-function ht(e) {
-  return typeof e == "object" && (e instanceof H3Event || (e == null ? void 0 : e[oe]) instanceof H3Event || (e == null ? void 0 : e.__is_event__) === true);
+const mt = /* @__PURE__ */ Symbol("$HTTPEvent");
+function tn(e) {
+  return typeof e == "object" && (e instanceof H3Event || (e == null ? void 0 : e[mt]) instanceof H3Event || (e == null ? void 0 : e.__is_event__) === true);
 }
-function b(e) {
+function R(e) {
   return function(...t) {
-    var _a;
+    var _a2;
     let r = t[0];
-    if (ht(r)) t[0] = r instanceof H3Event || r.__is_event__ ? r : r[oe];
+    if (tn(r)) t[0] = r instanceof H3Event || r.__is_event__ ? r : r[mt];
     else {
-      if (!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext)) throw new Error("AsyncLocalStorage was not enabled. Use the `server.experimental.asyncContext: true` option in your app configuration to enable it. Or, pass the instance of HTTPEvent that you have as the first argument to the function.");
-      if (r = pt(), !r) throw new Error("No HTTPEvent found in AsyncLocalStorage. Make sure you are using the function within the server runtime.");
+      if (!((_a2 = globalThis.app.config.server.experimental) == null ? void 0 : _a2.asyncContext)) throw new Error("AsyncLocalStorage was not enabled. Use the `server.experimental.asyncContext: true` option in your app configuration to enable it. Or, pass the instance of HTTPEvent that you have as the first argument to the function.");
+      if (r = en(), !r) throw new Error("No HTTPEvent found in AsyncLocalStorage. Make sure you are using the function within the server runtime.");
       t.unshift(r);
     }
     return e(...t);
   };
 }
-const ae = b(getRequestURL), mt = b(getRequestIP), U = b(setResponseStatus), B = b(getResponseStatus), ft = b(getResponseStatusText), L = b(getResponseHeaders), G = b(getResponseHeader), gt = b(setResponseHeader), bt = b(appendResponseHeader), K = b(sendRedirect), yt = b(getCookie), $t = b(setCookie), vt = b(setHeader), wt = b(getRequestWebStream), Rt = b(removeResponseHeader), Et = b(dt);
-function St() {
-  var _a;
-  return getContext("nitro-app", { asyncContext: !!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext), AsyncLocalStorage: AsyncLocalStorage });
+const yt = R(getRequestURL), rn = R(getRequestIP), ie$1 = R(setResponseStatus), Be$1 = R(getResponseStatus), nn = R(getResponseStatusText), se = R(getResponseHeaders), Ve$1 = R(getResponseHeader), sn = R(setResponseHeader), bt = R(appendResponseHeader), an = R(parseCookies), on = R(getCookie), un = R(setCookie), M$1 = R(setHeader), cn = R(getRequestWebStream), ln = R(removeResponseHeader), fn = R(Zr);
+function pn() {
+  var _a2;
+  return Kr("nitro-app", { asyncContext: !!((_a2 = globalThis.app.config.server.experimental) == null ? void 0 : _a2.asyncContext), AsyncLocalStorage: AsyncLocalStorage });
 }
-function At() {
-  return St().use().event;
+function dn() {
+  return pn().use().event;
 }
-const ie = (e) => (t) => {
-  const { base: r } = t, s = children(() => t.children), n = createMemo(() => tt(s(), t.base || ""));
-  let o;
-  const a = Ot$1(e, n, () => o, { base: r, singleFlight: t.singleFlight, transformUrl: t.transformUrl });
-  return e.create && e.create(a), createComponent$1(Ye.Provider, { value: a, get children() {
-    return createComponent$1(xt, { routerState: a, get root() {
-      return t.root;
-    }, get preload() {
-      return t.rootPreload || t.rootLoad;
-    }, get children() {
-      return [(o = getOwner()) && null, createComponent$1(Tt, { routerState: a, get branches() {
-        return n();
-      } })];
-    } });
-  } });
+const de$1 = "Invariant Violation", { setPrototypeOf: hn = function(e, t) {
+  return e.__proto__ = t, e;
+} } = Object;
+let Pe$1 = class Pe extends Error {
+  constructor(t = de$1) {
+    super(typeof t == "number" ? `${de$1}: ${t} (see https://github.com/apollographql/invariant-packages)` : t);
+    __publicField$1(this, "framesToPop", 1);
+    __publicField$1(this, "name", de$1);
+    hn(this, Pe.prototype);
+  }
 };
-function xt(e) {
-  const t = e.routerState.location, r = e.routerState.params, s = createMemo(() => e.preload && untrack(() => {
-    Tt$1(true), e.preload({ params: r, location: t, intent: nt() || "initial" }), Tt$1(false);
-  }));
-  return createComponent$1(Show, { get when() {
-    return e.root;
-  }, keyed: true, get fallback() {
-    return e.children;
-  }, children: (n) => createComponent$1(n, { params: r, location: t, get data() {
-    return s();
-  }, get children() {
-    return e.children;
-  } }) });
+function gn(e, t) {
+  if (!e) throw new Pe$1(t);
 }
-function Tt(e) {
-  if (isServer) {
-    const n = getRequestEvent();
-    if (n && n.router && n.router.dataOnly) {
-      kt(n, e.routerState, e.branches);
-      return;
-    }
-    n && ((n.router || (n.router = {})).matches || (n.router.matches = e.routerState.matches().map(({ route: o, path: a, params: i }) => ({ path: o.originalPath, pattern: o.pattern, match: a, params: i, info: o.info }))));
+const he$1 = "solidFetchEvent";
+function mn(e) {
+  return { request: fn(e), response: vn(e), clientAddress: rn(e), locals: {}, nativeEvent: e };
+}
+function yn(e) {
+  return { ...e };
+}
+function bn(e) {
+  if (!e.context[he$1]) {
+    const t = mn(e);
+    e.context[he$1] = t;
   }
-  const t = [];
-  let r;
-  const s = createMemo(on(e.routerState.matches, (n, o, a) => {
-    let i = o && n.length === o.length;
-    const l = [];
-    for (let d = 0, v = n.length; d < v; d++) {
-      const E = o && o[d], R = n[d];
-      a && E && R.route.key === E.route.key ? l[d] = a[d] : (i = false, t[d] && t[d](), createRoot((f) => {
-        t[d] = f, l[d] = St$1(e.routerState, l[d - 1] || e.routerState.base, Q(() => s()[d + 1]), () => {
-          var _a;
-          const y = e.routerState.matches();
-          return (_a = y[d]) != null ? _a : y[0];
-        });
-      }));
-    }
-    return t.splice(n.length).forEach((d) => d()), a && i ? a : (r = l[0], l);
-  }));
-  return Q(() => s() && r)();
+  return e.context[he$1];
 }
-const Q = (e) => () => createComponent$1(Show, { get when() {
-  return e();
-}, keyed: true, children: (t) => createComponent$1(be.Provider, { value: t, get children() {
-  return t.outlet();
-} }) });
-function kt(e, t, r) {
-  const s = new URL(e.request.url), n = G$1(r, new URL(e.router.previousUrl || e.request.url).pathname), o = G$1(r, s.pathname);
-  for (let a = 0; a < o.length; a++) {
-    (!n[a] || o[a].route !== n[a].route) && (e.router.dataOnly = true);
-    const { route: i, params: l } = o[a];
-    i.preload && i.preload({ params: l, location: t.location, intent: "preload" });
-  }
+function We$1(e, t) {
+  for (const [r, n] of t.entries()) bt(e, r, n);
 }
-function Ct([e, t], r, s) {
-  return [e, s ? (n) => t(s(n)) : t];
-}
-function Pt(e) {
-  let t = false;
-  const r = (n) => typeof n == "string" ? { value: n } : n, s = Ct(createSignal(r(e.get()), { equals: (n, o) => n.value === o.value && n.state === o.state }), void 0, (n) => (!t && e.set(n), sharedConfig.registry && !sharedConfig.done && (sharedConfig.done = true), n));
-  return e.init && onCleanup(e.init((n = e.get()) => {
-    t = true, s[1](r(n)), t = false;
-  })), ie({ signal: s, create: e.create, utils: e.utils });
-}
-function Lt(e, t, r) {
-  return e.addEventListener(t, r), () => e.removeEventListener(t, r);
-}
-function Ht(e, t) {
-  const r = e && document.getElementById(e);
-  r ? r.scrollIntoView() : t && window.scrollTo(0, 0);
-}
-function qt(e) {
-  const t = new URL(e);
-  return t.pathname + t.search;
-}
-function _t(e) {
-  let t;
-  const r = { value: e.url || (t = getRequestEvent()) && qt(t.request.url) || "" };
-  return ie({ signal: [() => r, (s) => Object.assign(r, s)] })(e);
-}
-const jt = /* @__PURE__ */ new Map();
-function It(e = true, t = false, r = "/_server", s) {
-  return (n) => {
-    const o = n.base.path(), a = n.navigatorFactory(n.base);
-    let i, l;
-    function d(u) {
-      return u.namespaceURI === "http://www.w3.org/2000/svg";
-    }
-    function v(u) {
-      if (u.defaultPrevented || u.button !== 0 || u.metaKey || u.altKey || u.ctrlKey || u.shiftKey) return;
-      const p = u.composedPath().find((N) => N instanceof Node && N.nodeName.toUpperCase() === "A");
-      if (!p || t && !p.hasAttribute("link")) return;
-      const g = d(p), h = g ? p.href.baseVal : p.href;
-      if ((g ? p.target.baseVal : p.target) || !h && !p.hasAttribute("state")) return;
-      const T = (p.getAttribute("rel") || "").split(/\s+/);
-      if (p.hasAttribute("download") || T && T.includes("external")) return;
-      const C = g ? new URL(h, document.baseURI) : new URL(h);
-      if (!(C.origin !== window.location.origin || o && C.pathname && !C.pathname.toLowerCase().startsWith(o.toLowerCase()))) return [p, C];
-    }
-    function E(u) {
-      const p = v(u);
-      if (!p) return;
-      const [g, h] = p, M = n.parsePath(h.pathname + h.search + h.hash), T = g.getAttribute("state");
-      u.preventDefault(), a(M, { resolve: false, replace: g.hasAttribute("replace"), scroll: !g.hasAttribute("noscroll"), state: T ? JSON.parse(T) : void 0 });
-    }
-    function R(u) {
-      const p = v(u);
-      if (!p) return;
-      const [g, h] = p;
-      s && (h.pathname = s(h.pathname)), n.preloadRoute(h, g.getAttribute("preload") !== "false");
-    }
-    function f(u) {
-      clearTimeout(i);
-      const p = v(u);
-      if (!p) return l = null;
-      const [g, h] = p;
-      l !== g && (s && (h.pathname = s(h.pathname)), i = setTimeout(() => {
-        n.preloadRoute(h, g.getAttribute("preload") !== "false"), l = g;
-      }, 20));
-    }
-    function y(u) {
-      if (u.defaultPrevented) return;
-      let p = u.submitter && u.submitter.hasAttribute("formaction") ? u.submitter.getAttribute("formaction") : u.target.getAttribute("action");
-      if (!p) return;
-      if (!p.startsWith("https://action/")) {
-        const h = new URL(p, Ke);
-        if (p = n.parsePath(h.pathname + h.search), !p.startsWith(r)) return;
-      }
-      if (u.target.method.toUpperCase() !== "POST") throw new Error("Only POST forms are supported for Actions");
-      const g = jt.get(p);
-      if (g) {
-        u.preventDefault();
-        const h = new FormData(u.target, u.submitter);
-        g.call({ r: n, f: u.target }, u.target.enctype === "multipart/form-data" ? h : new URLSearchParams(h));
-      }
-    }
-    delegateEvents(["click", "submit"]), document.addEventListener("click", E), e && (document.addEventListener("mousemove", f, { passive: true }), document.addEventListener("focusin", R, { passive: true }), document.addEventListener("touchstart", R, { passive: true })), document.addEventListener("submit", y), onCleanup(() => {
-      document.removeEventListener("click", E), e && (document.removeEventListener("mousemove", f), document.removeEventListener("focusin", R), document.removeEventListener("touchstart", R)), document.removeEventListener("submit", y);
-    });
-  };
-}
-function Ut(e) {
-  if (isServer) return _t(e);
-  const t = () => {
-    const s = window.location.pathname.replace(/^\/+/, "/") + window.location.search, n = window.history.state && window.history.state._depth && Object.keys(window.history.state).length === 1 ? void 0 : window.history.state;
-    return { value: s + window.location.hash, state: n };
-  }, r = We();
-  return Pt({ get: t, set({ value: s, replace: n, scroll: o, state: a }) {
-    n ? window.history.replaceState(bt$1(a), "", s) : window.history.pushState(a, "", s), Ht(decodeURIComponent(window.location.hash.slice(1)), o), me();
-  }, init: (s) => Lt(window, "popstate", wt$1(s, (n) => {
-    if (n) return !r.confirm(n);
-    {
-      const o = t();
-      return !r.confirm(o.value, { state: o.state });
-    }
-  })), create: It(e.preload, e.explicitLinks, e.actionBase, e.transformUrl), utils: { go: (s) => window.history.go(s), beforeLeave: r } })(e);
-}
-const Ot = V$1(() => o(), "materials"), Ft = { preload: () => Ot() }, Dt = V$1(() => o(), "materials"), Mt = V$1(() => i(), "trabajos"), Nt = { preload: () => Promise.all([Dt(), Mt()]) }, zt = V$1((e) => t(e), "material"), Wt = { preload: ({ params: e }) => zt(e.slug) }, Bt = V$1(() => o(), "materials"), Gt = { preload: () => Bt() }, Kt = V$1(() => i(), "trabajos"), Qt = V$1(() => o(), "materials"), Jt = { preload: () => Promise.all([Kt(), Qt()]) }, ce = [{ page: true, $component: { src: "src/routes/cotizacion.tsx?pick=default&pick=$css", build: () => import('../build/cotizacion2.mjs'), import: () => import('../build/cotizacion2.mjs') }, $$route: { require: () => ({ route: Ft }), src: "src/routes/cotizacion.tsx?pick=route" }, path: "/cotizacion", filePath: "/Users/hector/Documents/granite_concepts/src/routes/cotizacion.tsx" }, { page: true, $component: { src: "src/routes/index.tsx?pick=default&pick=$css", build: () => import('../build/index4.mjs'), import: () => import('../build/index4.mjs') }, $$route: { require: () => ({ route: Nt }), src: "src/routes/index.tsx?pick=route" }, path: "/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/index.tsx" }, { page: true, $component: { src: "src/routes/materiales/[slug].tsx?pick=default&pick=$css", build: () => import('../build/_slug_3.mjs'), import: () => import('../build/_slug_3.mjs') }, $$route: { require: () => ({ route: Wt }), src: "src/routes/materiales/[slug].tsx?pick=route" }, path: "/materiales/:slug", filePath: "/Users/hector/Documents/granite_concepts/src/routes/materiales/[slug].tsx" }, { page: true, $component: { src: "src/routes/materiales/index.tsx?pick=default&pick=$css", build: () => import('../build/index22.mjs'), import: () => import('../build/index22.mjs') }, $$route: { require: () => ({ route: Gt }), src: "src/routes/materiales/index.tsx?pick=route" }, path: "/materiales/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/materiales/index.tsx" }, { page: false, $GET: { src: "src/routes/sitemap.xml.ts?pick=GET", build: () => import('../build/sitemap2.xml.mjs'), import: () => import('../build/sitemap2.xml.mjs') }, $HEAD: { src: "src/routes/sitemap.xml.ts?pick=GET", build: () => import('../build/sitemap2.xml.mjs'), import: () => import('../build/sitemap2.xml.mjs') }, path: "/sitemap.xml", filePath: "/Users/hector/Documents/granite_concepts/src/routes/sitemap.xml.ts" }, { page: true, $component: { src: "src/routes/trabajos/[slug].tsx?pick=default&pick=$css", build: () => import('../build/_slug_22.mjs'), import: () => import('../build/_slug_22.mjs') }, path: "/trabajos/:slug", filePath: "/Users/hector/Documents/granite_concepts/src/routes/trabajos/[slug].tsx" }, { page: true, $component: { src: "src/routes/trabajos/index.tsx?pick=default&pick=$css", build: () => import('../build/index32.mjs'), import: () => import('../build/index32.mjs') }, $$route: { require: () => ({ route: Jt }), src: "src/routes/trabajos/index.tsx?pick=route" }, path: "/trabajos/", filePath: "/Users/hector/Documents/granite_concepts/src/routes/trabajos/index.tsx" }], Yt = Vt(ce.filter((e) => e.page));
-function Vt(e) {
-  function t(r, s, n, o) {
-    const a = Object.values(r).find((i) => n.startsWith(i.id + "/"));
-    return a ? (t(a.children || (a.children = []), s, n.slice(a.id.length)), r) : (r.push({ ...s, id: n, path: n.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/") }), r);
-  }
-  return e.sort((r, s) => r.path.length - s.path.length).reduce((r, s) => t(r, s, s.path, s.path), []);
-}
-function Xt(e, t) {
-  const r = er.lookup(e);
-  if (r && r.route) {
-    const s = r.route, n = t === "HEAD" ? s.$HEAD || s.$GET : s[`$${t}`];
-    if (n === void 0) return;
-    const o = s.page === true && s.$component !== void 0;
-    return { handler: n, params: r.params, isPage: o };
-  }
-}
-function Zt(e) {
-  return e.$HEAD || e.$GET || e.$POST || e.$PUT || e.$PATCH || e.$DELETE;
-}
-const er = createRouter$1({ routes: ce.reduce((e, t) => {
-  if (!Zt(t)) return e;
-  let r = t.path.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/").replace(/\*([^/]*)/g, (s, n) => `**:${n}`).split("/").map((s) => s.startsWith(":") || s.startsWith("*") ? s : encodeURIComponent(s)).join("/");
-  if (/:[^/]*\?/g.test(r)) throw new Error(`Optional parameters are not supported in API routes: ${r}`);
-  if (e[r]) throw new Error(`Duplicate API routes for "${r}" found at "${e[r].route.path}" and "${t.path}"`);
-  return e[r] = { route: t }, e;
-}, {}) }), j = "solidFetchEvent";
-function tr(e) {
-  return { request: Et(e), response: sr(e), clientAddress: mt(e), locals: {}, nativeEvent: e };
-}
-function rr(e) {
-  if (!e.context[j]) {
-    const t = tr(e);
-    e.context[j] = t;
-  }
-  return e.context[j];
-}
-class nr {
+class wn {
   constructor(t) {
-    __publicField(this, "event");
+    __publicField$1(this, "event");
     this.event = t;
   }
   get(t) {
-    const r = G(this.event, t);
+    const r = Ve$1(this.event, t);
     return Array.isArray(r) ? r.join(", ") : r || null;
   }
   has(t) {
     return this.get(t) !== null;
   }
   set(t, r) {
-    return gt(this.event, t, r);
+    return sn(this.event, t, r);
   }
   delete(t) {
-    return Rt(this.event, t);
+    return ln(this.event, t);
   }
   append(t, r) {
     bt(this.event, t, r);
   }
   getSetCookie() {
-    const t = G(this.event, "Set-Cookie");
+    const t = Ve$1(this.event, "Set-Cookie");
     return Array.isArray(t) ? t : [t];
   }
   forEach(t) {
-    return Object.entries(L(this.event)).forEach(([r, s]) => t(Array.isArray(s) ? s.join(", ") : s, r, this));
+    return Object.entries(se(this.event)).forEach(([r, n]) => t(Array.isArray(n) ? n.join(", ") : n, r, this));
   }
   entries() {
-    return Object.entries(L(this.event)).map(([t, r]) => [t, Array.isArray(r) ? r.join(", ") : r])[Symbol.iterator]();
+    return Object.entries(se(this.event)).map(([t, r]) => [t, Array.isArray(r) ? r.join(", ") : r])[Symbol.iterator]();
   }
   keys() {
-    return Object.keys(L(this.event))[Symbol.iterator]();
+    return Object.keys(se(this.event))[Symbol.iterator]();
   }
   values() {
-    return Object.values(L(this.event)).map((t) => Array.isArray(t) ? t.join(", ") : t)[Symbol.iterator]();
+    return Object.values(se(this.event)).map((t) => Array.isArray(t) ? t.join(", ") : t)[Symbol.iterator]();
   }
   [Symbol.iterator]() {
     return this.entries()[Symbol.iterator]();
   }
 }
-function sr(e) {
+function vn(e) {
   return { get status() {
-    return B(e);
+    return Be$1(e);
   }, set status(t) {
-    U(e, t);
+    ie$1(e, t);
   }, get statusText() {
-    return ft(e);
+    return nn(e);
   }, set statusText(t) {
-    U(e, B(e), t);
-  }, headers: new nr(e) };
+    ie$1(e, Be$1(e), t);
+  }, headers: new wn(e) };
 }
-var ar = " ";
-const ir = { style: (e) => ssrElement("style", e.attrs, () => e.children, true), link: (e) => ssrElement("link", e.attrs, void 0, true), script: (e) => e.attrs.src ? ssrElement("script", mergeProps(() => e.attrs, { get id() {
+const F = { NORMAL: 0, WILDCARD: 1, PLACEHOLDER: 2 };
+function Rn(e = {}) {
+  const t = { options: e, rootNode: wt(), staticRoutesMap: {} }, r = (n) => e.strictTrailingSlash ? n : n.replace(/\/$/, "") || "/";
+  if (e.routes) for (const n in e.routes) Xe$1(t, r(n), e.routes[n]);
+  return { ctx: t, lookup: (n) => Sn(t, r(n)), insert: (n, a) => Xe$1(t, r(n), a), remove: (n) => An(t, r(n)) };
+}
+function Sn(e, t) {
+  const r = e.staticRoutesMap[t];
+  if (r) return r.data;
+  const n = t.split("/"), a = {};
+  let o = false, i = null, u = e.rootNode, c = null;
+  for (let l = 0; l < n.length; l++) {
+    const p = n[l];
+    u.wildcardChildNode !== null && (i = u.wildcardChildNode, c = n.slice(l).join("/"));
+    const d = u.children.get(p);
+    if (d === void 0) {
+      if (u && u.placeholderChildren.length > 1) {
+        const w = n.length - l;
+        u = u.placeholderChildren.find((f) => f.maxDepth === w) || null;
+      } else u = u.placeholderChildren[0] || null;
+      if (!u) break;
+      u.paramName && (a[u.paramName] = p), o = true;
+    } else u = d;
+  }
+  return (u === null || u.data === null) && i !== null && (u = i, a[u.paramName || "_"] = c, o = true), u ? o ? { ...u.data, params: o ? a : void 0 } : u.data : null;
+}
+function Xe$1(e, t, r) {
+  let n = true;
+  const a = t.split("/");
+  let o = e.rootNode, i = 0;
+  const u = [o];
+  for (const c of a) {
+    let l;
+    if (l = o.children.get(c)) o = l;
+    else {
+      const p = En(c);
+      l = wt({ type: p, parent: o }), o.children.set(c, l), p === F.PLACEHOLDER ? (l.paramName = c === "*" ? `_${i++}` : c.slice(1), o.placeholderChildren.push(l), n = false) : p === F.WILDCARD && (o.wildcardChildNode = l, l.paramName = c.slice(3) || "_", n = false), u.push(l), o = l;
+    }
+  }
+  for (const [c, l] of u.entries()) l.maxDepth = Math.max(u.length - c, l.maxDepth || 0);
+  return o.data = r, n === true && (e.staticRoutesMap[t] = o), o;
+}
+function An(e, t) {
+  let r = false;
+  const n = t.split("/");
+  let a = e.rootNode;
+  for (const o of n) if (a = a.children.get(o), !a) return r;
+  if (a.data) {
+    const o = n.at(-1) || "";
+    a.data = null, Object.keys(a.children).length === 0 && a.parent && (a.parent.children.delete(o), a.parent.wildcardChildNode = null, a.parent.placeholderChildren = []), r = true;
+  }
+  return r;
+}
+function wt(e = {}) {
+  return { type: e.type || F.NORMAL, maxDepth: 0, parent: e.parent || null, children: /* @__PURE__ */ new Map(), data: e.data || null, paramName: e.paramName || null, wildcardChildNode: null, placeholderChildren: [] };
+}
+function En(e) {
+  return e.startsWith("**") ? F.WILDCARD : e[0] === ":" || e === "*" ? F.PLACEHOLDER : F.NORMAL;
+}
+const vt = [{ page: true, path: "/accounts/:id", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/accounts/[id].tsx" }, { page: true, path: "/accounts/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/accounts/index.tsx" }, { page: true, path: "/admin/gemini", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/admin/gemini.tsx" }, { page: true, path: "/banking/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/banking/index.tsx" }, { page: true, path: "/callback", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/callback.tsx" }, { page: true, path: "/employees/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/employees/index.tsx" }, { page: true, path: "/employees", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/employees.tsx" }, { page: true, path: "/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/index.tsx" }, { page: true, path: "/inventory/count", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/count.tsx" }, { page: true, path: "/inventory/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/index.tsx" }, { page: true, path: "/inventory/movements", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/movements.tsx" }, { page: true, path: "/inventory", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory.tsx" }, { page: true, path: "/journal/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/index.tsx" }, { page: true, path: "/journal/print", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/print.tsx" }, { page: true, path: "/journal/templates", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/templates.tsx" }, { page: true, path: "/login", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/login.tsx" }, { page: true, path: "/providers/aging", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers/aging.tsx" }, { page: true, path: "/providers/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers/index.tsx" }, { page: true, path: "/providers", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers.tsx" }, { page: true, path: "/reports/audit", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/audit.tsx" }, { page: true, path: "/reports/balance-sheet", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/balance-sheet.tsx" }, { page: true, path: "/reports/cash-flow", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/cash-flow.tsx" }, { page: true, path: "/reports/income-statement", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/income-statement.tsx" }, { page: true, path: "/reports/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/index.tsx" }, { page: true, path: "/reports/monthly-pnl", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/monthly-pnl.tsx" }, { page: true, path: "/reports/trial-balance", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/trial-balance.tsx" }, { page: true, path: "/reports/year-close", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/year-close.tsx" }, { page: true, path: "/reports", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports.tsx" }, { page: true, path: "/timesheets/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/index.tsx" }, { page: true, path: "/timesheets/stub/:id", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/stub/[id].tsx" }, { page: true, path: "/timesheets/w2", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/w2.tsx" }, { page: true, path: "/timesheets", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets.tsx" }, { page: true, path: "/transactions/compras", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/compras.tsx" }, { page: true, path: "/transactions/facturacion", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/facturacion.tsx" }, { page: true, path: "/transactions/historial", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/historial.tsx" }, { page: true, path: "/transactions/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/index.tsx" }, { page: true, path: "/transactions/invoice/:number", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/invoice/[number].tsx" }, { page: true, path: "/transactions/mermas", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/mermas.tsx" }, { page: true, path: "/transactions", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions.tsx" }], xn = Pn(vt.filter((e) => e.page));
+function Pn(e) {
+  function t(r, n, a, o) {
+    const i = Object.values(r).find((u) => a.startsWith(u.id + "/"));
+    return i ? (t(i.children || (i.children = []), n, a.slice(i.id.length)), r) : (r.push({ ...n, id: a, path: a.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/") }), r);
+  }
+  return e.sort((r, n) => r.path.length - n.path.length).reduce((r, n) => t(r, n, n.path, n.path), []);
+}
+function In(e) {
+  return e.$HEAD || e.$GET || e.$POST || e.$PUT || e.$PATCH || e.$DELETE;
+}
+Rn({ routes: vt.reduce((e, t) => {
+  if (!In(t)) return e;
+  let r = t.path.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/").replace(/\*([^/]*)/g, (n, a) => `**:${a}`).split("/").map((n) => n.startsWith(":") || n.startsWith("*") ? n : encodeURIComponent(n)).join("/");
+  if (/:[^/]*\?/g.test(r)) throw new Error(`Optional parameters are not supported in API routes: ${r}`);
+  if (e[r]) throw new Error(`Duplicate API routes for "${r}" found at "${e[r].route.path}" and "${t.path}"`);
+  return e[r] = { route: t }, e;
+}, {}) });
+var kn = " ";
+const jn = { style: (e) => ssrElement("style", e.attrs, () => e.children, true), link: (e) => ssrElement("link", e.attrs, void 0, true), script: (e) => e.attrs.src ? ssrElement("script", mergeProps(() => e.attrs, { get id() {
   return e.key;
-} }), () => ssr(ar), true) : null, noscript: (e) => ssrElement("noscript", e.attrs, () => escape(e.children), true) };
-function O(e, t) {
-  let { tag: r, attrs: { key: s, ...n } = { key: void 0 }, children: o } = e;
-  return ir[r]({ attrs: { ...n, nonce: t }, key: s, children: o });
+} }), () => ssr(kn), true) : null, noscript: (e) => ssrElement("noscript", e.attrs, () => escape(e.children), true) };
+function Un(e, t) {
+  let { tag: r, attrs: { key: n, ...a } = { key: void 0 }, children: o } = e;
+  return jn[r]({ attrs: { ...a, nonce: t }, key: n, children: o });
 }
-function cr(e, t, r, s = "default") {
+function $n(e, t, r, n = "default") {
   return lazy(async () => {
-    var _a;
+    var _a2;
     {
-      const o = (await e.import())[s], i = (await ((_a = t.inputs) == null ? void 0 : _a[e.src].assets())).filter((d) => d.tag === "style" || d.attrs.rel === "stylesheet");
-      return { default: (d) => [...i.map((v) => O(v)), createComponent(o, d)] };
+      const o = (await e.import())[n], u = (await ((_a2 = t.inputs) == null ? void 0 : _a2[e.src].assets())).filter((l) => l.tag === "style" || l.attrs.rel === "stylesheet");
+      return { default: (l) => [...u.map((p) => Un(p)), createComponent(o, l)] };
     }
   });
 }
-function ue() {
+function Rt() {
   function e(r) {
-    return { ...r, ...r.$$route ? r.$$route.require().route : void 0, info: { ...r.$$route ? r.$$route.require().route.info : {}, filesystem: true }, component: r.$component && cr(r.$component, globalThis.MANIFEST.client, globalThis.MANIFEST.ssr), children: r.children ? r.children.map(e) : void 0 };
+    return { ...r, ...r.$$route ? r.$$route.require().route : void 0, info: { ...r.$$route ? r.$$route.require().route.info : {}, filesystem: true }, component: r.$component && $n(r.$component, globalThis.MANIFEST.client, globalThis.MANIFEST.ssr), children: r.children ? r.children.map(e) : void 0 };
   }
-  return Yt.map(e);
+  return xn.map(e);
 }
-let J;
-const ur = isServer ? () => getRequestEvent().routes : () => J || (J = ue());
-function lr(e) {
-  const t = yt(e.nativeEvent, "flash");
+let Ge$1;
+const au = isServer ? () => getRequestEvent().routes : () => Ge$1 || (Ge$1 = Rt());
+function zn(e) {
+  const t = on(e.nativeEvent, "flash");
   if (t) try {
     let r = JSON.parse(t);
     if (!r || !r.result) return;
-    const s = [...r.input.slice(0, -1), new Map(r.input[r.input.length - 1])], n = r.error ? new Error(r.result) : r.result;
-    return { input: s, url: r.url, pending: false, result: r.thrown ? void 0 : n, error: r.thrown ? n : void 0 };
+    const n = [...r.input.slice(0, -1), new Map(r.input[r.input.length - 1])], a = r.error ? new Error(r.result) : r.result;
+    return { input: n, url: r.url, pending: false, result: r.thrown ? void 0 : a, error: r.thrown ? a : void 0 };
   } catch (r) {
     console.error(r);
   } finally {
-    $t(e.nativeEvent, "flash", "", { maxAge: 0 });
+    un(e.nativeEvent, "flash", "", { maxAge: 0 });
   }
 }
-async function dr(e) {
+async function Cn(e) {
   const t = globalThis.MANIFEST.client;
-  return globalThis.MANIFEST.ssr, e.response.headers.set("Content-Type", "text/html"), Object.assign(e, { manifest: await t.json(), assets: [...await t.inputs[t.handler].assets()], router: { submission: lr(e) }, routes: ue(), complete: false, $islands: /* @__PURE__ */ new Set() });
+  return globalThis.MANIFEST.ssr, e.response.headers.set("Content-Type", "text/html"), Object.assign(e, { manifest: await t.json(), assets: [...await t.inputs[t.handler].assets()], router: { submission: zn(e) }, routes: Rt(), complete: false, $islands: /* @__PURE__ */ new Set() });
 }
-const pr = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
-function F(e) {
-  return e.status && pr.has(e.status) ? e.status : 302;
+const Dn = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
+function Hn(e) {
+  return e.status && Dn.has(e.status) ? e.status : 302;
 }
-function hr(e, t, r = {}, s) {
-  return eventHandler({ handler: (n) => {
-    const o = rr(n);
-    return provideRequestEvent(o, async () => {
-      const a = Xt(new URL(o.request.url).pathname, o.request.method);
-      if (a) {
-        const f = await a.handler.import(), y = o.request.method === "HEAD" ? f.HEAD || f.GET : f[o.request.method];
-        o.params = a.params || {}, sharedConfig.context = { event: o };
-        const u = await y(o);
-        if (u !== void 0) return u;
-        if (o.request.method !== "GET") throw new Error(`API handler for ${o.request.method} "${o.request.url}" did not return a response.`);
-        if (!a.isPage) return;
-      }
-      const i = await t(o), l = typeof r == "function" ? await r(i) : { ...r }, d = l.mode || "stream";
-      if (l.nonce && (i.nonce = l.nonce), d === "sync") {
-        const f = renderToString(() => (sharedConfig.context.event = i, e(i)), l);
-        if (i.complete = true, i.response && i.response.headers.get("Location")) {
-          const y = F(i.response);
-          return K(n, i.response.headers.get("Location"), y);
-        }
-        return f;
-      }
-      if (l.onCompleteAll) {
-        const f = l.onCompleteAll;
-        l.onCompleteAll = (y) => {
-          V(i)(y), f(y);
-        };
-      } else l.onCompleteAll = V(i);
-      if (l.onCompleteShell) {
-        const f = l.onCompleteShell;
-        l.onCompleteShell = (y) => {
-          Y(i, n)(), f(y);
-        };
-      } else l.onCompleteShell = Y(i, n);
-      const v = renderToStream(() => (sharedConfig.context.event = i, e(i)), l);
-      if (i.response && i.response.headers.get("Location")) {
-        const f = F(i.response);
-        return K(n, i.response.headers.get("Location"), f);
-      }
-      if (d === "async") return v;
-      const { writable: E, readable: R } = new TransformStream();
-      return v.pipeTo(E), R;
-    });
+const On = {};
+var St = ((e) => (e[e.AggregateError = 1] = "AggregateError", e[e.ArrowFunction = 2] = "ArrowFunction", e[e.ErrorPrototypeStack = 4] = "ErrorPrototypeStack", e[e.ObjectAssign = 8] = "ObjectAssign", e[e.BigIntTypedArray = 16] = "BigIntTypedArray", e[e.RegExp = 32] = "RegExp", e))(St || {}), P = Symbol.asyncIterator, At = Symbol.hasInstance, q$1 = Symbol.isConcatSpreadable, I$1 = Symbol.iterator, Et = Symbol.match, xt = Symbol.matchAll, Pt = Symbol.replace, It = Symbol.search, _t = Symbol.species, kt = Symbol.split, jt = Symbol.toPrimitive, B = Symbol.toStringTag, Ut = Symbol.unscopables, Ln = { 0: "Symbol.asyncIterator", 1: "Symbol.hasInstance", 2: "Symbol.isConcatSpreadable", 3: "Symbol.iterator", 4: "Symbol.match", 5: "Symbol.matchAll", 6: "Symbol.replace", 7: "Symbol.search", 8: "Symbol.species", 9: "Symbol.split", 10: "Symbol.toPrimitive", 11: "Symbol.toStringTag", 12: "Symbol.unscopables" }, $t = { [P]: 0, [At]: 1, [q$1]: 2, [I$1]: 3, [Et]: 4, [xt]: 5, [Pt]: 6, [It]: 7, [_t]: 8, [kt]: 9, [jt]: 10, [B]: 11, [Ut]: 12 }, Mn = { 0: P, 1: At, 2: q$1, 3: I$1, 4: Et, 5: xt, 6: Pt, 7: It, 8: _t, 9: kt, 10: jt, 11: B, 12: Ut }, Tn = { 2: "!0", 3: "!1", 1: "void 0", 0: "null", 4: "-0", 5: "1/0", 6: "-1/0", 7: "0/0" }, s = void 0, Nn = { 2: true, 3: false, 1: s, 0: null, 4: -0, 5: Number.POSITIVE_INFINITY, 6: Number.NEGATIVE_INFINITY, 7: Number.NaN }, zt = { 0: "Error", 1: "EvalError", 2: "RangeError", 3: "ReferenceError", 4: "SyntaxError", 5: "TypeError", 6: "URIError" }, Fn = { 0: Error, 1: EvalError, 2: RangeError, 3: ReferenceError, 4: SyntaxError, 5: TypeError, 6: URIError };
+function g$1(e, t, r, n, a, o, i, u, c, l, p, d) {
+  return { t: e, i: t, s: r, c: n, m: a, p: o, e: i, a: u, f: c, b: l, o: p, l: d };
+}
+function $(e) {
+  return g$1(2, s, e, s, s, s, s, s, s, s, s, s);
+}
+var Ct = $(2), Dt = $(3), qn = $(1), Bn = $(0), Vn = $(4), Wn = $(5), Xn = $(6), Gn = $(7);
+function Jn(e) {
+  switch (e) {
+    case '"':
+      return '\\"';
+    case "\\":
+      return "\\\\";
+    case `
+`:
+      return "\\n";
+    case "\r":
+      return "\\r";
+    case "\b":
+      return "\\b";
+    case "	":
+      return "\\t";
+    case "\f":
+      return "\\f";
+    case "<":
+      return "\\x3C";
+    case "\u2028":
+      return "\\u2028";
+    case "\u2029":
+      return "\\u2029";
+    default:
+      return s;
+  }
+}
+function E$1(e) {
+  let t = "", r = 0, n;
+  for (let a = 0, o = e.length; a < o; a++) n = Jn(e[a]), n && (t += e.slice(r, a) + n, r = a + 1);
+  return r === 0 ? t = e : t += e.slice(r), t;
+}
+function Yn(e) {
+  switch (e) {
+    case "\\\\":
+      return "\\";
+    case '\\"':
+      return '"';
+    case "\\n":
+      return `
+`;
+    case "\\r":
+      return "\r";
+    case "\\b":
+      return "\b";
+    case "\\t":
+      return "	";
+    case "\\f":
+      return "\f";
+    case "\\x3C":
+      return "<";
+    case "\\u2028":
+      return "\u2028";
+    case "\\u2029":
+      return "\u2029";
+    default:
+      return e;
+  }
+}
+function z(e) {
+  return e.replace(/(\\\\|\\"|\\n|\\r|\\b|\\t|\\f|\\u2028|\\u2029|\\x3C)/g, Yn);
+}
+var G = "__SEROVAL_REFS__", ue$1 = "$R", ae = `self.${ue$1}`;
+function Kn(e) {
+  return e == null ? `${ae}=${ae}||[]` : `(${ae}=${ae}||{})["${E$1(e)}"]=[]`;
+}
+var Ht = /* @__PURE__ */ new Map(), N$1 = /* @__PURE__ */ new Map();
+function Ot(e) {
+  return Ht.has(e);
+}
+function Qn(e) {
+  return N$1.has(e);
+}
+function Zn(e) {
+  if (Ot(e)) return Ht.get(e);
+  throw new _s(e);
+}
+function es(e) {
+  if (Qn(e)) return N$1.get(e);
+  throw new ks(e);
+}
+typeof globalThis < "u" ? Object.defineProperty(globalThis, G, { value: N$1, configurable: true, writable: false, enumerable: false }) : typeof self < "u" ? Object.defineProperty(self, G, { value: N$1, configurable: true, writable: false, enumerable: false }) : typeof global < "u" && Object.defineProperty(global, G, { value: N$1, configurable: true, writable: false, enumerable: false });
+function Ie$1(e) {
+  return e instanceof EvalError ? 1 : e instanceof RangeError ? 2 : e instanceof ReferenceError ? 3 : e instanceof SyntaxError ? 4 : e instanceof TypeError ? 5 : e instanceof URIError ? 6 : 0;
+}
+function ts(e) {
+  let t = zt[Ie$1(e)];
+  return e.name !== t ? { name: e.name } : e.constructor.name !== t ? { name: e.constructor.name } : {};
+}
+function Lt(e, t) {
+  let r = ts(e), n = Object.getOwnPropertyNames(e);
+  for (let a = 0, o = n.length, i; a < o; a++) i = n[a], i !== "name" && i !== "message" && (i === "stack" ? t & 4 && (r = r || {}, r[i] = e[i]) : (r = r || {}, r[i] = e[i]));
+  return r;
+}
+function Mt(e) {
+  return Object.isFrozen(e) ? 3 : Object.isSealed(e) ? 2 : Object.isExtensible(e) ? 0 : 1;
+}
+function rs(e) {
+  switch (e) {
+    case Number.POSITIVE_INFINITY:
+      return Wn;
+    case Number.NEGATIVE_INFINITY:
+      return Xn;
+  }
+  return e !== e ? Gn : Object.is(e, -0) ? Vn : g$1(0, s, e, s, s, s, s, s, s, s, s, s);
+}
+function Tt(e) {
+  return g$1(1, s, E$1(e), s, s, s, s, s, s, s, s, s);
+}
+function ns(e) {
+  return g$1(3, s, "" + e, s, s, s, s, s, s, s, s, s);
+}
+function ss(e) {
+  return g$1(4, e, s, s, s, s, s, s, s, s, s, s);
+}
+function as(e, t) {
+  let r = t.valueOf();
+  return g$1(5, e, r !== r ? "" : t.toISOString(), s, s, s, s, s, s, s, s, s);
+}
+function os(e, t) {
+  return g$1(6, e, s, E$1(t.source), t.flags, s, s, s, s, s, s, s);
+}
+function is(e, t) {
+  return g$1(17, e, $t[t], s, s, s, s, s, s, s, s, s);
+}
+function us(e, t) {
+  return g$1(18, e, E$1(Zn(t)), s, s, s, s, s, s, s, s, s);
+}
+function Nt(e, t, r) {
+  return g$1(25, e, r, E$1(t), s, s, s, s, s, s, s, s);
+}
+function cs(e, t, r) {
+  return g$1(9, e, s, s, s, s, s, r, s, s, Mt(t), s);
+}
+function ls(e, t) {
+  return g$1(21, e, s, s, s, s, s, s, t, s, s, s);
+}
+function fs(e, t, r) {
+  return g$1(15, e, s, t.constructor.name, s, s, s, s, r, t.byteOffset, s, t.length);
+}
+function ps(e, t, r) {
+  return g$1(16, e, s, t.constructor.name, s, s, s, s, r, t.byteOffset, s, t.byteLength);
+}
+function ds(e, t, r) {
+  return g$1(20, e, s, s, s, s, s, s, r, t.byteOffset, s, t.byteLength);
+}
+function hs(e, t, r) {
+  return g$1(13, e, Ie$1(t), s, E$1(t.message), r, s, s, s, s, s, s);
+}
+function gs(e, t, r) {
+  return g$1(14, e, Ie$1(t), s, E$1(t.message), r, s, s, s, s, s, s);
+}
+function ms(e, t) {
+  return g$1(7, e, s, s, s, s, s, t, s, s, s, s);
+}
+function ys(e, t) {
+  return g$1(28, s, s, s, s, s, s, [e, t], s, s, s, s);
+}
+function bs(e, t) {
+  return g$1(30, s, s, s, s, s, s, [e, t], s, s, s, s);
+}
+function ws(e, t, r) {
+  return g$1(31, e, s, s, s, s, s, r, t, s, s, s);
+}
+function vs(e, t) {
+  return g$1(32, e, s, s, s, s, s, s, t, s, s, s);
+}
+function Rs(e, t) {
+  return g$1(33, e, s, s, s, s, s, s, t, s, s, s);
+}
+function Ss(e, t) {
+  return g$1(34, e, s, s, s, s, s, s, t, s, s, s);
+}
+function As(e, t, r, n) {
+  return g$1(35, e, r, s, s, s, s, t, s, s, s, n);
+}
+var Es = { parsing: 1, serialization: 2, deserialization: 3 };
+function xs(e) {
+  return `Seroval Error (step: ${Es[e]})`;
+}
+var Ps = (e, t) => xs(e), Ft = class extends Error {
+  constructor(t, r) {
+    super(Ps(t)), this.cause = r;
+  }
+}, Je$1 = class Je extends Ft {
+  constructor(e) {
+    super("parsing", e);
+  }
+}, Is = class extends Ft {
+  constructor(e) {
+    super("deserialization", e);
+  }
+};
+function _$1(e) {
+  return `Seroval Error (specific: ${e})`;
+}
+var ce = class extends Error {
+  constructor(t) {
+    super(_$1(1)), this.value = t;
+  }
+}, H$1 = class H extends Error {
+  constructor(t) {
+    super(_$1(2));
+  }
+}, qt = class extends Error {
+  constructor(e) {
+    super(_$1(3));
+  }
+}, Z = class extends Error {
+  constructor(t) {
+    super(_$1(4));
+  }
+}, _s = class extends Error {
+  constructor(e) {
+    super(_$1(5)), this.value = e;
+  }
+}, ks = class extends Error {
+  constructor(e) {
+    super(_$1(6));
+  }
+}, js = class extends Error {
+  constructor(e) {
+    super(_$1(7));
+  }
+}, k = class extends Error {
+  constructor(t) {
+    super(_$1(8));
+  }
+}, Bt = class extends Error {
+  constructor(e) {
+    super(_$1(9));
+  }
+}, Us = class {
+  constructor(e, t) {
+    this.value = e, this.replacement = t;
+  }
+}, le$1 = () => {
+  let e = { p: 0, s: 0, f: 0 };
+  return e.p = new Promise((t, r) => {
+    e.s = t, e.f = r;
+  }), e;
+}, $s = (e, t) => {
+  e.s(t), e.p.s = 1, e.p.v = t;
+}, zs = (e, t) => {
+  e.f(t), e.p.s = 2, e.p.v = t;
+}, Cs = le$1.toString(), Ds = $s.toString(), Hs = zs.toString(), Vt = () => {
+  let e = [], t = [], r = true, n = false, a = 0, o = (c, l, p) => {
+    for (p = 0; p < a; p++) t[p] && t[p][l](c);
+  }, i = (c, l, p, d) => {
+    for (l = 0, p = e.length; l < p; l++) d = e[l], !r && l === p - 1 ? c[n ? "return" : "throw"](d) : c.next(d);
+  }, u = (c, l) => (r && (l = a++, t[l] = c), i(c), () => {
+    r && (t[l] = t[a], t[a--] = void 0);
+  });
+  return { __SEROVAL_STREAM__: true, on: (c) => u(c), next: (c) => {
+    r && (e.push(c), o(c, "next"));
+  }, throw: (c) => {
+    r && (e.push(c), o(c, "throw"), r = false, n = false, t.length = 0);
+  }, return: (c) => {
+    r && (e.push(c), o(c, "return"), r = false, n = true, t.length = 0);
+  } };
+}, Os = Vt.toString(), Wt = (e) => (t) => () => {
+  let r = 0, n = { [e]: () => n, next: () => {
+    if (r > t.d) return { done: true, value: void 0 };
+    let a = r++, o = t.v[a];
+    if (a === t.t) throw o;
+    return { done: a === t.d, value: o };
+  } };
+  return n;
+}, Ls = Wt.toString(), Xt = (e, t) => (r) => () => {
+  let n = 0, a = -1, o = false, i = [], u = [], c = (p = 0, d = u.length) => {
+    for (; p < d; p++) u[p].s({ done: true, value: void 0 });
+  };
+  r.on({ next: (p) => {
+    let d = u.shift();
+    d && d.s({ done: false, value: p }), i.push(p);
+  }, throw: (p) => {
+    let d = u.shift();
+    d && d.f(p), c(), a = i.length, o = true, i.push(p);
+  }, return: (p) => {
+    let d = u.shift();
+    d && d.s({ done: true, value: p }), c(), a = i.length, i.push(p);
   } });
-}
-function Y(e, t) {
-  return () => {
-    if (e.response && e.response.headers.get("Location")) {
-      const r = F(e.response);
-      U(t, r), vt(t, "Location", e.response.headers.get("Location"));
+  let l = { [e]: () => l, next: () => {
+    if (a === -1) {
+      let w = n++;
+      if (w >= i.length) {
+        let f = t();
+        return u.push(f), f.p;
+      }
+      return { done: false, value: i[w] };
     }
-  };
+    if (n > a) return { done: true, value: void 0 };
+    let p = n++, d = i[p];
+    if (p !== a) return { done: false, value: d };
+    if (o) throw d;
+    return { done: true, value: d };
+  } };
+  return l;
+}, Ms = Xt.toString(), Gt = (e) => {
+  let t = atob(e), r = t.length, n = new Uint8Array(r);
+  for (let a = 0; a < r; a++) n[a] = t.charCodeAt(a);
+  return n.buffer;
+}, Ts = Gt.toString();
+function Ns(e) {
+  return "__SEROVAL_SEQUENCE__" in e;
 }
-function V(e) {
-  return ({ write: t }) => {
-    e.complete = true;
-    const r = e.response && e.response.headers.get("Location");
-    r && t(`<script>window.location="${r}"<\/script>`);
-  };
+function Jt(e, t, r) {
+  return { __SEROVAL_SEQUENCE__: true, v: e, t, d: r };
 }
-function mr(e, t, r) {
-  return hr(e, dr, t);
+function Fs(e) {
+  let t = [], r = -1, n = -1, a = e[I$1]();
+  for (; ; ) try {
+    let o = a.next();
+    if (t.push(o.value), o.done) {
+      n = t.length - 1;
+      break;
+    }
+  } catch (o) {
+    r = t.length, t.push(o);
+  }
+  return Jt(t, r, n);
 }
-var fr = ["<span", ' class="brand-serif">Granite</span>'], gr = ["<header", ' class="site-header"><div class="container site-header-inner"><!--$-->', '<!--/--><nav aria-label="principal"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", '<!--/--><button type="button" class="lang-toggle"', ">", "</button></nav></div></header>"];
-function br() {
-  const { t: e, lang: t, setLang: r } = zt$1();
-  return ssr(gr, ssrHydrationKey(), escape(createComponent$1(A, { href: "/", class: "brand", "aria-label": "Granite Concepts \u2014 Inicio", get children() {
-    return [ssr(fr, ssrHydrationKey()), " Concepts"];
-  } })), escape(createComponent$1(A, { href: "/materiales", get children() {
-    return e("nav.materiales");
-  } })), escape(createComponent$1(A, { href: "/trabajos", get children() {
-    return e("nav.trabajos");
-  } })), escape(createComponent$1(A, { href: "/cotizacion", class: "nav-cta", get children() {
-    return e("nav.cotizacion");
-  } })), ssrAttribute("aria-label", t() === "es" ? "Switch to English" : "Cambiar a espa\xF1ol", false), t() === "es" ? "EN" : "ES");
+var qs = Wt(I$1);
+function Bs(e) {
+  return qs(e);
 }
-var yr = ["<footer", ' class="site-footer"><div class="container site-footer-inner"><div><p class="footer-brand"><span class="brand-serif">Granite</span> Concepts</p><p class="footer-lema">', '</p></div><nav aria-label="pie de p\xE1gina"><!--$-->', "<!--/--><!--$-->", "<!--/--><!--$-->", '<!--/--></nav><p class="footer-copy">\xA9 <!--$-->', "<!--/--> Granite Concepts \xB7 Louisville, KY \xB7 <!--$-->", "<!--/--></p></div></footer>"];
-function $r() {
-  const { t: e } = zt$1();
-  return ssr(yr, ssrHydrationKey(), escape(e("footer.lema")), escape(createComponent$1(A, { href: "/materiales", get children() {
-    return e("nav.materiales");
-  } })), escape(createComponent$1(A, { href: "/trabajos", get children() {
-    return e("nav.trabajos");
-  } })), escape(createComponent$1(A, { href: "/cotizacion", get children() {
-    return e("nav.cotizacion");
-  } })), escape((/* @__PURE__ */ new Date()).getFullYear()), escape(e("footer.derechos")));
+var Vs = {}, Ws = {}, Xs = { 0: {}, 1: {}, 2: {}, 3: {}, 4: {}, 5: {} }, Gs = { 0: "[]", 1: Cs, 2: Ds, 3: Hs, 4: Os, 5: Ts };
+function Js(e) {
+  return "__SEROVAL_STREAM__" in e;
 }
-var vr = ["<main", ">", "</main>"];
-function wr() {
-  return createComponent$1(Ut, { root: (e) => createComponent$1(jt$1, { get children() {
-    return [createComponent$1(Rt$1, { children: "Granite Concepts \u2014 Encimeras de granito y cuarzo en Louisville, KY" }), createComponent$1(Lt$1, { get children() {
-      return [createComponent$1(br, {}), ssr(vr, ssrHydrationKey(), escape(createComponent$1(Suspense, { get children() {
-        return e.children;
-      } }))), createComponent$1($r, {})];
-    } })];
-  } }), get children() {
-    return createComponent$1(ur, {});
+function ee() {
+  return Vt();
+}
+function Ys(e) {
+  let t = ee(), r = e[P]();
+  async function n() {
+    try {
+      let a = await r.next();
+      a.done ? t.return(a.value) : (t.next(a.value), await n());
+    } catch (a) {
+      t.throw(a);
+    }
+  }
+  return n().catch(() => {
+  }), t;
+}
+var Ks = Xt(P, le$1);
+function Qs(e) {
+  return Ks(e);
+}
+function Zs(e, t) {
+  return { plugins: t.plugins, mode: e, marked: /* @__PURE__ */ new Set(), features: 63 ^ (t.disabledFeatures || 0), refs: t.refs || /* @__PURE__ */ new Map(), depthLimit: t.depthLimit || 1e3 };
+}
+function ea(e, t) {
+  e.marked.add(t);
+}
+function Yt(e, t) {
+  let r = e.refs.size;
+  return e.refs.set(t, r), r;
+}
+function fe$1(e, t) {
+  let r = e.refs.get(t);
+  return r != null ? (ea(e, r), { type: 1, value: ss(r) }) : { type: 0, value: Yt(e, t) };
+}
+function _e$1(e, t) {
+  let r = fe$1(e, t);
+  return r.type === 1 ? r : Ot(t) ? { type: 2, value: us(r.value, t) } : r;
+}
+function C(e, t) {
+  let r = _e$1(e, t);
+  if (r.type !== 0) return r.value;
+  if (t in $t) return is(r.value, t);
+  throw new ce(t);
+}
+function O(e, t) {
+  let r = fe$1(e, Xs[t]);
+  return r.type === 1 ? r.value : g$1(26, r.value, t, s, s, s, s, s, s, s, s, s);
+}
+function ta(e) {
+  let t = fe$1(e, Vs);
+  return t.type === 1 ? t.value : g$1(27, t.value, s, s, s, s, s, s, C(e, I$1), s, s, s);
+}
+function ra(e) {
+  let t = fe$1(e, Ws);
+  return t.type === 1 ? t.value : g$1(29, t.value, s, s, s, s, s, [O(e, 1), C(e, P)], s, s, s, s);
+}
+function na(e, t, r, n) {
+  return g$1(r ? 11 : 10, e, s, s, s, n, s, s, s, s, Mt(t), s);
+}
+function sa(e, t, r, n) {
+  return g$1(8, t, s, s, s, s, { k: r, v: n }, s, O(e, 0), s, s, s);
+}
+function aa(e, t, r) {
+  return g$1(22, t, r, s, s, s, s, s, O(e, 1), s, s, s);
+}
+function oa(e, t, r) {
+  let n = new Uint8Array(r), a = "";
+  for (let o = 0, i = n.length; o < i; o++) a += String.fromCharCode(n[o]);
+  return g$1(19, t, E$1(btoa(a)), s, s, s, s, s, O(e, 5), s, s, s);
+}
+var ia = ((e) => (e[e.Vanilla = 1] = "Vanilla", e[e.Cross = 2] = "Cross", e))(ia || {});
+function Kt(e, t) {
+  for (let r = 0, n = t.length; r < n; r++) {
+    let a = t[r];
+    e.has(a) || (e.add(a), a.extends && Kt(e, a.extends));
+  }
+}
+function ke$1(e) {
+  if (e) {
+    let t = /* @__PURE__ */ new Set();
+    return Kt(t, e), [...t];
+  }
+}
+function ua(e) {
+  switch (e) {
+    case "Int8Array":
+      return Int8Array;
+    case "Int16Array":
+      return Int16Array;
+    case "Int32Array":
+      return Int32Array;
+    case "Uint8Array":
+      return Uint8Array;
+    case "Uint16Array":
+      return Uint16Array;
+    case "Uint32Array":
+      return Uint32Array;
+    case "Uint8ClampedArray":
+      return Uint8ClampedArray;
+    case "Float32Array":
+      return Float32Array;
+    case "Float64Array":
+      return Float64Array;
+    case "BigInt64Array":
+      return BigInt64Array;
+    case "BigUint64Array":
+      return BigUint64Array;
+    default:
+      throw new js(e);
+  }
+}
+var ca = 1e6, la = 1e4, fa = 2e4;
+function Qt(e, t) {
+  switch (t) {
+    case 3:
+      return Object.freeze(e);
+    case 1:
+      return Object.preventExtensions(e);
+    case 2:
+      return Object.seal(e);
+    default:
+      return e;
+  }
+}
+var pa = 1e3;
+function da(e, t) {
+  var r;
+  let n = t.refs || /* @__PURE__ */ new Map();
+  return "types" in n || Object.assign(n, { types: /* @__PURE__ */ new Map() }), { mode: e, plugins: t.plugins, refs: n, features: (r = t.features) != null ? r : 63 ^ (t.disabledFeatures || 0), depthLimit: t.depthLimit || pa };
+}
+function ha(e) {
+  return { mode: 1, base: da(1, e), child: s, state: { marked: new Set(e.markedRefs) } };
+}
+var ga = class {
+  constructor(e, t) {
+    this._p = e, this.depth = t;
+  }
+  deserialize(e) {
+    return y$1(this._p, this.depth, e);
+  }
+};
+function Zt(e, t) {
+  if (t < 0 || !Number.isFinite(t) || !Number.isInteger(t)) throw new k({ t: 4, i: t });
+  if (e.refs.has(t)) throw new Error("Conflicted ref id: " + t);
+}
+function ma(e, t, r) {
+  return Zt(e.base, t), e.state.marked.has(t) && e.base.refs.set(t, r), r;
+}
+function ya(e, t, r) {
+  return Zt(e.base, t), e.base.refs.set(t, r), r;
+}
+function b(e, t, r) {
+  return e.mode === 1 ? ma(e, t, r) : ya(e, t, r);
+}
+function Se$1(e, t, r) {
+  if (Object.hasOwn(t, r)) return t[r];
+  throw new k(e);
+}
+function ba(e, t) {
+  return b(e, t.i, es(z(t.s)));
+}
+function wa(e, t, r) {
+  let n = r.a, a = n.length, o = b(e, r.i, new Array(a));
+  for (let i = 0, u; i < a; i++) u = n[i], u && (o[i] = y$1(e, t, u));
+  return Qt(o, r.o), o;
+}
+function va(e) {
+  switch (e) {
+    case "constructor":
+    case "__proto__":
+    case "prototype":
+    case "__defineGetter__":
+    case "__defineSetter__":
+    case "__lookupGetter__":
+    case "__lookupSetter__":
+      return false;
+    default:
+      return true;
+  }
+}
+function Ra(e) {
+  switch (e) {
+    case P:
+    case q$1:
+    case B:
+    case I$1:
+      return true;
+    default:
+      return false;
+  }
+}
+function Ye$1(e, t, r) {
+  va(t) ? e[t] = r : Object.defineProperty(e, t, { value: r, configurable: true, enumerable: true, writable: true });
+}
+function Sa(e, t, r, n, a) {
+  if (typeof n == "string") Ye$1(r, z(n), y$1(e, t, a));
+  else {
+    let o = y$1(e, t, n);
+    switch (typeof o) {
+      case "string":
+        Ye$1(r, o, y$1(e, t, a));
+        break;
+      case "symbol":
+        Ra(o) && (r[o] = y$1(e, t, a));
+        break;
+      default:
+        throw new k(n);
+    }
+  }
+}
+function er(e, t, r) {
+  e.base.refs.types.set(t, r);
+}
+function te(e, t, r, n) {
+  if (e.base.refs.types.get(r) !== n) throw new k(t);
+}
+function tr(e, t, r, n) {
+  let a = r.k;
+  if (a.length > 0) for (let o = 0, i = r.v, u = a.length; o < u; o++) Sa(e, t, n, a[o], i[o]);
+  return n;
+}
+function Aa(e, t, r) {
+  let n = b(e, r.i, r.t === 10 ? {} : /* @__PURE__ */ Object.create(null));
+  return tr(e, t, r.p, n), Qt(n, r.o), n;
+}
+function Ea(e, t) {
+  return b(e, t.i, new Date(t.s));
+}
+function xa(e, t) {
+  if (e.base.features & 32) {
+    let r = z(t.c);
+    if (r.length > fa) throw new k(t);
+    return b(e, t.i, new RegExp(r, t.m));
+  }
+  throw new H$1(t);
+}
+function Pa(e, t, r) {
+  let n = b(e, r.i, /* @__PURE__ */ new Set());
+  for (let a = 0, o = r.a, i = o.length; a < i; a++) n.add(y$1(e, t, o[a]));
+  return n;
+}
+function Ia(e, t, r) {
+  let n = b(e, r.i, /* @__PURE__ */ new Map());
+  for (let a = 0, o = r.e.k, i = r.e.v, u = o.length; a < u; a++) n.set(y$1(e, t, o[a]), y$1(e, t, i[a]));
+  return n;
+}
+function _a(e, t) {
+  if (t.s.length > ca) throw new k(t);
+  return b(e, t.i, Gt(z(t.s)));
+}
+function ka(e, t, r) {
+  var n;
+  let a = ua(r.c), o = y$1(e, t, r.f), i = (n = r.b) != null ? n : 0;
+  if (i < 0 || i > o.byteLength) throw new k(r);
+  return b(e, r.i, new a(o, i, r.l));
+}
+function ja(e, t, r) {
+  var n;
+  let a = y$1(e, t, r.f), o = (n = r.b) != null ? n : 0;
+  if (o < 0 || o > a.byteLength) throw new k(r);
+  return b(e, r.i, new DataView(a, o, r.l));
+}
+function rr(e, t, r, n) {
+  if (r.p) {
+    let a = tr(e, t, r.p, {});
+    Object.defineProperties(n, Object.getOwnPropertyDescriptors(a));
+  }
+  return n;
+}
+function Ua(e, t, r) {
+  let n = b(e, r.i, new AggregateError([], z(r.m)));
+  return rr(e, t, r, n);
+}
+function $a(e, t, r) {
+  let n = Se$1(r, Fn, r.s), a = b(e, r.i, new n(z(r.m)));
+  return rr(e, t, r, a);
+}
+function za(e, t, r) {
+  let n = le$1(), a = b(e, r.i, n.p), o = y$1(e, t, r.f);
+  return r.s ? n.s(o) : n.f(o), a;
+}
+function Ca(e, t, r) {
+  return b(e, r.i, Object(y$1(e, t, r.f)));
+}
+function Da(e, t, r) {
+  let n = e.base.plugins;
+  if (n) {
+    let a = z(r.c);
+    for (let o = 0, i = n.length; o < i; o++) {
+      let u = n[o];
+      if (u.tag === a) return b(e, r.i, u.deserialize(r.s, new ga(e, t), { id: r.i }));
+    }
+  }
+  throw new qt(r.c);
+}
+function Ha(e, t) {
+  let r = b(e, t.i, b(e, t.s, le$1()).p);
+  return er(e, t.s, 22), r;
+}
+function Oa(e, t, r) {
+  let n = e.base.refs.get(r.i);
+  if (n) return te(e, r, r.i, 22), n.s(y$1(e, t, r.a[1])), s;
+  throw new Z("Promise");
+}
+function La(e, t, r) {
+  let n = e.base.refs.get(r.i);
+  if (n) return te(e, r, r.i, 22), n.f(y$1(e, t, r.a[1])), s;
+  throw new Z("Promise");
+}
+function Ma(e, t, r) {
+  y$1(e, t, r.a[0]);
+  let n = y$1(e, t, r.a[1]);
+  return Bs(n);
+}
+function Ta(e, t, r) {
+  y$1(e, t, r.a[0]);
+  let n = y$1(e, t, r.a[1]);
+  return Qs(n);
+}
+function Na(e, t, r) {
+  let n = b(e, r.i, ee());
+  er(e, r.i, 31);
+  let a = r.a, o = a.length;
+  if (o) for (let i = 0; i < o; i++) y$1(e, t, a[i]);
+  return n;
+}
+function Fa(e, t, r) {
+  let n = e.base.refs.get(r.i);
+  if (n) return te(e, r, r.i, 31), n.next(y$1(e, t, r.f)), s;
+  throw new Z("Stream");
+}
+function qa(e, t, r) {
+  let n = e.base.refs.get(r.i);
+  if (n) return te(e, r, r.i, 31), n.throw(y$1(e, t, r.f)), s;
+  throw new Z("Stream");
+}
+function Ba(e, t, r) {
+  let n = e.base.refs.get(r.i);
+  if (n) return te(e, r, r.i, 31), n.return(y$1(e, t, r.f)), s;
+  throw new Z("Stream");
+}
+function Va(e, t, r) {
+  return y$1(e, t, r.f), s;
+}
+function Wa(e, t, r) {
+  return y$1(e, t, r.a[1]), s;
+}
+function Xa(e, t, r) {
+  let n = b(e, r.i, Jt([], r.s, r.l));
+  for (let a = 0, o = r.a.length; a < o; a++) n.v[a] = y$1(e, t, r.a[a]);
+  return n;
+}
+function y$1(e, t, r) {
+  if (t > e.base.depthLimit) throw new Bt(e.base.depthLimit);
+  switch (t += 1, r.t) {
+    case 2:
+      return Se$1(r, Nn, r.s);
+    case 0:
+      return Number(r.s);
+    case 1:
+      return z(String(r.s));
+    case 3:
+      if (String(r.s).length > la) throw new k(r);
+      return BigInt(r.s);
+    case 4:
+      return e.base.refs.get(r.i);
+    case 18:
+      return ba(e, r);
+    case 9:
+      return wa(e, t, r);
+    case 10:
+    case 11:
+      return Aa(e, t, r);
+    case 5:
+      return Ea(e, r);
+    case 6:
+      return xa(e, r);
+    case 7:
+      return Pa(e, t, r);
+    case 8:
+      return Ia(e, t, r);
+    case 19:
+      return _a(e, r);
+    case 16:
+    case 15:
+      return ka(e, t, r);
+    case 20:
+      return ja(e, t, r);
+    case 14:
+      return Ua(e, t, r);
+    case 13:
+      return $a(e, t, r);
+    case 12:
+      return za(e, t, r);
+    case 17:
+      return Se$1(r, Mn, r.s);
+    case 21:
+      return Ca(e, t, r);
+    case 25:
+      return Da(e, t, r);
+    case 22:
+      return Ha(e, r);
+    case 23:
+      return Oa(e, t, r);
+    case 24:
+      return La(e, t, r);
+    case 28:
+      return Ma(e, t, r);
+    case 30:
+      return Ta(e, t, r);
+    case 31:
+      return Na(e, t, r);
+    case 32:
+      return Fa(e, t, r);
+    case 33:
+      return qa(e, t, r);
+    case 34:
+      return Ba(e, t, r);
+    case 27:
+      return Va(e, t, r);
+    case 29:
+      return Wa(e, t, r);
+    case 35:
+      return Xa(e, t, r);
+    default:
+      throw new H$1(r);
+  }
+}
+function Ga(e, t) {
+  try {
+    return y$1(e, 0, t);
+  } catch (r) {
+    throw new Is(r);
+  }
+}
+var Ja = () => T, Ya = Ja.toString(), nr = /=>/.test(Ya);
+function sr(e, t) {
+  return nr ? (e.length === 1 ? e[0] : "(" + e.join(",") + ")") + "=>" + (t.startsWith("{") ? "(" + t + ")" : t) : "function(" + e.join(",") + "){return " + t + "}";
+}
+function Ka(e, t) {
+  return nr ? (e.length === 1 ? e[0] : "(" + e.join(",") + ")") + "=>{" + t + "}" : "function(" + e.join(",") + "){" + t + "}";
+}
+var ar = "hjkmoquxzABCDEFGHIJKLNPQRTUVWXYZ$_", Ke$1 = ar.length, or = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_", Qe$1 = or.length;
+function Qa(e) {
+  let t = e % Ke$1, r = ar[t];
+  for (e = (e - t) / Ke$1; e > 0; ) t = e % Qe$1, r += or[t], e = (e - t) / Qe$1;
+  return r;
+}
+var Za = /^[$A-Z_][0-9A-Z_$]*$/i;
+function ir(e) {
+  let t = e[0];
+  return (t === "$" || t === "_" || t >= "A" && t <= "Z" || t >= "a" && t <= "z") && Za.test(e);
+}
+function J(e) {
+  switch (e.t) {
+    case 0:
+      return e.s + "=" + e.v;
+    case 2:
+      return e.s + ".set(" + e.k + "," + e.v + ")";
+    case 1:
+      return e.s + ".add(" + e.v + ")";
+    case 3:
+      return e.s + ".delete(" + e.k + ")";
+  }
+}
+function eo(e) {
+  let t = [], r = e[0];
+  for (let n = 1, a = e.length, o, i = r; n < a; n++) o = e[n], o.t === 0 && o.v === i.v ? r = { t: 0, s: o.s, k: s, v: J(r) } : o.t === 2 && o.s === i.s ? r = { t: 2, s: J(r), k: o.k, v: o.v } : o.t === 1 && o.s === i.s ? r = { t: 1, s: J(r), k: s, v: o.v } : o.t === 3 && o.s === i.s ? r = { t: 3, s: J(r), k: o.k, v: s } : (t.push(r), r = o), i = o;
+  return t.push(r), t;
+}
+function ur(e) {
+  if (e.length) {
+    let t = "", r = eo(e);
+    for (let n = 0, a = r.length; n < a; n++) t += J(r[n]) + ",";
+    return t;
+  }
+  return s;
+}
+var to = "Object.create(null)", ro = "new Set", no = "new Map", so = "Promise.resolve", ao = "Promise.reject", oo = { 3: "Object.freeze", 2: "Object.seal", 1: "Object.preventExtensions", 0: s };
+function io(e, t) {
+  return { mode: e, plugins: t.plugins, features: t.features, marked: new Set(t.markedRefs), stack: [], flags: [], assignments: [] };
+}
+function uo(e) {
+  return { mode: 2, base: io(2, e), state: e, child: s };
+}
+var co = class {
+  constructor(e) {
+    this._p = e;
+  }
+  serialize(e) {
+    return h(this._p, e);
+  }
+};
+function lo(e, t) {
+  let r = e.valid.get(t);
+  r == null && (r = e.valid.size, e.valid.set(t, r));
+  let n = e.vars[r];
+  return n == null && (n = Qa(r), e.vars[r] = n), n;
+}
+function fo(e) {
+  return ue$1 + "[" + e + "]";
+}
+function m(e, t) {
+  return e.mode === 1 ? lo(e.state, t) : fo(t);
+}
+function S$1(e, t) {
+  e.marked.add(t);
+}
+function Ae$1(e, t) {
+  return e.marked.has(t);
+}
+function je$1(e, t, r) {
+  t !== 0 && (S$1(e.base, r), e.base.flags.push({ type: t, value: m(e, r) }));
+}
+function po(e) {
+  let t = "";
+  for (let r = 0, n = e.flags, a = n.length; r < a; r++) {
+    let o = n[r];
+    t += oo[o.type] + "(" + o.value + "),";
+  }
+  return t;
+}
+function ho(e) {
+  let t = ur(e.assignments), r = po(e);
+  return t ? r ? t + r : t : r;
+}
+function Ue$1(e, t, r) {
+  e.assignments.push({ t: 0, s: t, k: s, v: r });
+}
+function go(e, t, r) {
+  e.base.assignments.push({ t: 1, s: m(e, t), k: s, v: r });
+}
+function X(e, t, r, n) {
+  e.base.assignments.push({ t: 2, s: m(e, t), k: r, v: n });
+}
+function Ze(e, t, r) {
+  e.base.assignments.push({ t: 3, s: m(e, t), k: r, v: s });
+}
+function K(e, t, r, n) {
+  Ue$1(e.base, m(e, t) + "[" + r + "]", n);
+}
+function Ee$1(e, t, r, n) {
+  Ue$1(e.base, m(e, t) + "." + r, n);
+}
+function mo(e, t, r, n) {
+  Ue$1(e.base, m(e, t) + ".v[" + r + "]", n);
+}
+function x$1(e, t) {
+  return t.t === 4 && e.stack.includes(t.i);
+}
+function W(e, t, r) {
+  return e.mode === 1 && !Ae$1(e.base, t) ? r : m(e, t) + "=" + r;
+}
+function yo(e) {
+  return G + '.get("' + e.s + '")';
+}
+function et(e, t, r, n) {
+  return r ? x$1(e.base, r) ? (S$1(e.base, t), K(e, t, n, m(e, r.i)), "") : h(e, r) : "";
+}
+function bo(e, t) {
+  let r = t.i, n = t.a, a = n.length;
+  if (a > 0) {
+    e.base.stack.push(r);
+    let o = et(e, r, n[0], 0), i = o === "";
+    for (let u = 1, c; u < a; u++) c = et(e, r, n[u], u), o += "," + c, i = c === "";
+    return e.base.stack.pop(), je$1(e, t.o, t.i), "[" + o + (i ? ",]" : "]");
+  }
+  return "[]";
+}
+function tt(e, t, r, n) {
+  if (typeof r == "string") {
+    let a = Number(r), o = a >= 0 && a.toString() === r || ir(r);
+    if (x$1(e.base, n)) {
+      let i = m(e, n.i);
+      return S$1(e.base, t.i), o && a !== a ? Ee$1(e, t.i, r, i) : K(e, t.i, o ? r : '"' + r + '"', i), "";
+    }
+    return (o ? r : '"' + r + '"') + ":" + h(e, n);
+  }
+  return "[" + h(e, r) + "]:" + h(e, n);
+}
+function cr(e, t, r) {
+  let n = r.k, a = n.length;
+  if (a > 0) {
+    let o = r.v;
+    e.base.stack.push(t.i);
+    let i = tt(e, t, n[0], o[0]);
+    for (let u = 1, c = i; u < a; u++) c = tt(e, t, n[u], o[u]), i += (c && i && ",") + c;
+    return e.base.stack.pop(), "{" + i + "}";
+  }
+  return "{}";
+}
+function wo(e, t) {
+  return je$1(e, t.o, t.i), cr(e, t, t.p);
+}
+function vo(e, t, r, n) {
+  let a = cr(e, t, r);
+  return a !== "{}" ? "Object.assign(" + n + "," + a + ")" : n;
+}
+function Ro(e, t, r, n, a) {
+  let o = e.base, i = h(e, a), u = Number(n), c = u >= 0 && u.toString() === n || ir(n);
+  if (x$1(o, a)) c && u !== u ? Ee$1(e, t.i, n, i) : K(e, t.i, c ? n : '"' + n + '"', i);
+  else {
+    let l = o.assignments;
+    o.assignments = r, c && u !== u ? Ee$1(e, t.i, n, i) : K(e, t.i, c ? n : '"' + n + '"', i), o.assignments = l;
+  }
+}
+function So(e, t, r, n, a) {
+  if (typeof n == "string") Ro(e, t, r, n, a);
+  else {
+    let o = e.base, i = o.stack;
+    o.stack = [];
+    let u = h(e, a);
+    o.stack = i;
+    let c = o.assignments;
+    o.assignments = r, K(e, t.i, h(e, n), u), o.assignments = c;
+  }
+}
+function Ao(e, t, r) {
+  let n = r.k, a = n.length;
+  if (a > 0) {
+    let o = [], i = r.v;
+    e.base.stack.push(t.i);
+    for (let u = 0; u < a; u++) So(e, t, o, n[u], i[u]);
+    return e.base.stack.pop(), ur(o);
+  }
+  return s;
+}
+function $e$1(e, t, r) {
+  if (t.p) {
+    let n = e.base;
+    if (n.features & 8) r = vo(e, t, t.p, r);
+    else {
+      S$1(n, t.i);
+      let a = Ao(e, t, t.p);
+      if (a) return "(" + W(e, t.i, r) + "," + a + m(e, t.i) + ")";
+    }
+  }
+  return r;
+}
+function Eo(e, t) {
+  return je$1(e, t.o, t.i), $e$1(e, t, to);
+}
+function xo(e) {
+  return 'new Date("' + e.s + '")';
+}
+function Po(e, t) {
+  if (e.base.features & 32) return "/" + t.c + "/" + t.m;
+  throw new H$1(t);
+}
+function rt(e, t, r) {
+  let n = e.base;
+  return x$1(n, r) ? (S$1(n, t), go(e, t, m(e, r.i)), "") : h(e, r);
+}
+function Io(e, t) {
+  let r = ro, n = t.a, a = n.length, o = t.i;
+  if (a > 0) {
+    e.base.stack.push(o);
+    let i = rt(e, o, n[0]);
+    for (let u = 1, c = i; u < a; u++) c = rt(e, o, n[u]), i += (c && i && ",") + c;
+    e.base.stack.pop(), i && (r += "([" + i + "])");
+  }
+  return r;
+}
+function nt$1(e, t, r, n, a) {
+  let o = e.base;
+  if (x$1(o, r)) {
+    let i = m(e, r.i);
+    if (S$1(o, t), x$1(o, n)) {
+      let c = m(e, n.i);
+      return X(e, t, i, c), "";
+    }
+    if (n.t !== 4 && n.i != null && Ae$1(o, n.i)) {
+      let c = "(" + h(e, n) + ",[" + a + "," + a + "])";
+      return X(e, t, i, m(e, n.i)), Ze(e, t, a), c;
+    }
+    let u = o.stack;
+    return o.stack = [], X(e, t, i, h(e, n)), o.stack = u, "";
+  }
+  if (x$1(o, n)) {
+    let i = m(e, n.i);
+    if (S$1(o, t), r.t !== 4 && r.i != null && Ae$1(o, r.i)) {
+      let c = "(" + h(e, r) + ",[" + a + "," + a + "])";
+      return X(e, t, m(e, r.i), i), Ze(e, t, a), c;
+    }
+    let u = o.stack;
+    return o.stack = [], X(e, t, h(e, r), i), o.stack = u, "";
+  }
+  return "[" + h(e, r) + "," + h(e, n) + "]";
+}
+function _o(e, t) {
+  let r = no, n = t.e.k, a = n.length, o = t.i, i = t.f, u = m(e, i.i), c = e.base;
+  if (a > 0) {
+    let l = t.e.v;
+    c.stack.push(o);
+    let p = nt$1(e, o, n[0], l[0], u);
+    for (let d = 1, w = p; d < a; d++) w = nt$1(e, o, n[d], l[d], u), p += (w && p && ",") + w;
+    c.stack.pop(), p && (r += "([" + p + "])");
+  }
+  return i.t === 26 && (S$1(c, i.i), r = "(" + h(e, i) + "," + r + ")"), r;
+}
+function ko(e, t) {
+  return L$1(e, t.f) + '("' + t.s + '")';
+}
+function jo(e, t) {
+  return "new " + t.c + "(" + h(e, t.f) + "," + t.b + "," + t.l + ")";
+}
+function Uo(e, t) {
+  return "new DataView(" + h(e, t.f) + "," + t.b + "," + t.l + ")";
+}
+function $o(e, t) {
+  let r = t.i;
+  e.base.stack.push(r);
+  let n = $e$1(e, t, 'new AggregateError([],"' + t.m + '")');
+  return e.base.stack.pop(), n;
+}
+function zo(e, t) {
+  return $e$1(e, t, "new " + zt[t.s] + '("' + t.m + '")');
+}
+function Co(e, t) {
+  let r, n = t.f, a = t.i, o = t.s ? so : ao, i = e.base;
+  if (x$1(i, n)) {
+    let u = m(e, n.i);
+    r = o + (t.s ? "().then(" + sr([], u) + ")" : "().catch(" + Ka([], "throw " + u) + ")");
+  } else {
+    i.stack.push(a);
+    let u = h(e, n);
+    i.stack.pop(), r = o + "(" + u + ")";
+  }
+  return r;
+}
+function Do(e, t) {
+  return "Object(" + h(e, t.f) + ")";
+}
+function L$1(e, t) {
+  let r = h(e, t);
+  return t.t === 4 ? r : "(" + r + ")";
+}
+function Ho(e, t) {
+  if (e.mode === 1) throw new H$1(t);
+  return "(" + W(e, t.s, L$1(e, t.f) + "()") + ").p";
+}
+function Oo(e, t) {
+  if (e.mode === 1) throw new H$1(t);
+  return L$1(e, t.a[0]) + "(" + m(e, t.i) + "," + h(e, t.a[1]) + ")";
+}
+function Lo(e, t) {
+  if (e.mode === 1) throw new H$1(t);
+  return L$1(e, t.a[0]) + "(" + m(e, t.i) + "," + h(e, t.a[1]) + ")";
+}
+function Mo(e, t) {
+  let r = e.base.plugins;
+  if (r) for (let n = 0, a = r.length; n < a; n++) {
+    let o = r[n];
+    if (o.tag === t.c) return e.child == null && (e.child = new co(e)), o.serialize(t.s, e.child, { id: t.i });
+  }
+  throw new qt(t.c);
+}
+function To(e, t) {
+  let r = "", n = false;
+  return t.f.t !== 4 && (S$1(e.base, t.f.i), r = "(" + h(e, t.f) + ",", n = true), r += W(e, t.i, "(" + Ls + ")(" + m(e, t.f.i) + ")"), n && (r += ")"), r;
+}
+function No(e, t) {
+  return L$1(e, t.a[0]) + "(" + h(e, t.a[1]) + ")";
+}
+function Fo(e, t) {
+  let r = t.a[0], n = t.a[1], a = e.base, o = "";
+  r.t !== 4 && (S$1(a, r.i), o += "(" + h(e, r)), n.t !== 4 && (S$1(a, n.i), o += (o ? "," : "(") + h(e, n)), o && (o += ",");
+  let i = W(e, t.i, "(" + Ms + ")(" + m(e, n.i) + "," + m(e, r.i) + ")");
+  return o ? o + i + ")" : i;
+}
+function qo(e, t) {
+  return L$1(e, t.a[0]) + "(" + h(e, t.a[1]) + ")";
+}
+function Bo(e, t) {
+  let r = W(e, t.i, L$1(e, t.f) + "()"), n = t.a.length;
+  if (n) {
+    let a = h(e, t.a[0]);
+    for (let o = 1; o < n; o++) a += "," + h(e, t.a[o]);
+    return "(" + r + "," + a + "," + m(e, t.i) + ")";
+  }
+  return r;
+}
+function Vo(e, t) {
+  return m(e, t.i) + ".next(" + h(e, t.f) + ")";
+}
+function Wo(e, t) {
+  return m(e, t.i) + ".throw(" + h(e, t.f) + ")";
+}
+function Xo(e, t) {
+  return m(e, t.i) + ".return(" + h(e, t.f) + ")";
+}
+function st(e, t, r, n) {
+  let a = e.base;
+  return x$1(a, n) ? (S$1(a, t), mo(e, t, r, m(e, n.i)), "") : h(e, n);
+}
+function Go(e, t) {
+  let r = t.a, n = r.length, a = t.i;
+  if (n > 0) {
+    e.base.stack.push(a);
+    let o = st(e, a, 0, r[0]);
+    for (let i = 1, u = o; i < n; i++) u = st(e, a, i, r[i]), o += (u && o && ",") + u;
+    if (e.base.stack.pop(), o) return "{__SEROVAL_SEQUENCE__:!0,v:[" + o + "],t:" + t.s + ",d:" + t.l + "}";
+  }
+  return "{__SEROVAL_SEQUENCE__:!0,v:[],t:-1,d:0}";
+}
+function Jo(e, t) {
+  switch (t.t) {
+    case 17:
+      return Ln[t.s];
+    case 18:
+      return yo(t);
+    case 9:
+      return bo(e, t);
+    case 10:
+      return wo(e, t);
+    case 11:
+      return Eo(e, t);
+    case 5:
+      return xo(t);
+    case 6:
+      return Po(e, t);
+    case 7:
+      return Io(e, t);
+    case 8:
+      return _o(e, t);
+    case 19:
+      return ko(e, t);
+    case 16:
+    case 15:
+      return jo(e, t);
+    case 20:
+      return Uo(e, t);
+    case 14:
+      return $o(e, t);
+    case 13:
+      return zo(e, t);
+    case 12:
+      return Co(e, t);
+    case 21:
+      return Do(e, t);
+    case 22:
+      return Ho(e, t);
+    case 25:
+      return Mo(e, t);
+    case 26:
+      return Gs[t.s];
+    case 35:
+      return Go(e, t);
+    default:
+      throw new H$1(t);
+  }
+}
+function h(e, t) {
+  switch (t.t) {
+    case 2:
+      return Tn[t.s];
+    case 0:
+      return "" + t.s;
+    case 1:
+      return '"' + t.s + '"';
+    case 3:
+      return t.s + "n";
+    case 4:
+      return m(e, t.i);
+    case 23:
+      return Oo(e, t);
+    case 24:
+      return Lo(e, t);
+    case 27:
+      return To(e, t);
+    case 28:
+      return No(e, t);
+    case 29:
+      return Fo(e, t);
+    case 30:
+      return qo(e, t);
+    case 31:
+      return Bo(e, t);
+    case 32:
+      return Vo(e, t);
+    case 33:
+      return Wo(e, t);
+    case 34:
+      return Xo(e, t);
+    default:
+      return W(e, t.i, Jo(e, t));
+  }
+}
+function Yo(e, t) {
+  let r = h(e, t), n = t.i;
+  if (n == null) return r;
+  let a = ho(e.base), o = m(e, n), i = e.state.scopeId, u = i == null ? "" : ue$1, c = a ? "(" + r + "," + a + o + ")" : r;
+  if (u === "") return t.t === 10 && !a ? "(" + c + ")" : c;
+  let l = i == null ? "()" : "(" + ue$1 + '["' + E$1(i) + '"])';
+  return "(" + sr([u], c) + ")" + l;
+}
+var Ko = class {
+  constructor(e, t) {
+    this._p = e, this.depth = t;
+  }
+  parse(e) {
+    return v(this._p, this.depth, e);
+  }
+}, Qo = class {
+  constructor(e, t) {
+    this._p = e, this.depth = t;
+  }
+  parse(e) {
+    return v(this._p, this.depth, e);
+  }
+  parseWithError(e) {
+    return D$1(this._p, this.depth, e);
+  }
+  isAlive() {
+    return this._p.state.alive;
+  }
+  pushPendingState() {
+    He$1(this._p);
+  }
+  popPendingState() {
+    Q(this._p);
+  }
+  onParse(e) {
+    V(this._p, e);
+  }
+  onError(e) {
+    Ce$1(this._p, e);
+  }
+};
+function Zo(e) {
+  return { alive: true, pending: 0, initial: true, buffer: [], onParse: e.onParse, onError: e.onError, onDone: e.onDone };
+}
+function lr(e) {
+  return { type: 2, base: Zs(2, e), state: Zo(e) };
+}
+function ei(e, t, r) {
+  let n = [];
+  for (let a = 0, o = r.length; a < o; a++) a in r ? n[a] = v(e, t, r[a]) : n[a] = 0;
+  return n;
+}
+function ti(e, t, r, n) {
+  return cs(r, n, ei(e, t, n));
+}
+function ze$1(e, t, r) {
+  let n = Object.entries(r), a = [], o = [];
+  for (let i = 0, u = n.length; i < u; i++) a.push(E$1(n[i][0])), o.push(v(e, t, n[i][1]));
+  return I$1 in r && (a.push(C(e.base, I$1)), o.push(ys(ta(e.base), v(e, t, Fs(r))))), P in r && (a.push(C(e.base, P)), o.push(bs(ra(e.base), v(e, t, e.type === 1 ? ee() : Ys(r))))), B in r && (a.push(C(e.base, B)), o.push(Tt(r[B]))), q$1 in r && (a.push(C(e.base, q$1)), o.push(r[q$1] ? Ct : Dt)), { k: a, v: o };
+}
+function ge$1(e, t, r, n, a) {
+  return na(r, n, a, ze$1(e, t, n));
+}
+function ri(e, t, r, n) {
+  return ls(r, v(e, t, n.valueOf()));
+}
+function ni(e, t, r, n) {
+  return fs(r, n, v(e, t, n.buffer));
+}
+function si(e, t, r, n) {
+  return ps(r, n, v(e, t, n.buffer));
+}
+function ai(e, t, r, n) {
+  return ds(r, n, v(e, t, n.buffer));
+}
+function at(e, t, r, n) {
+  let a = Lt(n, e.base.features);
+  return hs(r, n, a ? ze$1(e, t, a) : s);
+}
+function oi(e, t, r, n) {
+  let a = Lt(n, e.base.features);
+  return gs(r, n, a ? ze$1(e, t, a) : s);
+}
+function ii(e, t, r, n) {
+  let a = [], o = [];
+  for (let [i, u] of n.entries()) a.push(v(e, t, i)), o.push(v(e, t, u));
+  return sa(e.base, r, a, o);
+}
+function ui(e, t, r, n) {
+  let a = [];
+  for (let o of n.keys()) a.push(v(e, t, o));
+  return ms(r, a);
+}
+function ci(e, t, r, n) {
+  let a = ws(r, O(e.base, 4), []);
+  return e.type === 1 || (He$1(e), n.on({ next: (o) => {
+    if (e.state.alive) {
+      let i = D$1(e, t, o);
+      i && V(e, vs(r, i));
+    }
+  }, throw: (o) => {
+    if (e.state.alive) {
+      let i = D$1(e, t, o);
+      i && V(e, Rs(r, i));
+    }
+    Q(e);
+  }, return: (o) => {
+    if (e.state.alive) {
+      let i = D$1(e, t, o);
+      i && V(e, Ss(r, i));
+    }
+    Q(e);
+  } })), a;
+}
+function li(e, t, r) {
+  if (this.state.alive) {
+    let n = D$1(this, t, r);
+    n && V(this, g$1(23, e, s, s, s, s, s, [O(this.base, 2), n], s, s, s, s)), Q(this);
+  }
+}
+function fi(e, t, r) {
+  if (this.state.alive) {
+    let n = D$1(this, t, r);
+    n && V(this, g$1(24, e, s, s, s, s, s, [O(this.base, 3), n], s, s, s, s));
+  }
+  Q(this);
+}
+function pi(e, t, r, n) {
+  let a = Yt(e.base, {});
+  return e.type === 2 && (He$1(e), n.then(li.bind(e, a, t), fi.bind(e, a, t))), aa(e.base, r, a);
+}
+function di(e, t, r, n, a) {
+  for (let o = 0, i = a.length; o < i; o++) {
+    let u = a[o];
+    if (u.parse.sync && u.test(n)) return Nt(r, u.tag, u.parse.sync(n, new Ko(e, t), { id: r }));
+  }
+  return s;
+}
+function hi(e, t, r, n, a) {
+  for (let o = 0, i = a.length; o < i; o++) {
+    let u = a[o];
+    if (u.parse.stream && u.test(n)) return Nt(r, u.tag, u.parse.stream(n, new Qo(e, t), { id: r }));
+  }
+  return s;
+}
+function fr(e, t, r, n) {
+  let a = e.base.plugins;
+  return a ? e.type === 1 ? di(e, t, r, n, a) : hi(e, t, r, n, a) : s;
+}
+function gi(e, t, r, n) {
+  let a = [];
+  for (let o = 0, i = n.v.length; o < i; o++) a[o] = v(e, t, n.v[o]);
+  return As(r, a, n.t, n.d);
+}
+function mi(e, t, r, n, a) {
+  switch (a) {
+    case Object:
+      return ge$1(e, t, r, n, false);
+    case s:
+      return ge$1(e, t, r, n, true);
+    case Date:
+      return as(r, n);
+    case Error:
+    case EvalError:
+    case RangeError:
+    case ReferenceError:
+    case SyntaxError:
+    case TypeError:
+    case URIError:
+      return at(e, t, r, n);
+    case Number:
+    case Boolean:
+    case String:
+    case BigInt:
+      return ri(e, t, r, n);
+    case ArrayBuffer:
+      return oa(e.base, r, n);
+    case Int8Array:
+    case Int16Array:
+    case Int32Array:
+    case Uint8Array:
+    case Uint16Array:
+    case Uint32Array:
+    case Uint8ClampedArray:
+    case Float32Array:
+    case Float64Array:
+      return ni(e, t, r, n);
+    case DataView:
+      return ai(e, t, r, n);
+    case Map:
+      return ii(e, t, r, n);
+    case Set:
+      return ui(e, t, r, n);
+  }
+  if (a === Promise || n instanceof Promise) return pi(e, t, r, n);
+  let o = e.base.features;
+  if (o & 32 && a === RegExp) return os(r, n);
+  if (o & 16) switch (a) {
+    case BigInt64Array:
+    case BigUint64Array:
+      return si(e, t, r, n);
+  }
+  if (o & 1 && typeof AggregateError < "u" && (a === AggregateError || n instanceof AggregateError)) return oi(e, t, r, n);
+  if (n instanceof Error) return at(e, t, r, n);
+  if (I$1 in n || P in n) return ge$1(e, t, r, n, !!a);
+  throw new ce(n);
+}
+function yi(e, t, r, n) {
+  if (Array.isArray(n)) return ti(e, t, r, n);
+  if (Js(n)) return ci(e, t, r, n);
+  if (Ns(n)) return gi(e, t, r, n);
+  let a = n.constructor;
+  return a === Us ? v(e, t, n.replacement) : fr(e, t, r, n) || mi(e, t, r, n, a);
+}
+function bi(e, t, r) {
+  let n = _e$1(e.base, r);
+  if (n.type !== 0) return n.value;
+  let a = fr(e, t, n.value, r);
+  if (a) return a;
+  throw new ce(r);
+}
+function v(e, t, r) {
+  if (t >= e.base.depthLimit) throw new Bt(e.base.depthLimit);
+  switch (typeof r) {
+    case "boolean":
+      return r ? Ct : Dt;
+    case "undefined":
+      return qn;
+    case "string":
+      return Tt(r);
+    case "number":
+      return rs(r);
+    case "bigint":
+      return ns(r);
+    case "object": {
+      if (r) {
+        let n = _e$1(e.base, r);
+        return n.type === 0 ? yi(e, t + 1, n.value, r) : n.value;
+      }
+      return Bn;
+    }
+    case "symbol":
+      return C(e.base, r);
+    case "function":
+      return bi(e, t, r);
+    default:
+      throw new ce(r);
+  }
+}
+function V(e, t) {
+  e.state.initial ? e.state.buffer.push(t) : De$1(e, t, false);
+}
+function Ce$1(e, t) {
+  if (e.state.onError) e.state.onError(t);
+  else throw t instanceof Je$1 ? t : new Je$1(t);
+}
+function pr(e) {
+  e.state.onDone && e.state.onDone();
+}
+function De$1(e, t, r) {
+  try {
+    e.state.onParse(t, r);
+  } catch (n) {
+    Ce$1(e, n);
+  }
+}
+function He$1(e) {
+  e.state.pending++;
+}
+function Q(e) {
+  --e.state.pending <= 0 && pr(e);
+}
+function D$1(e, t, r) {
+  try {
+    return v(e, t, r);
+  } catch (n) {
+    return Ce$1(e, n), s;
+  }
+}
+function dr(e, t) {
+  let r = D$1(e, 0, t);
+  r && (De$1(e, r, true), e.state.initial = false, wi(e, e.state), e.state.pending <= 0 && Oe$1(e));
+}
+function wi(e, t) {
+  for (let r = 0, n = t.buffer.length; r < n; r++) De$1(e, t.buffer[r], false);
+}
+function Oe$1(e) {
+  e.state.alive && (pr(e), e.state.alive = false);
+}
+function vi(e, t) {
+  let r = ke$1(t.plugins), n = lr({ plugins: r, refs: t.refs, disabledFeatures: t.disabledFeatures, onParse(a, o) {
+    let i = uo({ plugins: r, features: n.base.features, scopeId: t.scopeId, markedRefs: n.base.marked }), u;
+    try {
+      u = Yo(i, a);
+    } catch (c) {
+      t.onError && t.onError(c);
+      return;
+    }
+    t.onSerialize(u, o);
+  }, onError: t.onError, onDone: t.onDone });
+  return dr(n, e), Oe$1.bind(null, n);
+}
+function Ri(e, t) {
+  let r = ke$1(t.plugins), n = lr({ plugins: r, refs: t.refs, disabledFeatures: t.disabledFeatures, depthLimit: t.depthLimit, onParse: t.onParse, onError: t.onError, onDone: t.onDone });
+  return dr(n, e), Oe$1.bind(null, n);
+}
+function Si(e, t = {}) {
+  var r;
+  let n = ke$1(t.plugins), a = t.disabledFeatures || 0, o = (r = e.f) != null ? r : 63, i = ha({ plugins: n, markedRefs: e.m, features: o & ~a, disabledFeatures: a });
+  return Ga(i, e.t);
+}
+var xe$1 = (e) => {
+  let t = new AbortController(), r = t.abort.bind(t);
+  return e.then(r, r), t;
+};
+function Ai(e) {
+  e(this.reason);
+}
+function Ei(e) {
+  this.addEventListener("abort", Ai.bind(this, e), { once: true });
+}
+function ot(e) {
+  return new Promise(Ei.bind(e));
+}
+var Y = {}, xi = { tag: "seroval-plugins/web/AbortControllerFactoryPlugin", test(e) {
+  return e === Y;
+}, parse: { sync() {
+  return Y;
+}, async async() {
+  return await Promise.resolve(Y);
+}, stream() {
+  return Y;
+} }, serialize() {
+  return xe$1.toString();
+}, deserialize() {
+  return xe$1;
+} }, Pi = { tag: "seroval-plugins/web/AbortSignal", extends: [xi], test(e) {
+  return typeof AbortSignal > "u" ? false : e instanceof AbortSignal;
+}, parse: { sync(e, t) {
+  return e.aborted ? { reason: t.parse(e.reason) } : {};
+}, async async(e, t) {
+  if (e.aborted) return { reason: await t.parse(e.reason) };
+  let r = await ot(e);
+  return { reason: await t.parse(r) };
+}, stream(e, t) {
+  if (e.aborted) return { reason: t.parse(e.reason) };
+  let r = ot(e);
+  return { factory: t.parse(Y), controller: t.parse(r) };
+} }, serialize(e, t) {
+  return e.reason ? "AbortSignal.abort(" + t.serialize(e.reason) + ")" : e.controller && e.factory ? "(" + t.serialize(e.factory) + ")(" + t.serialize(e.controller) + ").signal" : "(new AbortController).signal";
+}, deserialize(e, t) {
+  return e.reason ? AbortSignal.abort(t.deserialize(e.reason)) : e.controller ? xe$1(t.deserialize(e.controller)).signal : new AbortController().signal;
+} }, Ii = Pi;
+function me$1(e) {
+  return { detail: e.detail, bubbles: e.bubbles, cancelable: e.cancelable, composed: e.composed };
+}
+var _i = { tag: "seroval-plugins/web/CustomEvent", test(e) {
+  return typeof CustomEvent > "u" ? false : e instanceof CustomEvent;
+}, parse: { sync(e, t) {
+  return { type: t.parse(e.type), options: t.parse(me$1(e)) };
+}, async async(e, t) {
+  return { type: await t.parse(e.type), options: await t.parse(me$1(e)) };
+}, stream(e, t) {
+  return { type: t.parse(e.type), options: t.parse(me$1(e)) };
+} }, serialize(e, t) {
+  return "new CustomEvent(" + t.serialize(e.type) + "," + t.serialize(e.options) + ")";
+}, deserialize(e, t) {
+  return new CustomEvent(t.deserialize(e.type), t.deserialize(e.options));
+} }, ki = _i, ji = { tag: "seroval-plugins/web/DOMException", test(e) {
+  return typeof DOMException > "u" ? false : e instanceof DOMException;
+}, parse: { sync(e, t) {
+  return { name: t.parse(e.name), message: t.parse(e.message) };
+}, async async(e, t) {
+  return { name: await t.parse(e.name), message: await t.parse(e.message) };
+}, stream(e, t) {
+  return { name: t.parse(e.name), message: t.parse(e.message) };
+} }, serialize(e, t) {
+  return "new DOMException(" + t.serialize(e.message) + "," + t.serialize(e.name) + ")";
+}, deserialize(e, t) {
+  return new DOMException(t.deserialize(e.message), t.deserialize(e.name));
+} }, Ui = ji;
+function ye$1(e) {
+  return { bubbles: e.bubbles, cancelable: e.cancelable, composed: e.composed };
+}
+var $i = { tag: "seroval-plugins/web/Event", test(e) {
+  return typeof Event > "u" ? false : e instanceof Event;
+}, parse: { sync(e, t) {
+  return { type: t.parse(e.type), options: t.parse(ye$1(e)) };
+}, async async(e, t) {
+  return { type: await t.parse(e.type), options: await t.parse(ye$1(e)) };
+}, stream(e, t) {
+  return { type: t.parse(e.type), options: t.parse(ye$1(e)) };
+} }, serialize(e, t) {
+  return "new Event(" + t.serialize(e.type) + "," + t.serialize(e.options) + ")";
+}, deserialize(e, t) {
+  return new Event(t.deserialize(e.type), t.deserialize(e.options));
+} }, zi = $i, Ci = { tag: "seroval-plugins/web/File", test(e) {
+  return typeof File > "u" ? false : e instanceof File;
+}, parse: { async async(e, t) {
+  return { name: await t.parse(e.name), options: await t.parse({ type: e.type, lastModified: e.lastModified }), buffer: await t.parse(await e.arrayBuffer()) };
+} }, serialize(e, t) {
+  return "new File([" + t.serialize(e.buffer) + "]," + t.serialize(e.name) + "," + t.serialize(e.options) + ")";
+}, deserialize(e, t) {
+  return new File([t.deserialize(e.buffer)], t.deserialize(e.name), t.deserialize(e.options));
+} }, Di = Ci;
+function be$1(e) {
+  let t = [];
+  return e.forEach((r, n) => {
+    t.push([n, r]);
+  }), t;
+}
+var j$1 = {}, hr = (e, t = new FormData(), r = 0, n = e.length, a) => {
+  for (; r < n; r++) a = e[r], t.append(a[0], a[1]);
+  return t;
+}, Hi = { tag: "seroval-plugins/web/FormDataFactory", test(e) {
+  return e === j$1;
+}, parse: { sync() {
+  return j$1;
+}, async async() {
+  return await Promise.resolve(j$1);
+}, stream() {
+  return j$1;
+} }, serialize() {
+  return hr.toString();
+}, deserialize() {
+  return j$1;
+} }, Oi = { tag: "seroval-plugins/web/FormData", extends: [Di, Hi], test(e) {
+  return typeof FormData > "u" ? false : e instanceof FormData;
+}, parse: { sync(e, t) {
+  return { factory: t.parse(j$1), entries: t.parse(be$1(e)) };
+}, async async(e, t) {
+  return { factory: await t.parse(j$1), entries: await t.parse(be$1(e)) };
+}, stream(e, t) {
+  return { factory: t.parse(j$1), entries: t.parse(be$1(e)) };
+} }, serialize(e, t) {
+  return "(" + t.serialize(e.factory) + ")(" + t.serialize(e.entries) + ")";
+}, deserialize(e, t) {
+  return hr(t.deserialize(e.entries));
+} }, Li = Oi;
+function we$1(e) {
+  let t = [];
+  return e.forEach((r, n) => {
+    t.push([n, r]);
+  }), t;
+}
+var Mi = { tag: "seroval-plugins/web/Headers", test(e) {
+  return typeof Headers > "u" ? false : e instanceof Headers;
+}, parse: { sync(e, t) {
+  return { value: t.parse(we$1(e)) };
+}, async async(e, t) {
+  return { value: await t.parse(we$1(e)) };
+}, stream(e, t) {
+  return { value: t.parse(we$1(e)) };
+} }, serialize(e, t) {
+  return "new Headers(" + t.serialize(e.value) + ")";
+}, deserialize(e, t) {
+  return new Headers(t.deserialize(e.value));
+} }, Le$1 = Mi, U$1 = {}, gr = (e) => new ReadableStream({ start: (t) => {
+  e.on({ next: (r) => {
+    try {
+      t.enqueue(r);
+    } catch {
+    }
+  }, throw: (r) => {
+    t.error(r);
+  }, return: () => {
+    try {
+      t.close();
+    } catch {
+    }
+  } });
+} }), Ti = { tag: "seroval-plugins/web/ReadableStreamFactory", test(e) {
+  return e === U$1;
+}, parse: { sync() {
+  return U$1;
+}, async async() {
+  return await Promise.resolve(U$1);
+}, stream() {
+  return U$1;
+} }, serialize() {
+  return gr.toString();
+}, deserialize() {
+  return U$1;
+} };
+function it(e) {
+  let t = ee(), r = e.getReader();
+  async function n() {
+    try {
+      let a = await r.read();
+      a.done ? t.return(a.value) : (t.next(a.value), await n());
+    } catch (a) {
+      t.throw(a);
+    }
+  }
+  return n().catch(() => {
+  }), t;
+}
+var Ni = { tag: "seroval/plugins/web/ReadableStream", extends: [Ti], test(e) {
+  return typeof ReadableStream > "u" ? false : e instanceof ReadableStream;
+}, parse: { sync(e, t) {
+  return { factory: t.parse(U$1), stream: t.parse(ee()) };
+}, async async(e, t) {
+  return { factory: await t.parse(U$1), stream: await t.parse(it(e)) };
+}, stream(e, t) {
+  return { factory: t.parse(U$1), stream: t.parse(it(e)) };
+} }, serialize(e, t) {
+  return "(" + t.serialize(e.factory) + ")(" + t.serialize(e.stream) + ")";
+}, deserialize(e, t) {
+  let r = t.deserialize(e.stream);
+  return gr(r);
+} }, Me$1 = Ni;
+function ut(e, t) {
+  return { body: t, cache: e.cache, credentials: e.credentials, headers: e.headers, integrity: e.integrity, keepalive: e.keepalive, method: e.method, mode: e.mode, redirect: e.redirect, referrer: e.referrer, referrerPolicy: e.referrerPolicy };
+}
+var Fi = { tag: "seroval-plugins/web/Request", extends: [Me$1, Le$1], test(e) {
+  return typeof Request > "u" ? false : e instanceof Request;
+}, parse: { async async(e, t) {
+  return { url: await t.parse(e.url), options: await t.parse(ut(e, e.body && !e.bodyUsed ? await e.clone().arrayBuffer() : null)) };
+}, stream(e, t) {
+  return { url: t.parse(e.url), options: t.parse(ut(e, e.body && !e.bodyUsed ? e.clone().body : null)) };
+} }, serialize(e, t) {
+  return "new Request(" + t.serialize(e.url) + "," + t.serialize(e.options) + ")";
+}, deserialize(e, t) {
+  return new Request(t.deserialize(e.url), t.deserialize(e.options));
+} }, qi = Fi;
+function ct(e) {
+  return { headers: e.headers, status: e.status, statusText: e.statusText };
+}
+var Bi = { tag: "seroval-plugins/web/Response", extends: [Me$1, Le$1], test(e) {
+  return typeof Response > "u" ? false : e instanceof Response;
+}, parse: { async async(e, t) {
+  return { body: await t.parse(e.body && !e.bodyUsed ? await e.clone().arrayBuffer() : null), options: await t.parse(ct(e)) };
+}, stream(e, t) {
+  return { body: t.parse(e.body && !e.bodyUsed ? e.clone().body : null), options: t.parse(ct(e)) };
+} }, serialize(e, t) {
+  return "new Response(" + t.serialize(e.body) + "," + t.serialize(e.options) + ")";
+}, deserialize(e, t) {
+  return new Response(t.deserialize(e.body), t.deserialize(e.options));
+} }, Vi = Bi, Wi = { tag: "seroval-plugins/web/URL", test(e) {
+  return typeof URL > "u" ? false : e instanceof URL;
+}, parse: { sync(e, t) {
+  return { value: t.parse(e.href) };
+}, async async(e, t) {
+  return { value: await t.parse(e.href) };
+}, stream(e, t) {
+  return { value: t.parse(e.href) };
+} }, serialize(e, t) {
+  return "new URL(" + t.serialize(e.value) + ")";
+}, deserialize(e, t) {
+  return new URL(t.deserialize(e.value));
+} }, Xi = Wi, Gi = { tag: "seroval-plugins/web/URLSearchParams", test(e) {
+  return typeof URLSearchParams > "u" ? false : e instanceof URLSearchParams;
+}, parse: { sync(e, t) {
+  return { value: t.parse(e.toString()) };
+}, async async(e, t) {
+  return { value: await t.parse(e.toString()) };
+}, stream(e, t) {
+  return { value: t.parse(e.toString()) };
+} }, serialize(e, t) {
+  return "new URLSearchParams(" + t.serialize(e.value) + ")";
+}, deserialize(e, t) {
+  return new URLSearchParams(t.deserialize(e.value));
+} }, Ji = Gi;
+const Te$1 = [Ii, ki, Ui, zi, Li, Le$1, Me$1, qi, Vi, Ji, Xi], Yi = 64, mr = St.RegExp;
+function yr(e) {
+  const t = new TextEncoder().encode(e), r = t.length, n = r.toString(16), a = "00000000".substring(0, 8 - n.length) + n, o = new TextEncoder().encode(`;0x${a};`), i = new Uint8Array(12 + r);
+  return i.set(o), i.set(t, 12), i;
+}
+function lt(e, t) {
+  return new ReadableStream({ start(r) {
+    vi(t, { scopeId: e, plugins: Te$1, onSerialize(n, a) {
+      r.enqueue(yr(a ? `(${Kn(e)},${n})` : n));
+    }, onDone() {
+      r.close();
+    }, onError(n) {
+      r.error(n);
+    } });
   } });
 }
-var Rr = ["<span", ' style="font-size:1.5em;text-align:center;position:fixed;left:0px;bottom:55%;width:100%;">', "</span>"], Er = ["<span", ' style="font-size:1.5em;text-align:center;position:fixed;left:0px;bottom:55%;width:100%;">500 | Internal Server Error</span>'];
-const Sr = (e) => {
-  const t = isServer ? "500 | Internal Server Error" : "Error | Uncaught Client Exception";
-  return createComponent$1(ErrorBoundary, { fallback: (r) => (console.error(r), [ssr(Rr, ssrHydrationKey(), escape(t)), createComponent$1(u, { code: 500 })]), get children() {
-    return e.children;
+function Ki(e) {
+  return new ReadableStream({ start(t) {
+    Ri(e, { disabledFeatures: mr, depthLimit: Yi, plugins: Te$1, onParse(r) {
+      t.enqueue(yr(JSON.stringify(r)));
+    }, onDone() {
+      t.close();
+    }, onError(r) {
+      t.error(r);
+    } });
   } });
-}, Ar = (e) => {
+}
+async function ft(e) {
+  return Si(JSON.parse(e), { plugins: Te$1, disabledFeatures: mr });
+}
+async function Qi(e) {
+  const t = bn(e), r = t.request, n = r.headers.get("X-Server-Id"), a = r.headers.get("X-Server-Instance"), o = r.headers.has("X-Single-Flight"), i = new URL(r.url);
+  let u, c;
+  if (n) gn(typeof n == "string", "Invalid server function"), [u, c] = decodeURIComponent(n).split("#");
+  else if (u = i.searchParams.get("id"), c = i.searchParams.get("name"), !u || !c) return new Response(null, { status: 404 });
+  const l = On[u];
+  let p;
+  if (!l) return new Response(null, { status: 404 });
+  p = await l.importer();
+  const d = p[l.functionName];
+  let w = [];
+  if (!a || e.method === "GET") {
+    const f = i.searchParams.get("args");
+    if (f) {
+      const A = await ft(f);
+      for (const re of A) w.push(re);
+    }
+  }
+  if (e.method === "POST") {
+    const f = r.headers.get("content-type"), A = e.node.req, re = A instanceof ReadableStream, br = A.body instanceof ReadableStream, wr = re && A.locked || br && A.body.locked, vr = re ? A : A.body, pe = wr ? r : new Request(r, { ...r, body: vr });
+    r.headers.get("x-serialized") ? w = await ft(await pe.text()) : (f == null ? void 0 : f.startsWith("multipart/form-data")) || (f == null ? void 0 : f.startsWith("application/x-www-form-urlencoded")) ? w.push(await pe.formData()) : (f == null ? void 0 : f.startsWith("application/json")) && (w = await pe.json());
+  }
+  try {
+    let f = await provideRequestEvent(t, async () => (sharedConfig.context = { event: t }, t.locals.serverFunctionMeta = { id: u + "#" + c }, d(...w)));
+    if (o && a && (f = await dt(t, f)), f instanceof Response) {
+      if (f.headers && f.headers.has("X-Content-Raw")) return f;
+      a && (f.headers && We$1(e, f.headers), f.status && (f.status < 300 || f.status >= 400) && ie$1(e, f.status), f.customBody ? f = await f.customBody() : f.body == null && (f = null));
+    }
+    if (!a) return pt(f, r, w);
+    return M$1(e, "x-serialized", "true"), M$1(e, "content-type", "text/javascript"), lt(a, f);
+    return Ki(f);
+  } catch (f) {
+    if (f instanceof Response) o && a && (f = await dt(t, f)), f.headers && We$1(e, f.headers), f.status && (!a || f.status < 300 || f.status >= 400) && ie$1(e, f.status), f.customBody ? f = f.customBody() : f.body == null && (f = null), M$1(e, "X-Error", "true");
+    else if (a) {
+      const A = f instanceof Error ? f.message : typeof f == "string" ? f : "true";
+      M$1(e, "X-Error", A.replace(/[\r\n]+/g, ""));
+    } else f = pt(f, r, w, true);
+    return a ? (M$1(e, "x-serialized", "true"), M$1(e, "content-type", "text/javascript"), lt(a, f)) : f;
+  }
+}
+function pt(e, t, r, n) {
+  const a = new URL(t.url), o = e instanceof Error;
+  let i = 302, u;
+  return e instanceof Response ? (u = new Headers(e.headers), e.headers.has("Location") && (u.set("Location", new URL(e.headers.get("Location"), a.origin + "").toString()), i = Hn(e))) : u = new Headers({ Location: new URL(t.headers.get("referer")).toString() }), e && u.append("Set-Cookie", `flash=${encodeURIComponent(JSON.stringify({ url: a.pathname + a.search, result: o ? e.message : e, thrown: n, error: o, input: [...r.slice(0, -1), [...r[r.length - 1].entries()]] }))}; Secure; HttpOnly;`), new Response(null, { status: i, headers: u });
+}
+let ve$1;
+function Zi(e) {
+  var _a2;
+  const t = new Headers(e.request.headers), r = an(e.nativeEvent), n = e.response.headers.getSetCookie();
+  t.delete("cookie");
+  let a = false;
+  return ((_a2 = e.nativeEvent.node) == null ? void 0 : _a2.req) && (a = true, e.nativeEvent.node.req.headers.cookie = ""), n.forEach((o) => {
+    if (!o) return;
+    const { maxAge: i, expires: u, name: c, value: l } = Wr(o);
+    if (i != null && i <= 0) {
+      delete r[c];
+      return;
+    }
+    if (u != null && u.getTime() <= Date.now()) {
+      delete r[c];
+      return;
+    }
+    r[c] = l;
+  }), Object.entries(r).forEach(([o, i]) => {
+    t.append("cookie", `${o}=${i}`), a && (e.nativeEvent.node.req.headers.cookie += `${o}=${i};`);
+  }), t;
+}
+async function dt(e, t) {
+  let r, n = new URL(e.request.headers.get("referer")).toString();
+  t instanceof Response && (t.headers.has("X-Revalidate") && (r = t.headers.get("X-Revalidate").split(",")), t.headers.has("Location") && (n = new URL(t.headers.get("Location"), new URL(e.request.url).origin + "").toString()));
+  const a = yn(e);
+  return a.request = new Request(n, { headers: Zi(e) }), await provideRequestEvent(a, async () => {
+    await Cn(a), ve$1 || (ve$1 = (await import('../build/app-BjtImgdv.mjs')).default), a.router.dataOnly = r || true, a.router.previousUrl = e.request.headers.get("referer");
+    try {
+      renderToString(() => {
+        sharedConfig.context.event = a, ve$1();
+      });
+    } catch (u) {
+      console.log(u);
+    }
+    const o = a.router.data;
+    if (!o) return t;
+    let i = false;
+    for (const u in o) o[u] === void 0 ? delete o[u] : i = true;
+    return i && (t instanceof Response ? t.customBody && (o._$value = t.customBody()) : (o._$value = t, t = new Response(null, { status: 200 })), t.customBody = () => o, t.headers.set("X-Single-Flight", "true")), t;
+  });
+}
+const fu = eventHandler(Qi);
+
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, key + "" , value);
+const ie = isServer ? (e) => {
+  const t = getRequestEvent();
+  return t.response.status = e.code, t.response.statusText = e.text, onCleanup(() => !t.nativeEvent.handled && !t.complete && (t.response.status = 200)), null;
+} : (e) => null;
+var ue = ["<span", ' style="font-size:1.5em;text-align:center;position:fixed;left:0px;bottom:55%;width:100%;">500 | Internal Server Error</span>'];
+const le = (e) => {
   let t = false;
   const r = catchError(() => e.children, (s) => {
     console.error(s), t = !!s;
   });
-  return t ? [ssr(Er, ssrHydrationKey()), createComponent$1(u, { code: 500 })] : r;
+  return t ? [ssr(ue, ssrHydrationKey()), createComponent$1(ie, { code: 500 })] : r;
 };
-var X = ["<script", ">", "<\/script>"], xr = ["<script", ' type="module"', " async", "><\/script>"], Tr = ["<script", ' type="module" async', "><\/script>"];
-const kr = ssr("<!DOCTYPE html>");
-function le(e, t, r = []) {
-  for (let s = 0; s < t.length; s++) {
-    const n = t[s];
-    if (n.path !== e[0].path) continue;
-    let o = [...r, n];
-    if (n.children) {
-      const a = e.slice(1);
-      if (a.length === 0 || (o = le(a, n.children, o), !o)) continue;
-    }
-    return o;
-  }
+var pe = " ";
+const he = { style: (e) => ssrElement("style", e.attrs, () => e.children, true), link: (e) => ssrElement("link", e.attrs, void 0, true), script: (e) => e.attrs.src ? ssrElement("script", mergeProps(() => e.attrs, { get id() {
+  return e.key;
+} }), () => ssr(pe), true) : null, noscript: (e) => ssrElement("noscript", e.attrs, () => escape(e.children), true) };
+function de(e, t) {
+  let { tag: r, attrs: { key: s, ...o } = { key: void 0 }, children: a } = e;
+  return he[r]({ attrs: { ...o, nonce: t }, key: s, children: a });
 }
-function Cr(e) {
+var D = ["<script", ">", "<\/script>"], w = ["<script", ' type="module"', "><\/script>"];
+const fe = ssr("<!DOCTYPE html>");
+function me(e) {
   const t = getRequestEvent(), r = t.nonce;
-  let s = [];
-  return Promise.resolve().then(async () => {
-    let n = [];
-    if (t.router && t.router.matches) {
-      const o = [...t.router.matches];
-      for (; o.length && (!o[0].info || !o[0].info.filesystem); ) o.shift();
-      const a = o.length && le(o, t.routes);
-      if (a) {
-        const i = globalThis.MANIFEST.client.inputs;
-        for (let l = 0; l < a.length; l++) {
-          const d = a[l], v = i[d.$component.src];
-          n.push(v.assets());
-        }
-      }
-    }
-    s = await Promise.all(n).then((o) => [...new Map(o.flat().map((a) => [a.attrs.key, a])).values()].filter((a) => a.attrs.rel === "modulepreload" && !t.assets.find((i) => i.attrs.key === a.attrs.key)));
-  }), useAssets(() => s.length ? s.map((n) => O(n)) : void 0), createComponent$1(NoHydration, { get children() {
-    return [kr, createComponent$1(Ar, { get children() {
+  return createComponent$1(NoHydration, { get children() {
+    return [fe, createComponent$1(le, { get children() {
       return createComponent$1(e.document, { get assets() {
-        return [createComponent$1(HydrationScript, {}), t.assets.map((n) => O(n, r))];
+        return t.assets.map((s) => de(s));
       }, get scripts() {
-        return r ? [ssr(X, ssrHydrationKey() + ssrAttribute("nonce", escape(r, true), false), `window.manifest = ${JSON.stringify(t.manifest)}`), ssr(xr, ssrHydrationKey(), ssrAttribute("nonce", escape(r, true), false), ssrAttribute("src", escape(globalThis.MANIFEST.client.inputs[globalThis.MANIFEST.client.handler].output.path, true), false))] : [ssr(X, ssrHydrationKey(), `window.manifest = ${JSON.stringify(t.manifest)}`), ssr(Tr, ssrHydrationKey(), ssrAttribute("src", escape(globalThis.MANIFEST.client.inputs[globalThis.MANIFEST.client.handler].output.path, true), false))];
-      }, get children() {
-        return createComponent$1(Hydration, { get children() {
-          return createComponent$1(Sr, { get children() {
-            return createComponent$1(wr, {});
-          } });
-        } });
+        return r ? [ssr(D, ssrHydrationKey() + ssrAttribute("nonce", escape(r, true), false), `window.manifest = ${JSON.stringify(t.manifest)}`), ssr(w, ssrHydrationKey(), ssrAttribute("src", escape(globalThis.MANIFEST.client.inputs[globalThis.MANIFEST.client.handler].output.path, true), false))] : [ssr(D, ssrHydrationKey(), `window.manifest = ${JSON.stringify(t.manifest)}`), ssr(w, ssrHydrationKey(), ssrAttribute("src", escape(globalThis.MANIFEST.client.inputs[globalThis.MANIFEST.client.handler].output.path, true), false))];
       } });
     } })];
   } });
 }
-var Pr = ['<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="icon" href="/favicon.svg" type="image/svg+xml">', "</head>"], Lr = ["<html", ' lang="es">', '<body><div id="app">', "</div><!--$-->", "<!--/--></body></html>"];
-const Wr = mr(() => createComponent$1(Cr, { document: ({ assets: e, children: t, scripts: r }) => ssr(Lr, ssrHydrationKey(), createComponent$1(NoHydration, { get children() {
-  return ssr(Pr, escape(e));
+function ge(e = {}) {
+  let t, r = false;
+  const s = (c) => {
+    if (t && t !== c) throw new Error("Context conflict");
+  };
+  let o;
+  if (e.asyncContext) {
+    const c = e.AsyncLocalStorage || globalThis.AsyncLocalStorage;
+    c ? o = new c() : console.warn("[unctx] `AsyncLocalStorage` is not provided.");
+  }
+  const a = () => {
+    if (o) {
+      const c = o.getStore();
+      if (c !== void 0) return c;
+    }
+    return t;
+  };
+  return { use: () => {
+    const c = a();
+    if (c === void 0) throw new Error("Context is not available");
+    return c;
+  }, tryUse: () => a(), set: (c, n) => {
+    n || s(c), t = c, r = true;
+  }, unset: () => {
+    t = void 0, r = false;
+  }, call: (c, n) => {
+    s(c), t = c;
+    try {
+      return o ? o.run(c, n) : n();
+    } finally {
+      r || (t = void 0);
+    }
+  }, async callAsync(c, n) {
+    t = c;
+    const u = () => {
+      t = c;
+    }, i = () => t === c ? u : void 0;
+    j.add(i);
+    try {
+      const p = o ? o.run(c, n) : n();
+      return r || (t = void 0), await p;
+    } finally {
+      j.delete(i);
+    }
+  } };
+}
+function Re(e = {}) {
+  const t = {};
+  return { get(r, s = {}) {
+    return t[r] || (t[r] = ge({ ...e, ...s })), t[r];
+  } };
+}
+const x = typeof globalThis < "u" ? globalThis : typeof self < "u" ? self : typeof global < "u" ? global : {}, I = "__unctx__", Pe = x[I] || (x[I] = Re()), ye = (e, t = {}) => Pe.get(e, t), E = "__unctx_async_handlers__", j = x[E] || (x[E] = /* @__PURE__ */ new Set());
+function xe(e) {
+  let t;
+  const r = _(e), s = { duplex: "half", method: e.method, headers: e.headers };
+  return e.node.req.body instanceof ArrayBuffer ? new Request(r, { ...s, body: e.node.req.body }) : new Request(r, { ...s, get body() {
+    return t || (t = je(e), t);
+  } });
+}
+function Ae(e) {
+  var _a;
+  return (_a = e.web) != null ? _a : e.web = { request: xe(e), url: _(e) }, e.web.request;
+}
+function He() {
+  return Ue();
+}
+const N = /* @__PURE__ */ Symbol("$HTTPEvent");
+function ve(e) {
+  return typeof e == "object" && (e instanceof H3Event || (e == null ? void 0 : e[N]) instanceof H3Event || (e == null ? void 0 : e.__is_event__) === true);
+}
+function l(e) {
+  return function(...t) {
+    var _a;
+    let r = t[0];
+    if (ve(r)) t[0] = r instanceof H3Event || r.__is_event__ ? r : r[N];
+    else {
+      if (!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext)) throw new Error("AsyncLocalStorage was not enabled. Use the `server.experimental.asyncContext: true` option in your app configuration to enable it. Or, pass the instance of HTTPEvent that you have as the first argument to the function.");
+      if (r = He(), !r) throw new Error("No HTTPEvent found in AsyncLocalStorage. Make sure you are using the function within the server runtime.");
+      t.unshift(r);
+    }
+    return e(...t);
+  };
+}
+const _ = l(getRequestURL), be = l(getRequestIP), M = l(setResponseStatus), S = l(getResponseStatus), De = l(getResponseStatusText), y = l(getResponseHeaders), T$1 = l(getResponseHeader), we = l(setResponseHeader), Ie = l(appendResponseHeader), Ee = l(sendRedirect), je = l(getRequestWebStream), Me = l(removeResponseHeader), Se = l(Ae);
+function Te() {
+  var _a;
+  return ye("nitro-app", { asyncContext: !!((_a = globalThis.app.config.server.experimental) == null ? void 0 : _a.asyncContext), AsyncLocalStorage: AsyncLocalStorage });
+}
+function Ue() {
+  return Te().use().event;
+}
+const g = { NORMAL: 0, WILDCARD: 1, PLACEHOLDER: 2 };
+function $e(e = {}) {
+  const t = { options: e, rootNode: L(), staticRoutesMap: {} }, r = (s) => e.strictTrailingSlash ? s : s.replace(/\/$/, "") || "/";
+  if (e.routes) for (const s in e.routes) U(t, r(s), e.routes[s]);
+  return { ctx: t, lookup: (s) => Ce(t, r(s)), insert: (s, o) => U(t, r(s), o), remove: (s) => Ne(t, r(s)) };
+}
+function Ce(e, t) {
+  const r = e.staticRoutesMap[t];
+  if (r) return r.data;
+  const s = t.split("/"), o = {};
+  let a = false, c = null, n = e.rootNode, u = null;
+  for (let i = 0; i < s.length; i++) {
+    const p = s[i];
+    n.wildcardChildNode !== null && (c = n.wildcardChildNode, u = s.slice(i).join("/"));
+    const R = n.children.get(p);
+    if (R === void 0) {
+      if (n && n.placeholderChildren.length > 1) {
+        const k = s.length - i;
+        n = n.placeholderChildren.find((O) => O.maxDepth === k) || null;
+      } else n = n.placeholderChildren[0] || null;
+      if (!n) break;
+      n.paramName && (o[n.paramName] = p), a = true;
+    } else n = R;
+  }
+  return (n === null || n.data === null) && c !== null && (n = c, o[n.paramName || "_"] = u, a = true), n ? a ? { ...n.data, params: a ? o : void 0 } : n.data : null;
+}
+function U(e, t, r) {
+  let s = true;
+  const o = t.split("/");
+  let a = e.rootNode, c = 0;
+  const n = [a];
+  for (const u of o) {
+    let i;
+    if (i = a.children.get(u)) a = i;
+    else {
+      const p = _e(u);
+      i = L({ type: p, parent: a }), a.children.set(u, i), p === g.PLACEHOLDER ? (i.paramName = u === "*" ? `_${c++}` : u.slice(1), a.placeholderChildren.push(i), s = false) : p === g.WILDCARD && (a.wildcardChildNode = i, i.paramName = u.slice(3) || "_", s = false), n.push(i), a = i;
+    }
+  }
+  for (const [u, i] of n.entries()) i.maxDepth = Math.max(n.length - u, i.maxDepth || 0);
+  return a.data = r, s === true && (e.staticRoutesMap[t] = a), a;
+}
+function Ne(e, t) {
+  let r = false;
+  const s = t.split("/");
+  let o = e.rootNode;
+  for (const a of s) if (o = o.children.get(a), !o) return r;
+  if (o.data) {
+    const a = s.at(-1) || "";
+    o.data = null, Object.keys(o.children).length === 0 && o.parent && (o.parent.children.delete(a), o.parent.wildcardChildNode = null, o.parent.placeholderChildren = []), r = true;
+  }
+  return r;
+}
+function L(e = {}) {
+  return { type: e.type || g.NORMAL, maxDepth: 0, parent: e.parent || null, children: /* @__PURE__ */ new Map(), data: e.data || null, paramName: e.paramName || null, wildcardChildNode: null, placeholderChildren: [] };
+}
+function _e(e) {
+  return e.startsWith("**") ? g.WILDCARD : e[0] === ":" || e === "*" ? g.PLACEHOLDER : g.NORMAL;
+}
+const q = [{ page: true, path: "/accounts/:id", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/accounts/[id].tsx" }, { page: true, path: "/accounts/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/accounts/index.tsx" }, { page: true, path: "/admin/gemini", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/admin/gemini.tsx" }, { page: true, path: "/banking/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/banking/index.tsx" }, { page: true, path: "/callback", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/callback.tsx" }, { page: true, path: "/employees/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/employees/index.tsx" }, { page: true, path: "/employees", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/employees.tsx" }, { page: true, path: "/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/index.tsx" }, { page: true, path: "/inventory/count", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/count.tsx" }, { page: true, path: "/inventory/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/index.tsx" }, { page: true, path: "/inventory/movements", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory/movements.tsx" }, { page: true, path: "/inventory", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/inventory.tsx" }, { page: true, path: "/journal/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/index.tsx" }, { page: true, path: "/journal/print", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/print.tsx" }, { page: true, path: "/journal/templates", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/journal/templates.tsx" }, { page: true, path: "/login", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/login.tsx" }, { page: true, path: "/providers/aging", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers/aging.tsx" }, { page: true, path: "/providers/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers/index.tsx" }, { page: true, path: "/providers", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/providers.tsx" }, { page: true, path: "/reports/audit", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/audit.tsx" }, { page: true, path: "/reports/balance-sheet", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/balance-sheet.tsx" }, { page: true, path: "/reports/cash-flow", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/cash-flow.tsx" }, { page: true, path: "/reports/income-statement", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/income-statement.tsx" }, { page: true, path: "/reports/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/index.tsx" }, { page: true, path: "/reports/monthly-pnl", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/monthly-pnl.tsx" }, { page: true, path: "/reports/trial-balance", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/trial-balance.tsx" }, { page: true, path: "/reports/year-close", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports/year-close.tsx" }, { page: true, path: "/reports", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/reports.tsx" }, { page: true, path: "/timesheets/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/index.tsx" }, { page: true, path: "/timesheets/stub/:id", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/stub/[id].tsx" }, { page: true, path: "/timesheets/w2", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets/w2.tsx" }, { page: true, path: "/timesheets", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/timesheets.tsx" }, { page: true, path: "/transactions/compras", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/compras.tsx" }, { page: true, path: "/transactions/facturacion", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/facturacion.tsx" }, { page: true, path: "/transactions/historial", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/historial.tsx" }, { page: true, path: "/transactions/", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/index.tsx" }, { page: true, path: "/transactions/invoice/:number", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/invoice/[number].tsx" }, { page: true, path: "/transactions/mermas", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions/mermas.tsx" }, { page: true, path: "/transactions", filePath: "/Users/hector/Documents/AIProjects/HRMfinance/src/routes/transactions.tsx" }];
+Le(q.filter((e) => e.page));
+function Le(e) {
+  function t(r, s, o, a) {
+    const c = Object.values(r).find((n) => o.startsWith(n.id + "/"));
+    return c ? (t(c.children || (c.children = []), s, o.slice(c.id.length)), r) : (r.push({ ...s, id: o, path: o.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/") }), r);
+  }
+  return e.sort((r, s) => r.path.length - s.path.length).reduce((r, s) => t(r, s, s.path, s.path), []);
+}
+function qe(e, t) {
+  const r = Oe.lookup(e);
+  if (r && r.route) {
+    const s = r.route, o = t === "HEAD" ? s.$HEAD || s.$GET : s[`$${t}`];
+    if (o === void 0) return;
+    const a = s.page === true && s.$component !== void 0;
+    return { handler: o, params: r.params, isPage: a };
+  }
+}
+function ke(e) {
+  return e.$HEAD || e.$GET || e.$POST || e.$PUT || e.$PATCH || e.$DELETE;
+}
+const Oe = $e({ routes: q.reduce((e, t) => {
+  if (!ke(t)) return e;
+  let r = t.path.replace(/\([^)/]+\)/g, "").replace(/\/+/g, "/").replace(/\*([^/]*)/g, (s, o) => `**:${o}`).split("/").map((s) => s.startsWith(":") || s.startsWith("*") ? s : encodeURIComponent(s)).join("/");
+  if (/:[^/]*\?/g.test(r)) throw new Error(`Optional parameters are not supported in API routes: ${r}`);
+  if (e[r]) throw new Error(`Duplicate API routes for "${r}" found at "${e[r].route.path}" and "${t.path}"`);
+  return e[r] = { route: t }, e;
+}, {}) }), H = "solidFetchEvent";
+function We(e) {
+  return { request: Se(e), response: Be(e), clientAddress: be(e), locals: {}, nativeEvent: e };
+}
+function Fe(e) {
+  if (!e.context[H]) {
+    const t = We(e);
+    e.context[H] = t;
+  }
+  return e.context[H];
+}
+class Ge {
+  constructor(t) {
+    __publicField(this, "event");
+    this.event = t;
+  }
+  get(t) {
+    const r = T$1(this.event, t);
+    return Array.isArray(r) ? r.join(", ") : r || null;
+  }
+  has(t) {
+    return this.get(t) !== null;
+  }
+  set(t, r) {
+    return we(this.event, t, r);
+  }
+  delete(t) {
+    return Me(this.event, t);
+  }
+  append(t, r) {
+    Ie(this.event, t, r);
+  }
+  getSetCookie() {
+    const t = T$1(this.event, "Set-Cookie");
+    return Array.isArray(t) ? t : [t];
+  }
+  forEach(t) {
+    return Object.entries(y(this.event)).forEach(([r, s]) => t(Array.isArray(s) ? s.join(", ") : s, r, this));
+  }
+  entries() {
+    return Object.entries(y(this.event)).map(([t, r]) => [t, Array.isArray(r) ? r.join(", ") : r])[Symbol.iterator]();
+  }
+  keys() {
+    return Object.keys(y(this.event))[Symbol.iterator]();
+  }
+  values() {
+    return Object.values(y(this.event)).map((t) => Array.isArray(t) ? t.join(", ") : t)[Symbol.iterator]();
+  }
+  [Symbol.iterator]() {
+    return this.entries()[Symbol.iterator]();
+  }
+}
+function Be(e) {
+  return { get status() {
+    return S(e);
+  }, set status(t) {
+    M(e, t);
+  }, get statusText() {
+    return De(e);
+  }, set statusText(t) {
+    M(e, S(e), t);
+  }, headers: new Ge(e) };
+}
+const Ke = /* @__PURE__ */ new Set([301, 302, 303, 307, 308]);
+function ze(e) {
+  return e.status && Ke.has(e.status) ? e.status : 302;
+}
+function Je(e, t, r = {}, s) {
+  return eventHandler({ handler: (o) => {
+    const a = Fe(o);
+    return provideRequestEvent(a, async () => {
+      const c = qe(new URL(a.request.url).pathname, a.request.method);
+      if (c) {
+        const i = await c.handler.import(), p = a.request.method === "HEAD" ? i.HEAD || i.GET : i[a.request.method];
+        a.params = c.params || {}, sharedConfig.context = { event: a };
+        const R = await p(a);
+        if (R !== void 0) return R;
+        if (a.request.method !== "GET") throw new Error(`API handler for ${a.request.method} "${a.request.url}" did not return a response.`);
+        if (!c.isPage) return;
+      }
+      const n = await t(a), u = typeof r == "function" ? await r(n) : { ...r };
+      u.mode, u.nonce && (n.nonce = u.nonce);
+      {
+        const i = renderToString(() => (sharedConfig.context.event = n, e(n)), u);
+        if (n.complete = true, n.response && n.response.headers.get("Location")) {
+          const p = ze(n.response);
+          return Ee(o, n.response.headers.get("Location"), p);
+        }
+        return i;
+      }
+    });
+  } });
+}
+function Ye(e, t, r) {
+  return Je(e, Qe, t);
+}
+async function Qe(e) {
+  const t = globalThis.MANIFEST.client;
+  return Object.assign(e, { manifest: await t.json(), assets: [...await t.inputs[t.handler].assets()], routes: [], complete: false, $islands: /* @__PURE__ */ new Set() });
+}
+var Ve = ['<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="HRMfinance \u2014 contabilidad integral: plan de cuentas, diario, proveedores y clientes, inventario, n\xF3mina y conciliaci\xF3n bancaria."><meta name="theme-color" content="#0d9466"><link rel="icon" href="/favicon.ico"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous"><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"><title>HRMfinance</title><script src="https://accounts.google.com/gsi/client" async defer><\/script>', "</head>"], Xe = ["<html", ' lang="es">', '<body><div id="app">', "</div><!--$-->", "<!--/--></body></html>"];
+const nt = Ye(() => createComponent$1(me, { document: ({ assets: e, children: t, scripts: r }) => ssr(Xe, ssrHydrationKey(), createComponent$1(NoHydration, { get children() {
+  return ssr(Ve, escape(e));
 } }), escape(t), escape(r)) }));
 
 const handlers = [
-  { route: '', handler: _unn3Eh, lazy: false, middleware: true, method: undefined },
-  { route: '/_server', handler: Zt$1, lazy: false, middleware: true, method: undefined },
-  { route: '/', handler: Wr, lazy: false, middleware: true, method: undefined }
+  { route: '', handler: _CAqWBl, lazy: false, middleware: true, method: undefined },
+  { route: '/_server', handler: fu, lazy: false, middleware: true, method: undefined },
+  { route: '/', handler: nt, lazy: false, middleware: true, method: undefined }
 ];
 
 function createNitroApp() {
@@ -12957,5 +9568,5 @@ trapUnhandledNodeErrors();
 setupGracefulShutdown(listener, nitroApp);
 const nodeServer = {};
 
-export { $e as $, A, Ct$1 as C, De$1 as D, Ee$1 as E, Ie as I, K$2 as K, Mt$1 as M, Qe$2 as Q, Rt$1 as R, V$1 as V, Ze$2 as Z, a, o$1 as b, a$1 as c, i$1 as d, tt$2 as e, t$1 as f, Vt$1 as g, ot$2 as h, i, Ce$1 as j, k$1 as k, ke$1 as l, le$1 as m, nt$2 as n, o, ae$1 as p, Ve$2 as q, rt$2 as r, st$2 as s, t, u, et$2 as v, I$1 as w, xt$1 as x, nodeServer as y, zt$1 as z };
+export { au as a, nodeServer as n };
 //# sourceMappingURL=nitro.mjs.map
