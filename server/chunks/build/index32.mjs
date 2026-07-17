@@ -1,7 +1,7 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
-import { C as Ct, A as At, R as Rt, L as Lt, b as a, U as U$1, r, t } from '../nitro/nitro.mjs';
+import { x as xt, z as zt, R as Rt, M as Mt, a, V, i, o } from '../nitro/nitro.mjs';
 import { createMemo, For, Show } from 'solid-js';
-import { p } from './WorkCard-DVhptAHi.mjs';
+import { p } from './WorkCard-CVlMoXTU.mjs';
 import { y } from './createAsync-CBz8AaaQ.mjs';
 import 'node:http';
 import 'node:https';
@@ -20,9 +20,9 @@ import 'seroval-plugins/web';
 import '@solid-primitives/i18n';
 
 var L = ["<div", ' style="', '">', "</div>"], P = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', '</p><div class="scene-tabs" role="group"', "><a", ">", "</a><!--$-->", '<!--/--></div><div class="scene-tabs" role="group"', "><a", ">", "</a><!--$-->", "<!--/--></div><!--$-->", "<!--/--></section>"], j = ["<a", ">", "</a>"], k = ["<p", ' style="', '">', "</p>"];
-const z = U$1(() => r(), "trabajos"), H = U$1(() => t(), "materials");
+const z = V(() => i(), "trabajos"), H = V(() => o(), "materials");
 function U() {
-  const u = y(() => z()), $ = y(() => H()), [e] = Ct(), { t: s } = At(), d = createMemo(() => {
+  const u = y(() => z()), $ = y(() => H()), [e] = xt(), { t: s } = zt(), d = createMemo(() => {
     var _a;
     return ((_a = u()) != null ? _a : []).filter((r) => (!e.material || r.material === e.material) && (!e.espacio || r.espacio === e.espacio));
   }), c = (r, f) => {
@@ -31,7 +31,7 @@ function U() {
     const h = m.toString();
     return h ? `?${h}` : "/trabajos";
   };
-  return ssr(P, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(Rt, { children: "Trabajos \u2014 Granite Concepts Louisville" })), escape(createComponent(Lt, { name: "description", content: "Encimeras de granito y cuarzo instaladas en Louisville: cocinas, ba\xF1os, islas y barras." })), escape(s("trabajos.titulo")), ssrStyleProperty("max-width:", "38rem"), escape(s("trabajos.intro")), ssrAttribute("aria-label", escape(s("trabajos.filtroEspacio"), true), false), ssrAttribute("href", escape(c("espacio", void 0), true), false) + ssrAttribute("aria-current", e.espacio ? escape(void 0, true) : "true", false), escape(s("trabajos.todos")), escape(createComponent(For, { each: a, children: (r) => ssr(j, ssrHydrationKey() + ssrAttribute("href", escape(c("espacio", r), true), false) + ssrAttribute("aria-current", e.espacio === r ? "true" : escape(void 0, true), false), escape(s(`visualizador.escenas.${r}`))) })), ssrAttribute("aria-label", escape(s("trabajos.filtroMaterial"), true), false), ssrAttribute("href", escape(c("material", void 0), true), false) + ssrAttribute("aria-current", e.material ? escape(void 0, true) : "true", false), escape(s("trabajos.todos")), escape(createComponent(For, { get each() {
+  return ssr(P, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(Rt, { children: "Trabajos \u2014 Granite Concepts Louisville" })), escape(createComponent(Mt, { name: "description", content: "Encimeras de granito y cuarzo instaladas en Louisville: cocinas, ba\xF1os, islas y barras." })), escape(s("trabajos.titulo")), ssrStyleProperty("max-width:", "38rem"), escape(s("trabajos.intro")), ssrAttribute("aria-label", escape(s("trabajos.filtroEspacio"), true), false), ssrAttribute("href", escape(c("espacio", void 0), true), false) + ssrAttribute("aria-current", e.espacio ? escape(void 0, true) : "true", false), escape(s("trabajos.todos")), escape(createComponent(For, { each: a, children: (r) => ssr(j, ssrHydrationKey() + ssrAttribute("href", escape(c("espacio", r), true), false) + ssrAttribute("aria-current", e.espacio === r ? "true" : escape(void 0, true), false), escape(s(`visualizador.escenas.${r}`))) })), ssrAttribute("aria-label", escape(s("trabajos.filtroMaterial"), true), false), ssrAttribute("href", escape(c("material", void 0), true), false) + ssrAttribute("aria-current", e.material ? escape(void 0, true) : "true", false), escape(s("trabajos.todos")), escape(createComponent(For, { get each() {
     var _a;
     return (_a = $()) != null ? _a : [];
   }, children: (r) => ssr(j, ssrHydrationKey() + ssrAttribute("href", escape(c("material", r.slug), true), false) + ssrAttribute("aria-current", e.material === r.slug ? "true" : escape(void 0, true), false), escape(r.nombre)) })), escape(createComponent(Show, { get when() {

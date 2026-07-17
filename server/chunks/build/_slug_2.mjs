@@ -1,8 +1,8 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 'solid-js/web';
 import { Show } from 'solid-js';
 import { u } from './HttpStatusCode-DH8IeaZe.mjs';
-import { J, H as H$1, F } from './index-Gy6Hlstv.mjs';
-import { f as tt, k, e as r } from '../nitro/nitro.mjs';
+import { Y, H as H$1, Q } from './index-CUDOCGCg.mjs';
+import { e as tt, k, d as i } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import { A } from './components-DxvOFfFE.mjs';
 import '@solid-primitives/i18n';
@@ -22,9 +22,9 @@ import 'seroval';
 import 'seroval-plugins/web';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = k(() => r(), "trabajos");
+const S = k(() => i(), "trabajos");
 function G() {
-  const c = tt(), i = y(() => S()), { t: m, lang: o } = J(), p = () => {
+  const c = tt(), i = y(() => S()), { t: m, lang: o } = Y(), p = () => {
     var _a;
     return (_a = i()) == null ? void 0 : _a.find((t) => t.slug === c.slug);
   };
@@ -36,7 +36,7 @@ function G() {
     } })))];
   }, children: (t) => [createComponent(H$1, { get children() {
     return `${t().titulo[o()]} \u2014 Granite Concepts`;
-  } }), createComponent(F, { name: "description", get content() {
+  } }), createComponent(Q, { name: "description", get content() {
     return t().desc[o()];
   } }), ssr(H, ssrHydrationKey(), escape(t().titulo[o()])), ssr(n, ssrHydrationKey(), escape(t().desc[o()]))] })));
 }

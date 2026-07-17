@@ -1,8 +1,8 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
-import { J, H, F as F$1 } from './index-Gy6Hlstv.mjs';
+import { Y, H, Q } from './index-CUDOCGCg.mjs';
 import { Show, For } from 'solid-js';
-import { k, c as t } from '../nitro/nitro.mjs';
-import { w as w$1 } from './images-B43p2foP2.mjs';
+import { k, b as o } from '../nitro/nitro.mjs';
+import { m } from './images-BZgZFbVl2.mjs';
 import { A as A$1 } from './components-DxvOFfFE.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import '@solid-primitives/i18n';
@@ -23,21 +23,21 @@ import 'seroval-plugins/web';
 
 var w = ["<img", ' alt="', '" width="120" height="120" loading="lazy">'], b = ["<div", ' class="material-row-body"><h2>', '</h2><p class="material-row-meta"><span class="material-row-tipo">', "</span> \xB7 <!--$-->", "<!--/--> \xB7 <!--$-->", '<!--/--></p><p class="material-row-desc">', "</p></div>"];
 function M(t) {
-  const { lang: i } = J();
+  const { t: i, lang: s } = Y();
   return createComponent(A$1, { get href() {
     return `/materiales/${t.material.slug}`;
   }, class: "material-row", get children() {
-    return [ssr(w, ssrHydrationKey() + ssrAttribute("src", escape(w$1(t.material.slug), true), false), `Textura de ${escape(t.material.nombre, true)}`), ssr(b, ssrHydrationKey(), escape(t.material.nombre), escape(t.material.tipo), escape(t.material.tono), escape("$".repeat(t.material.nivel)), escape(t.material.desc[i()]))];
+    return [ssr(w, ssrHydrationKey() + ssrAttribute("src", escape(m(t.material.slug), true), false), `Textura de ${escape(t.material.nombre, true)}`), ssr(b, ssrHydrationKey(), escape(t.material.nombre), escape(i(`valores.tipo.${t.material.tipo}`)), escape(i(`valores.tono.${t.material.tono}`)), escape("$".repeat(t.material.nivel)), escape(t.material.desc[s()]))];
   } });
 }
 var C = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', "</p><!--$-->", "<!--/--></section>"], x = ["<div", ' style="', '">', "</div>"];
-const A = k(() => t(), "materials");
+const A = k(() => o(), "materials");
 function F() {
-  const t = y(() => A()), { t: i } = J();
-  return ssr(C, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H, { children: "Materiales \u2014 Granite Concepts Louisville" })), escape(createComponent(F$1, { name: "description", content: "Cat\xE1logo de granito, cuarzo y m\xE1rmol para encimeras en Louisville, KY: Carrara, Calacatta, Ubatuba, Negro Absoluto y m\xE1s." })), escape(i("catalogo.titulo")), ssrStyleProperty("max-width:", "38rem"), escape(i("catalogo.intro")), escape(createComponent(Show, { get when() {
+  const t = y(() => A()), { t: i } = Y();
+  return ssr(C, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H, { children: "Materiales \u2014 Granite Concepts Louisville" })), escape(createComponent(Q, { name: "description", content: "Cat\xE1logo de granito, cuarzo y m\xE1rmol para encimeras en Louisville, KY: Carrara, Calacatta, Ubatuba, Negro Absoluto y m\xE1s." })), escape(i("catalogo.titulo")), ssrStyleProperty("max-width:", "38rem"), escape(i("catalogo.intro")), escape(createComponent(Show, { get when() {
     return t();
-  }, children: (m) => ssr(x, ssrHydrationKey(), ssrStyleProperty("display:", "grid") + ssrStyleProperty(";grid-template-columns:", "repeat(auto-fit, minmax(min(20rem, 100%), 1fr))") + ssrStyleProperty(";gap:", "var(--sp-2)") + ssrStyleProperty(";margin-top:", "var(--sp-4)"), escape(createComponent(For, { get each() {
-    return m();
+  }, children: (s) => ssr(x, ssrHydrationKey(), ssrStyleProperty("display:", "grid") + ssrStyleProperty(";grid-template-columns:", "repeat(auto-fit, minmax(min(20rem, 100%), 1fr))") + ssrStyleProperty(";gap:", "var(--sp-2)") + ssrStyleProperty(";margin-top:", "var(--sp-4)"), escape(createComponent(For, { get each() {
+    return s();
   }, children: (n) => createComponent(M, { material: n }) }))) })));
 }
 

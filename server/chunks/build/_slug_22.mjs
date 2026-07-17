@@ -1,6 +1,6 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 'solid-js/web';
 import { Show } from 'solid-js';
-import { x as xt, A as At, R as Rt, L as Lt, u, a as A, U, r } from '../nitro/nitro.mjs';
+import { C as Ct, z as zt, R as Rt, M as Mt, u, A, V, i } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ.mjs';
 import 'node:http';
 import 'node:https';
@@ -19,9 +19,9 @@ import 'seroval-plugins/web';
 import '@solid-primitives/i18n';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = U(() => r(), "trabajos");
+const S = V(() => i(), "trabajos");
 function G() {
-  const c = xt(), i = y(() => S()), { t: l, lang: o } = At(), p = () => {
+  const c = Ct(), i = y(() => S()), { t: l, lang: o } = zt(), p = () => {
     var _a;
     return (_a = i()) == null ? void 0 : _a.find((t) => t.slug === c.slug);
   };
@@ -33,7 +33,7 @@ function G() {
     } })))];
   }, children: (t) => [createComponent(Rt, { get children() {
     return `${t().titulo[o()]} \u2014 Granite Concepts`;
-  } }), createComponent(Lt, { name: "description", get content() {
+  } }), createComponent(Mt, { name: "description", get content() {
     return t().desc[o()];
   } }), ssr(H, ssrHydrationKey(), escape(t().titulo[o()])), ssr(n, ssrHydrationKey(), escape(t().desc[o()]))] })));
 }

@@ -1,7 +1,7 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent, ssrAttribute } from 'solid-js/web';
-import { J, H as H$1, F } from './index-Gy6Hlstv.mjs';
+import { Y, H as H$1, Q } from './index-CUDOCGCg.mjs';
 import { Show, createSignal, For } from 'solid-js';
-import { n as nt, k as k$1, c as t } from '../nitro/nitro.mjs';
+import { n as nt, k as k$1, b as o } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
 import '@solid-primitives/i18n';
 import 'node:http';
@@ -23,7 +23,7 @@ var f = ["<p", ' class="qf-error" role="alert">', "</p>"], P = ["<p", ' class="q
 const C = ["cocina", "bano", "isla", "barra", "otro"];
 function j(c) {
   var _a;
-  const { t, lang: u } = J(), [d] = nt(), [m, M] = createSignal("idle"), [n, T] = createSignal({});
+  const { t, lang: u } = Y(), [d] = nt(), [m, M] = createSignal("idle"), [n, T] = createSignal({});
   return ssr(S, ssrHydrationKey(), escape(t("cotizacion.nombre")), ssrAttribute("aria-invalid", !!n().nombre, false), escape(createComponent(Show, { get when() {
     return n().nombre;
   }, get children() {
@@ -45,10 +45,10 @@ function j(c) {
   } })));
 }
 var k = ["<section", ' class="container" style="', '"><!--$-->', "<!--/--><!--$-->", "<!--/--><h1>", '</h1><p style="', '">', "</p><!--$-->", "<!--/--></section>"];
-const A = k$1(() => t(), "materials");
+const A = k$1(() => o(), "materials");
 function H() {
-  const { t: c } = J(), t = y(() => A());
-  return ssr(k, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H$1, { children: "Cotizaci\xF3n gratis \u2014 Granite Concepts Louisville" })), escape(createComponent(F, { name: "description", content: "Cotizaci\xF3n gratuita de encimeras de granito, cuarzo y m\xE1rmol en Louisville, KY. Atenci\xF3n en espa\xF1ol e ingl\xE9s." })), escape(c("cotizacion.titulo")), ssrStyleProperty("max-width:", "34rem"), escape(c("cotizacion.intro")), escape(createComponent(Show, { get when() {
+  const { t: c } = Y(), t = y(() => A());
+  return ssr(k, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(H$1, { children: "Cotizaci\xF3n gratis \u2014 Granite Concepts Louisville" })), escape(createComponent(Q, { name: "description", content: "Cotizaci\xF3n gratuita de encimeras de granito, cuarzo y m\xE1rmol en Louisville, KY. Atenci\xF3n en espa\xF1ol e ingl\xE9s." })), escape(c("cotizacion.titulo")), ssrStyleProperty("max-width:", "34rem"), escape(c("cotizacion.intro")), escape(createComponent(Show, { get when() {
     return t();
   }, children: (u) => createComponent(j, { get materials() {
     return u();

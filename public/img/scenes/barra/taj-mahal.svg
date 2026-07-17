@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><pattern id="st-taj-mahal" patternUnits="userSpaceOnUse" width="300" height="200"><rect width="300" height="200" fill="#E8E0D2"/><polyline points="0,93 50,72 100,34 150,61 200,80 250,62 300,58" fill="none" stroke="#C9A87A" stroke-width="3.3" opacity="0.67" stroke-linecap="round"/><polyline points="0,16 50,67 100,30 150,18 200,48 250,79 300,29" fill="none" stroke="#C9A87A" stroke-width="2.6" opacity="0.60" stroke-linecap="round"/><polyline points="0,174 50,160 100,204 150,160 200,173 250,209 300,183" fill="none" stroke="#B0A48C" stroke-width="3.2" opacity="0.54" stroke-linecap="round"/><polyline points="0,89 50,137 100,106 150,119 200,118 250,134 300,120" fill="none" stroke="#C9A87A" stroke-width="1.6" opacity="0.40" stroke-linecap="round"/><polyline points="0,89 50,90 100,120 150,99 200,106 250,68 300,60" fill="none" stroke="#C9A87A" stroke-width="2.1" opacity="0.56" stroke-linecap="round"/><polyline points="0,67 50,62 100,39 150,53 200,10 250,29 300,18" fill="none" stroke="#B0A48C" stroke-width="3.5" opacity="0.37" stroke-linecap="round"/><polyline points="0,161 50,153 100,192 150,160 200,154 250,128 300,142" fill="none" stroke="#C9A87A" stroke-width="2.9" opacity="0.48" stroke-linecap="round"/></pattern></defs>
+    <rect width="1200" height="800" fill="#F1EEE9"/>
+    <rect x="200" y="150" width="800" height="26" fill="#C8A97E"/>
+    <rect x="200" y="300" width="800" height="26" fill="#C8A97E"/>
+    <rect x="260" y="90" width="44" height="60" fill="#FBFBFA" stroke="#DDD" stroke-width="3"/>
+    <rect x="330" y="96" width="44" height="54" fill="#FBFBFA" stroke="#DDD" stroke-width="3"/>
+    <rect x="640" y="230" width="120" height="70" fill="#2E3134"/>
+    <rect x="150" y="470" width="900" height="70" fill="url(#st-taj-mahal)"/>
+    <rect x="150" y="540" width="900" height="14" fill="#00000022"/></svg>

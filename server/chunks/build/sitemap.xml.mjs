@@ -1,4 +1,4 @@
-import { c as t, e as r } from '../nitro/nitro.mjs';
+import { b as o, d as i } from '../nitro/nitro.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -19,9 +19,9 @@ import '@solid-primitives/i18n';
 
 const n = "https://graniteconcepts.example";
 async function m() {
-  const [s, t$1] = await Promise.all([t(), r()]), e = `<?xml version="1.0" encoding="UTF-8"?>
+  const [s, t] = await Promise.all([o(), i()]), e = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${["/", "/materiales", "/trabajos", "/cotizacion", ...s.map((a) => `/materiales/${a.slug}`), ...t$1.map((a) => `/trabajos/${a.slug}`)].map((a) => `  <url><loc>${n}${a}</loc></url>`).join(`
+${["/", "/materiales", "/trabajos", "/cotizacion", ...s.map((a) => `/materiales/${a.slug}`), ...t.map((a) => `/trabajos/${a.slug}`)].map((a) => `  <url><loc>${n}${a}</loc></url>`).join(`
 `)}
 </urlset>`;
   return new Response(e, { headers: { "Content-Type": "application/xml" } });
