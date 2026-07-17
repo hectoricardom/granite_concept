@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"><defs><pattern id="st-smithtown" patternUnits="userSpaceOnUse" width="300" height="200"><rect width="300" height="200" fill="#EDEDEA"/><polyline points="0,78 50,45 100,56 150,102 200,86 250,94 300,85" fill="none" stroke="#B9BCC0" stroke-width="1.6" opacity="0.46" stroke-linecap="round"/><polyline points="0,92 50,52 100,34 150,56 200,43 250,69 300,31" fill="none" stroke="#B9BCC0" stroke-width="2.2" opacity="0.39" stroke-linecap="round"/><polyline points="0,36 50,41 100,50 150,32 200,41 250,88 300,65" fill="none" stroke="#8C9095" stroke-width="2.9" opacity="0.43" stroke-linecap="round"/><polyline points="0,25 50,38 100,33 150,42 200,-18 250,1 300,29" fill="none" stroke="#B9BCC0" stroke-width="2.0" opacity="0.34" stroke-linecap="round"/><polyline points="0,87 50,113 100,139 150,129 200,139 250,144 300,123" fill="none" stroke="#B9BCC0" stroke-width="2.9" opacity="0.38" stroke-linecap="round"/><polyline points="0,31 50,22 100,80 150,27 200,26 250,33 300,72" fill="none" stroke="#8C9095" stroke-width="3.3" opacity="0.55" stroke-linecap="round"/><polyline points="0,109 50,112 100,155 150,95 200,146 250,100 300,133" fill="none" stroke="#B9BCC0" stroke-width="2.5" opacity="0.58" stroke-linecap="round"/></pattern></defs>
+    <rect width="1200" height="800" fill="#F4F3F1"/>
+    <rect x="0" y="640" width="1200" height="160" fill="#D9CDBC"/>
+    <rect x="80" y="120" width="280" height="220" fill="#E9EDF0" stroke="#C9D3D9" stroke-width="6"/>
+    <rect x="120" y="380" width="960" height="60" fill="url(#st-smithtown)"/>
+    <rect x="120" y="140" width="960" height="240" fill="url(#st-smithtown)" opacity="0.35"/>
+    <rect x="120" y="440" width="960" height="200" fill="#FAFAF8" stroke="#E3E6E8" stroke-width="4"/>
+    <rect x="560" y="470" width="90" height="130" fill="#EDEFF1"/>
+    <circle cx="700" cy="360" r="26" fill="#3A3D3F"/>
+    <ellipse cx="880" cy="372" rx="70" ry="14" fill="#FFFFFF" opacity="0.8"/>
+    <circle cx="855" cy="362" r="12" fill="#7FA06B"/><circle cx="885" cy="358" r="12" fill="#8FB07A"/><circle cx="912" cy="363" r="12" fill="#7FA06B"/></svg>
