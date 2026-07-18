@@ -237,7 +237,7 @@
     "isDynamicEntry": true
   },
   "src/routes/admin.tsx?pick=default&pick=$css": {
-    "file": "assets/admin-w7gt4h26.js",
+    "file": "assets/admin-B0TytEJE.js",
     "name": "admin",
     "src": "src/routes/admin.tsx?pick=default&pick=$css",
     "isEntry": true,
@@ -369,7 +369,7 @@
     ]
   },
   "virtual:$vinxi/handler/client": {
-    "file": "assets/client-DtHo6Siw.js",
+    "file": "assets/client-D9wHoV4n.js",
     "name": "client",
     "src": "virtual:$vinxi/handler/client",
     "isEntry": true,
