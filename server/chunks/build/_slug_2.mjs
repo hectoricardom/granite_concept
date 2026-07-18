@@ -1,11 +1,11 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 'solid-js/web';
 import { Show } from 'solid-js';
 import { u } from './HttpStatusCode-DH8IeaZe.mjs';
-import { Y, H as H$1, Q } from './index-CUDOCGCg.mjs';
-import { e as tt, k, d as i } from '../nitro/nitro.mjs';
+import { k, H as H$1 } from './index-BgYMpQL1.mjs';
+import { z as ze, m, i as y$1 } from '../nitro/nitro.mjs';
+import { C as C$1 } from './index-CctOUFvw.mjs';
 import { y } from './createAsync-CBz8AaaQ2.mjs';
-import { A } from './components-DxvOFfFE.mjs';
-import '@solid-primitives/i18n';
+import { A } from './components-CDQikSFO.mjs';
 import 'node:http';
 import 'node:https';
 import 'node:events';
@@ -20,26 +20,27 @@ import 'node:url';
 import 'solid-js/web/storage';
 import 'seroval';
 import 'seroval-plugins/web';
+import '@solid-primitives/i18n';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = k(() => i(), "trabajos");
-function G() {
-  const c = tt(), i = y(() => S()), { t: m, lang: o } = Y(), p = () => {
+const S = m(() => y$1(), "trabajos");
+function K() {
+  const m = ze(), i = y(() => S()), { t: p, lang: a } = C$1(), c = () => {
     var _a;
-    return (_a = i()) == null ? void 0 : _a.find((t) => t.slug === c.slug);
+    return (_a = i()) == null ? void 0 : _a.find((t) => t.slug === m.slug);
   };
   return ssr(_, ssrHydrationKey(), ssrStyleProperty("padding-block:", "var(--sp-5)"), escape(createComponent(Show, { get when() {
-    return p();
+    return c();
   }, get fallback() {
     return [createComponent(u, { code: 404 }), ssr(C, ssrHydrationKey()), ssr(n, ssrHydrationKey(), escape(createComponent(A, { href: "/trabajos", get children() {
-      return m("trabajos.titulo");
+      return p("trabajos.titulo");
     } })))];
-  }, children: (t) => [createComponent(H$1, { get children() {
-    return `${t().titulo[o()]} \u2014 Granite Concepts`;
-  } }), createComponent(Q, { name: "description", get content() {
-    return t().desc[o()];
-  } }), ssr(H, ssrHydrationKey(), escape(t().titulo[o()])), ssr(n, ssrHydrationKey(), escape(t().desc[o()]))] })));
+  }, children: (t) => [createComponent(k, { get children() {
+    return `${t().titulo[a()]} \u2014 Granite Concepts`;
+  } }), createComponent(H$1, { name: "description", get content() {
+    return t().desc[a()];
+  } }), ssr(H, ssrHydrationKey(), escape(t().titulo[a()])), ssr(n, ssrHydrationKey(), escape(t().desc[a()]))] })));
 }
 
-export { G as default };
+export { K as default };
 //# sourceMappingURL=_slug_2.mjs.map

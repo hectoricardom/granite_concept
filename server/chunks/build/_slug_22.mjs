@@ -1,6 +1,6 @@
 import { ssr, ssrHydrationKey, ssrStyleProperty, escape, createComponent } from 'solid-js/web';
 import { Show } from 'solid-js';
-import { C as Ct, z as zt, R as Rt, M as Mt, u, A, V, i } from '../nitro/nitro.mjs';
+import { d as ot, o as oe, h as ht, p as pt, u, A, E, y as y$1 } from '../nitro/nitro.mjs';
 import { y } from './createAsync-CBz8AaaQ.mjs';
 import 'node:http';
 import 'node:https';
@@ -19,9 +19,9 @@ import 'seroval-plugins/web';
 import '@solid-primitives/i18n';
 
 var _ = ["<section", ' class="container" style="', '">', "</section>"], C = ["<h1", ">404</h1>"], n = ["<p", ">", "</p>"], H = ["<h1", ">", "</h1>"];
-const S = V(() => i(), "trabajos");
-function G() {
-  const c = Ct(), i = y(() => S()), { t: l, lang: o } = zt(), p = () => {
+const S = E(() => y$1(), "trabajos");
+function I() {
+  const c = ot(), i = y(() => S()), { t: m, lang: a } = oe(), p = () => {
     var _a;
     return (_a = i()) == null ? void 0 : _a.find((t) => t.slug === c.slug);
   };
@@ -29,14 +29,14 @@ function G() {
     return p();
   }, get fallback() {
     return [createComponent(u, { code: 404 }), ssr(C, ssrHydrationKey()), ssr(n, ssrHydrationKey(), escape(createComponent(A, { href: "/trabajos", get children() {
-      return l("trabajos.titulo");
+      return m("trabajos.titulo");
     } })))];
-  }, children: (t) => [createComponent(Rt, { get children() {
-    return `${t().titulo[o()]} \u2014 Granite Concepts`;
-  } }), createComponent(Mt, { name: "description", get content() {
-    return t().desc[o()];
-  } }), ssr(H, ssrHydrationKey(), escape(t().titulo[o()])), ssr(n, ssrHydrationKey(), escape(t().desc[o()]))] })));
+  }, children: (t) => [createComponent(ht, { get children() {
+    return `${t().titulo[a()]} \u2014 Granite Concepts`;
+  } }), createComponent(pt, { name: "description", get content() {
+    return t().desc[a()];
+  } }), ssr(H, ssrHydrationKey(), escape(t().titulo[a()])), ssr(n, ssrHydrationKey(), escape(t().desc[a()]))] })));
 }
 
-export { G as default };
+export { I as default };
 //# sourceMappingURL=_slug_22.mjs.map
